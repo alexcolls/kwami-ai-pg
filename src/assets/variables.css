@@ -1,0 +1,46 @@
+/* =====================================================
+   CSS VARIABLES - Design Tokens
+   ===================================================== */
+
+:root {
+  /* Glass panel theme */
+  --glass-bg: rgba(12, 14, 24, 0.85);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-highlight: rgba(255, 255, 255, 0.04);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  --glass-blur: 24px;
+
+  /* Colors */
+  --text-primary: #f0f2f8;
+  --text-secondary: #9498a8;
+  --text-muted: #5a5e70;
+
+  --accent-primary: #7c5cff;
+  --accent-secondary: #5c9cff;
+  --accent-glow: rgba(124, 92, 255, 0.25);
+  --accent-hover: #9478ff;
+
+  --surface-1: rgba(255, 255, 255, 0.03);
+  --surface-2: rgba(255, 255, 255, 0.06);
+  --surface-3: rgba(255, 255, 255, 0.1);
+  --surface-4: rgba(255, 255, 255, 0.15);
+
+  --success: #4ade80;
+  --warning: #fbbf24;
+  --error: #f87171;
+
+  /* Typography */
+  font-family:
+    'Inter',
+    'SF Pro Display',
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  color: var(--text-primary);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}

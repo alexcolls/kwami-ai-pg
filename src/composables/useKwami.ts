@@ -1,0 +1,107 @@
+import { shallowRef, ref } from 'vue';
+import { Kwami } from 'kwami-ai';
+
+declare global {
+  interface Window {
+    kwami: Kwami | null;
+  }
+}
+
+// Singleton state
+const kwamiInstance = shallowRef<Kwami | null>(null);
+const rendererType = ref<'blob' | 'crystal'>('blob');
+const isConnected = ref(false);
+
+export function useKwami() {
+  function init(canvas: HTMLCanvasElement, renderer: 'blob' | 'crystal' = 'blob') {
+    rendererType.value = renderer;
+
+    const config = {
+      avatar: {
+        renderer: renderer,
+        blob: {
+          colors: { x: '#ff0066', y: '#00ff66', z: '#6600ff' },
+          spikes: { x: 0.3, y: 0.3, z: 0.3 },
+          rotation: { x: 0.002, y: 0.003, z: 0.001 },
+        },
+        crystal: {
+          formation: { formation: 'constellation' },
+          colors: {
+            primary: '#00e5ff',
+            secondary: '#7c4dff',
+            accent: '#ff4081',
+          },
+          shards: { count: 28 },
+          core: {
+            size: 0.8,
+            glowIntensity: 1.4,
+            innerColor: '#ffffff',
+            outerColor: '#00ffff',
+          },
+          scale: 1.0,
+          rotation: { x: 0, y: 0.002, z: 0 },
+        },
+        scene: {
+          background: {
+            type: 'gradient',
+            gradient: {
+              colors:
+                renderer === 'crystal'
+                  ? ['#050510', '#0a0a20', '#050510']
+                  : ['#0a0a1a', '#1a1a3a', '#0a0a1a'],
+              direction: 'radial',
+            },
+          },
+        },
+      },
+      agent: {
+        adapter: 'livekit',
+        livekit: {
+          url: import.meta.env.VITE_LIVEKIT_URL || '',
+          apiKey: import.meta.env.VITE_LIVEKIT_API_KEY || '',
+          apiSecret: import.meta.env.VITE_LIVEKIT_API_SECRET || '',
+          tokenEndpoint: import.meta.env.VITE_LIVEKIT_TOKEN_ENDPOINT || '',
+        },
+      },
+      persona: {
+        name: 'Kwami',
+        personality: 'A friendly and helpful AI companion',
+        traits: ['friendly', 'helpful', 'curious'],
+        conversationStyle: 'friendly',
+        responseLength: 'medium',
+        emotionalTone: 'warm',
+      },
+      memory: {
+        adapter: 'zep',
+        zep: {
+          apiKey: import.meta.env.VITE_ZEP_API_KEY || '',
+          baseUrl: import.meta.env.VITE_ZEP_BASE_URL || '',
+        },
+      },
+    };
+
+    // @ts-expect-error - Kwami type mismatch in current version
+    kwamiInstance.value = new Kwami(canvas, config);
+
+    // Expose for debugging
+    window.kwami = kwamiInstance.value;
+  }
+
+  function switchRenderer(newRenderer: 'blob' | 'crystal') {
+    // For now, we might need to reload the page or re-init logic as per legacy
+    // Legacy reloads page via query param.
+    // Ideally we should just re-init if Kwami supports it, or reload page.
+    // Let's implement full page reload for now to match legacy behavior safely
+    const url = new URL(window.location.href);
+    url.searchParams.set('renderer', newRenderer);
+    window.location.href = url.toString();
+  }
+
+  return {
+    kwami: kwamiInstance,
+    rendererType,
+    isConnected,
+    init,
+    switchRenderer,
+  };
+}

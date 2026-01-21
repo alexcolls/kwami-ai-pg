@@ -1,0 +1,486 @@
+<script setup lang="ts">
+import { ref, onMounted, onUnmounted } from 'vue';
+import { useKwami } from '@/composables/useKwami';
+
+import { Kwami } from 'kwami-ai';
+
+const { kwami } = useKwami();
+
+// State
+const currentState = ref('idle');
+const isConnected = ref(false);
+const fps = ref(0);
+const version = ref('v0.0.0'); // Default
+
+// FPS Counter
+let frames = 0;
+let lastTime = performance.now();
+let rafId: number;
+
+function updateFPS() {
+  frames++;
+  const now = performance.now();
+  if (now - lastTime >= 1000) {
+    fps.value = Math.round((frames * 1000) / (now - lastTime));
+    frames = 0;
+    lastTime = now;
+  }
+  rafId = requestAnimationFrame(updateFPS);
+}
+
+function updateState() {
+  if (kwami.value) {
+    currentState.value = kwami.value.getState();
+    isConnected.value = kwami.value.isConnected();
+  }
+}
+
+// Debug Actions
+function logState() {
+  if (!kwami.value) return;
+  const blob = kwami.value.avatar.getBlob();
+  console.group('🎮 Kwami Full State');
+  console.log('State:', kwami.value.getState());
+  console.log('Connected:', kwami.value.isConnected());
+  if (blob) {
+    console.group('Avatar');
+    console.log('Colors:', blob.getColors());
+    console.log('Spikes:', blob.getSpikes());
+    console.log('Rotation:', blob.getRotation());
+    console.log('Scale:', blob.getScale());
+    console.log('Skin:', blob.getCurrentSkinSubtype());
+    console.groupEnd();
+  }
+  console.group('Persona');
+  console.log('Name:', kwami.value.persona.getName());
+  console.log('Config:', kwami.value.persona.getConfig());
+  console.groupEnd();
+  console.group('Agent');
+  console.log('Config:', kwami.value.agent.getConfig());
+  console.groupEnd();
+  console.group('Memory');
+  console.log('Initialized:', kwami.value.memory.isInitialized());
+  console.log('Config:', kwami.value.memory.getConfig());
+  console.groupEnd();
+  console.group('Tools');
+  console.log('Tools:', kwami.value.tools.getAll());
+  console.groupEnd();
+  console.groupEnd();
+}
+
+function logConfig() {
+  if (!kwami.value) return;
+  console.group('⚙️ Kwami Configuration');
+  console.log('Agent:', kwami.value.agent.getConfig());
+  console.log('Persona:', kwami.value.persona.getConfig());
+  console.log('Memory:', kwami.value.memory.getConfig());
+  console.log('Tools:', kwami.value.tools.getAll());
+  console.groupEnd();
+}
+
+// Events
+const onStateChanged = () => updateState();
+const onConnected = () => updateState();
+const onDisconnected = () => updateState();
+
+onMounted(() => {
+  updateState();
+  updateFPS();
+
+  // Attempt to get version if available
+  try {
+    if (Kwami.getVersion) version.value = `v${Kwami.getVersion()}`;
+  } catch {
+    /* ignore */
+  }
+
+  window.addEventListener('kwami:stateChanged', onStateChanged);
+  window.addEventListener('kwami:connected', onConnected);
+  window.addEventListener('kwami:disconnected', onDisconnected);
+});
+
+onUnmounted(() => {
+  cancelAnimationFrame(rafId);
+  window.removeEventListener('kwami:stateChanged', onStateChanged);
+  window.removeEventListener('kwami:connected', onConnected);
+  window.removeEventListener('kwami:disconnected', onDisconnected);
+});
+</script>
+
+<template>
+  <div class="panel-inner">
+    <div class="panel-header">
+      <iconify-icon icon="ph:info-duotone" class="panel-icon"></iconify-icon>
+      <h2>Info</h2>
+    </div>
+
+    <div class="panel-body">
+      <!-- Current State -->
+      <section class="panel-section">
+        <h3>Current State</h3>
+        <div class="info-grid">
+          <div class="info-item">
+            <span class="info-label">State</span>
+            <span class="info-value">{{ currentState }}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Connected</span>
+            <span class="info-value">{{ isConnected ? 'Yes' : 'No' }}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">FPS</span>
+            <span class="info-value">{{ fps }}</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Version Info -->
+      <section class="panel-section">
+        <h3>Version</h3>
+        <div class="version-info">
+          <div class="version-row">
+            <span>Kwami</span>
+            <span class="version-badge">{{ version }}</span>
+          </div>
+          <div class="version-row">
+            <span>Playground</span>
+            <span class="version-badge">v1.0.0</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Keyboard Shortcuts -->
+      <section class="panel-section">
+        <h3>Keyboard Shortcuts</h3>
+        <div class="shortcuts-list">
+          <div class="shortcut-group">
+            <span class="shortcut-group-title">Avatar Controls</span>
+            <div class="shortcut-item"><kbd>R</kbd> <span>Randomize blob</span></div>
+            <div class="shortcut-item"><kbd>L</kbd> <span>Listening mode</span></div>
+            <div class="shortcut-item"><kbd>T</kbd> <span>Thinking mode</span></div>
+            <div class="shortcut-item"><kbd>I</kbd> <span>Idle mode</span></div>
+          </div>
+          <div class="shortcut-group">
+            <span class="shortcut-group-title">Panel Navigation</span>
+            <div class="shortcut-item"><kbd>P</kbd> <span>Toggle panel</span></div>
+            <div class="shortcut-item"><kbd>1</kbd>-<kbd>8</kbd> <span>Switch panels</span></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Panel Guide (Simplified list) -->
+      <section class="panel-section">
+        <h3>Panel Guide</h3>
+        <div class="panel-guide">
+          <div class="guide-item">
+            <iconify-icon icon="ph:ghost-duotone"></iconify-icon>
+            <div><strong>Avatar</strong> <span>Visual blob</span></div>
+          </div>
+          <div class="guide-item">
+            <iconify-icon icon="ph:mountains-duotone"></iconify-icon>
+            <div><strong>Scene</strong> <span>Environment</span></div>
+          </div>
+          <div class="guide-item">
+            <iconify-icon icon="ph:waveform-duotone"></iconify-icon>
+            <div><strong>Audio</strong> <span>Sound/Reactivity</span></div>
+          </div>
+          <div class="guide-item">
+            <iconify-icon icon="ph:robot-duotone"></iconify-icon>
+            <div><strong>Agent</strong> <span>Connection</span></div>
+          </div>
+          <div class="guide-item">
+            <iconify-icon icon="ph:microphone-duotone"></iconify-icon>
+            <div><strong>Voice</strong> <span>Pipeline Config</span></div>
+          </div>
+          <div class="guide-item">
+            <iconify-icon icon="ph:sliders-duotone"></iconify-icon>
+            <div><strong>Enhance</strong> <span>Audio Process</span></div>
+          </div>
+          <div class="guide-item">
+            <iconify-icon icon="ph:user-circle-duotone"></iconify-icon>
+            <div><strong>Persona</strong> <span>Personality</span></div>
+          </div>
+          <div class="guide-item">
+            <iconify-icon icon="ph:brain-duotone"></iconify-icon>
+            <div><strong>Memory</strong> <span>Long-term memory</span></div>
+          </div>
+          <div class="guide-item">
+            <iconify-icon icon="ph:wrench-duotone"></iconify-icon>
+            <div><strong>Tools</strong> <span>Function calling</span></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Console Access -->
+      <section class="panel-section">
+        <h3>Console Access</h3>
+        <div class="console-info">
+          <code>window.kwami</code>
+          <p class="console-hint">Access the full Kwami instance from browser console.</p>
+        </div>
+      </section>
+
+      <!-- Debug Actions -->
+      <section class="panel-section">
+        <h3>Debug</h3>
+        <div class="action-buttons">
+          <button class="action-btn" @click="logState">
+            <iconify-icon icon="ph:terminal-window-duotone"></iconify-icon> Log Full State
+          </button>
+          <button class="action-btn" @click="logConfig">
+            <iconify-icon icon="ph:gear-duotone"></iconify-icon> Log Config
+          </button>
+        </div>
+      </section>
+
+      <!-- About -->
+      <section class="panel-section">
+        <h3>About Kwami</h3>
+        <p class="about-text">
+          Kwami is a 3D AI companion library featuring visual avatars, voice pipelines via LiveKit,
+          long-term memory with Zep, and extensible tools via MCP.
+        </p>
+        <div class="about-links">
+          <a href="#" class="about-link"
+            ><iconify-icon icon="ph:github-logo-duotone"></iconify-icon> GitHub</a
+          >
+          <a href="#" class="about-link"
+            ><iconify-icon icon="ph:book-open-duotone"></iconify-icon> Docs</a
+          >
+        </div>
+      </section>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+/* Info Grid */
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px;
+  background: var(--surface-1);
+  border-radius: 10px;
+  text-align: center;
+}
+
+.info-label {
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+}
+
+.info-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent-primary);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Version Info */
+.version-info {
+  background: var(--surface-1);
+  border-radius: 10px;
+  padding: 10px;
+}
+
+.version-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.version-badge {
+  padding: 2px 8px;
+  background: var(--accent-glow);
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--accent-primary);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Shortcuts List */
+.shortcuts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.shortcut-group {
+  margin-bottom: 12px;
+}
+
+.shortcut-group-title {
+  display: block;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.shortcut-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 6px;
+  background: var(--surface-2);
+  border: 1px solid var(--glass-border);
+  border-radius: 6px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-primary);
+  box-shadow: 0 2px 0 var(--surface-3);
+}
+
+/* Panel Guide */
+.panel-guide {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.guide-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  background: var(--surface-1);
+  border-radius: 8px;
+}
+
+.guide-item iconify-icon {
+  font-size: 18px;
+  color: var(--accent-primary);
+}
+
+.guide-item div {
+  display: flex;
+  flex-direction: column;
+}
+
+.guide-item strong {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.guide-item span {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+/* Console Info */
+.console-info {
+  background: var(--surface-1);
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.console-info code {
+  display: block;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  color: var(--accent-primary);
+  margin-bottom: 8px;
+}
+
+.console-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+/* Action Buttons */
+.action-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 16px;
+  font-size: 12px;
+  font-family: inherit;
+  font-weight: 500;
+  background: var(--surface-2);
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.action-btn iconify-icon {
+  font-size: 16px;
+}
+
+.action-btn:hover {
+  background: var(--surface-3);
+  color: var(--text-primary);
+  transform: translateY(-1px);
+}
+
+/* About */
+.about-text {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-bottom: 12px;
+}
+
+.about-links {
+  display: flex;
+  gap: 12px;
+}
+
+.about-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: var(--surface-1);
+  border-radius: 8px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.about-link:hover {
+  background: var(--surface-2);
+  color: var(--text-primary);
+}
+
+.about-link iconify-icon {
+  font-size: 16px;
+}
+</style>
