@@ -246,6 +246,7 @@ onMounted(() => {
     ((e: CustomEvent) => (activeState.value = e.detail)) as EventListener,
   );
   window.addEventListener('kwami:randomized', () => syncFromKwami());
+  window.addEventListener('kwami:rendererChanged', () => syncFromKwami());
 });
 </script>
 

@@ -86,13 +86,23 @@ export function useKwami() {
   }
 
   function switchRenderer(newRenderer: 'blob' | 'crystal') {
-    // For now, we might need to reload the page or re-init logic as per legacy
-    // Legacy reloads page via query param.
-    // Ideally we should just re-init if Kwami supports it, or reload page.
-    // Let's implement full page reload for now to match legacy behavior safely
+    if (!kwamiInstance.value) {
+      console.warn('Cannot switch renderer: Kwami not initialized');
+      return;
+    }
+
+    // Use the Avatar's built-in switchRenderer method
+    kwamiInstance.value.avatar.switchRenderer(newRenderer);
+    rendererType.value = newRenderer;
+
+    // Update URL without reloading (for bookmarking/sharing)
     const url = new URL(window.location.href);
     url.searchParams.set('renderer', newRenderer);
-    window.location.href = url.toString();
+    window.history.replaceState({}, '', url.toString());
+
+    // Dispatch event for UI sync
+    window.dispatchEvent(new CustomEvent('kwami:rendererChanged', { detail: newRenderer }));
+    console.log(`🔄 Switched to ${newRenderer} renderer`);
   }
 
   return {
