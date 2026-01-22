@@ -209,7 +209,7 @@ function getGradient(colors: { x: string; y: string; z: string }) {
   padding: 10px;
   background: var(--glass-bg);
   border: 1px solid var(--glass-border);
-  border-radius: 16px;
+  border-radius: var(--radius-xl);
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
   box-shadow: var(--glass-shadow);
@@ -241,24 +241,24 @@ function getGradient(colors: { x: string; y: string; z: string }) {
   justify-content: center;
   background: var(--surface-1);
   border: 1px solid transparent;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   color: var(--text-secondary);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all var(--duration-fast) var(--ease-out);
   font-size: 20px;
 }
 
 .nav-btn:hover {
   background: var(--surface-2);
   color: var(--text-primary);
-  transform: scale(1.05);
+  transform: scale(1.08);
 }
 
 .nav-btn.active {
   background: var(--accent-glow);
   border-color: var(--accent-primary);
   color: var(--accent-primary);
-  box-shadow: 0 0 20px var(--accent-glow);
+  box-shadow: 0 0 20px var(--accent-glow), 0 0 0 1px rgba(0, 217, 255, 0.2) inset;
 }
 
 .toggle-btn {
@@ -284,16 +284,16 @@ function getGradient(colors: { x: string; y: string; z: string }) {
   justify-content: center;
   background: var(--surface-1);
   border: 2px solid var(--accent-primary);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all var(--duration-fast) var(--ease-out);
   padding: 4px;
-  box-shadow: 0 0 12px var(--accent-glow);
+  box-shadow: 0 0 16px var(--accent-glow);
 }
 
 .kwami-active-btn:hover {
-  transform: scale(1.05);
-  box-shadow: 0 0 20px var(--accent-glow);
+  transform: scale(1.08);
+  box-shadow: 0 0 24px var(--accent-glow);
 }
 
 .kwami-selector.expanded .kwami-active-btn {
@@ -310,19 +310,19 @@ function getGradient(colors: { x: string; y: string; z: string }) {
 .kwami-tray {
   position: absolute;
   top: -10px;
-  left: calc(100% + 22px); /* 10px padding + 12px gap */
+  left: calc(100% + 22px);
   background: var(--glass-bg);
   border: 1px solid var(--glass-border);
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
   box-shadow: var(--glass-shadow);
-  padding: 10px;
-  min-width: 180px;
+  padding: 12px;
+  min-width: 200px;
   opacity: 0;
   visibility: hidden;
   transform: translateX(-10px);
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all var(--duration-normal) var(--ease-out);
   z-index: 100;
   pointer-events: none;
 }
@@ -364,18 +364,20 @@ function getGradient(colors: { x: string; y: string; z: string }) {
   padding: 8px 10px;
   background: var(--surface-1);
   border: 1px solid transparent;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all var(--duration-fast) var(--ease-out);
 }
 
 .kwami-item:hover {
   background: var(--surface-2);
+  transform: translateX(2px);
 }
 
 .kwami-item.active {
   background: var(--accent-glow);
   border-color: var(--accent-primary);
+  box-shadow: 0 2px 12px var(--accent-glow);
 }
 
 .kwami-item-preview {
@@ -414,20 +416,22 @@ function getGradient(colors: { x: string; y: string; z: string }) {
   justify-content: center;
   gap: 6px;
   width: 100%;
-  padding: 8px;
-  margin-top: 8px;
+  padding: 10px;
+  margin-top: 10px;
   background: transparent;
   border: 1px dashed var(--glass-border);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   color: var(--text-muted);
   font-size: 12px;
+  font-family: inherit;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all var(--duration-fast) var(--ease-out);
 }
 
 .kwami-add-btn:hover {
-  background: var(--surface-1);
+  background: var(--accent-glow);
   border-color: var(--accent-primary);
+  border-style: solid;
   color: var(--accent-primary);
 }
 

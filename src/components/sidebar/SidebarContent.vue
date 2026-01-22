@@ -12,16 +12,16 @@
 
 <style scoped>
 .panel-column {
-  width: 300px;
+  width: 320px;
   max-height: 100%;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all var(--duration-slow) var(--ease-out);
 }
 
 .glass-panel {
   height: 100%;
   background: var(--glass-bg);
   border: 1px solid var(--glass-border);
-  border-radius: 20px;
+  border-radius: var(--radius-xl);
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
   box-shadow: var(--glass-shadow);
@@ -37,14 +37,14 @@
   top: 0;
   left: 0;
   right: 0;
-  height: 100px;
+  height: 120px;
   background: linear-gradient(
     180deg,
-    rgba(255, 255, 255, 0.03) 0%,
+    rgba(0, 217, 255, 0.02) 0%,
     transparent 100%
   );
   pointer-events: none;
-  border-radius: 20px 20px 0 0;
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
 }
 
 .panel-content-wrapper {
