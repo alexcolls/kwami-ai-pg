@@ -58,8 +58,6 @@ export function useKwami() {
         adapter: 'livekit',
         livekit: {
           url: import.meta.env.VITE_LIVEKIT_URL || '',
-          apiKey: import.meta.env.VITE_LIVEKIT_API_KEY || '',
-          apiSecret: import.meta.env.VITE_LIVEKIT_API_SECRET || '',
           tokenEndpoint: import.meta.env.VITE_LIVEKIT_TOKEN_ENDPOINT || '',
         },
       },

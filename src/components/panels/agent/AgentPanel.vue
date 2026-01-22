@@ -7,12 +7,9 @@ import BaseInput from '@/components/ui/BaseInput.vue';
 
 const { kwami, isConnected } = useKwami();
 
-// Form State
-const authMode = ref<'local' | 'endpoint'>('local');
-const livekitUrl = ref('');
-const livekitApiKey = ref('');
-const livekitApiSecret = ref('');
-const livekitTokenEndpoint = ref('');
+// Form State - defaults from .env
+const livekitUrl = ref(import.meta.env.VITE_LIVEKIT_URL || '');
+const livekitTokenEndpoint = ref(import.meta.env.VITE_LIVEKIT_TOKEN_ENDPOINT || '');
 const roomName = ref('kwami-playground');
 const userId = ref('playground_user');
 
@@ -48,25 +45,16 @@ async function handleConnect() {
     return;
   }
 
-  let livekitConfig: Record<string, unknown> = { url: livekitUrl.value, roomName: roomName.value };
-
-  if (authMode.value === 'local') {
-    if (!livekitApiKey.value || !livekitApiSecret.value) {
-      alert('Please provide API Key and Secret');
-      return;
-    }
-    livekitConfig = {
-      ...livekitConfig,
-      apiKey: livekitApiKey.value,
-      apiSecret: livekitApiSecret.value,
-    };
-  } else {
-    if (!livekitTokenEndpoint.value) {
-      alert('Please provide Token Endpoint');
-      return;
-    }
-    livekitConfig = { ...livekitConfig, tokenEndpoint: livekitTokenEndpoint.value };
+  if (!livekitTokenEndpoint.value) {
+    alert('Please provide Token Endpoint URL');
+    return;
   }
+
+  const livekitConfig = {
+    url: livekitUrl.value,
+    roomName: roomName.value,
+    tokenEndpoint: livekitTokenEndpoint.value,
+  };
 
   try {
     if (kwami.value) {
@@ -108,8 +96,6 @@ onMounted(() => {
   if (kwami.value) {
     const config = kwami.value.agent.getConfig();
     if (config.livekit?.url) livekitUrl.value = config.livekit.url;
-    if (config.livekit?.apiKey) livekitApiKey.value = config.livekit.apiKey;
-    if (config.livekit?.apiSecret) livekitApiSecret.value = config.livekit.apiSecret;
     if (config.livekit?.tokenEndpoint) livekitTokenEndpoint.value = config.livekit.tokenEndpoint;
   }
 });
@@ -162,61 +148,14 @@ onUnmounted(() => {
         </div>
       </PanelSection>
 
-      <!-- Auth Mode -->
-      <PanelSection title="Authentication">
-        <div class="auth-mode-tabs">
-          <BaseButton
-            :variant="authMode === 'local' ? 'primary' : 'secondary'"
-            size="sm"
-            icon="ph:code-duotone"
-            @click="authMode = 'local'"
-            style="flex: 1"
-          >
-            Local Dev
-          </BaseButton>
-          <BaseButton
-            :variant="authMode === 'endpoint' ? 'primary' : 'secondary'"
-            size="sm"
-            icon="ph:cloud-duotone"
-            @click="authMode = 'endpoint'"
-            style="flex: 1"
-          >
-            Token Endpoint
-          </BaseButton>
-        </div>
-
-        <div v-if="authMode === 'local'" class="auth-panel">
-          <div class="auth-warning">
-            <iconify-icon icon="ph:warning-duotone"></iconify-icon>
-            <span>Only for local development. Never expose secrets in production!</span>
-          </div>
-          <div class="config-form">
-            <BaseInput
-              label="API Key"
-              v-model="livekitApiKey"
-              icon="ph:key-duotone"
-              placeholder="API..."
-            />
-            <BaseInput
-              label="API Secret"
-              v-model="livekitApiSecret"
-              icon="ph:lock-key-duotone"
-              type="password"
-              placeholder="••••••••••••"
-            />
-          </div>
-        </div>
-
-        <div v-if="authMode === 'endpoint'" class="auth-panel">
-          <div class="config-form">
-            <BaseInput
-              label="Token Endpoint URL"
-              v-model="livekitTokenEndpoint"
-              icon="ph:globe-duotone"
-              placeholder="https://your-api.com/token"
-            />
-          </div>
-        </div>
+      <!-- Token Endpoint -->
+      <PanelSection title="Authentication" icon="ph:key-duotone">
+        <BaseInput
+          label="Token Endpoint URL"
+          v-model="livekitTokenEndpoint"
+          icon="ph:globe-duotone"
+          placeholder="http://localhost:8080/token"
+        />
       </PanelSection>
 
       <!-- User ID -->
@@ -312,36 +251,6 @@ onUnmounted(() => {
 .status-detail {
   font-size: 11px;
   color: var(--text-muted);
-}
-
-/* Auth Mode Tabs */
-.auth-mode-tabs {
-  display: flex;
-  gap: 4px;
-  margin-bottom: 12px;
-  background: var(--surface-1);
-  padding: 4px;
-  border-radius: 10px;
-}
-
-.auth-warning {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 10px 12px;
-  margin-bottom: 12px;
-  background: rgba(251, 191, 36, 0.1);
-  border: 1px solid rgba(251, 191, 36, 0.25);
-  border-radius: 8px;
-  font-size: 11px;
-  color: var(--warning);
-  line-height: 1.4;
-}
-
-.auth-warning iconify-icon {
-  font-size: 14px;
-  flex-shrink: 0;
-  margin-top: 1px;
 }
 
 /* Info Grid */
