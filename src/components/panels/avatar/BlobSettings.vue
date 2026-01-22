@@ -48,9 +48,9 @@ defineProps<{
 
     <PanelSection title="Spikes">
       <div class="slider-group">
-        <BaseSlider label="X" :min="0" :max="4" :step="0.05" v-model="state.spikes.x" />
-        <BaseSlider label="Y" :min="0" :max="4" :step="0.05" v-model="state.spikes.y" />
-        <BaseSlider label="Z" :min="0" :max="4" :step="0.05" v-model="state.spikes.z" />
+        <BaseSlider label="X" :min="0" :max="8" :step="0.05" v-model="state.spikes.x" />
+        <BaseSlider label="Y" :min="0" :max="8" :step="0.05" v-model="state.spikes.y" />
+        <BaseSlider label="Z" :min="0" :max="8" :step="0.05" v-model="state.spikes.z" />
       </div>
     </PanelSection>
 
