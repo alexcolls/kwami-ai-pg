@@ -1,5 +1,7 @@
 <script setup lang="ts">
-defineProps<{
+import { ref, computed } from 'vue';
+
+const props = defineProps<{
   modelValue: string | number;
   label?: string;
   icon?: string;
@@ -8,40 +10,90 @@ defineProps<{
   disabled?: boolean;
   error?: string;
   block?: boolean;
+  mono?: boolean;
 }>();
 
-const emit = defineEmits(['update:modelValue']);
+const emit = defineEmits(['update:modelValue', 'focus', 'blur']);
+
+const isFocused = ref(false);
+
+const inputType = computed(() => props.type || 'text');
 
 function onInput(e: Event) {
   const target = e.target as HTMLInputElement;
   emit('update:modelValue', target.value);
 }
+
+function onFocus(e: FocusEvent) {
+  isFocused.value = true;
+  emit('focus', e);
+}
+
+function onBlur(e: FocusEvent) {
+  isFocused.value = false;
+  emit('blur', e);
+}
 </script>
 
 <template>
-  <div class="base-input" :class="{ block: block, 'has-error': !!error }">
+  <div 
+    class="base-input" 
+    :class="{ 
+      block, 
+      'has-error': !!error, 
+      focused: isFocused,
+      disabled,
+      mono
+    }"
+  >
     <label v-if="label" class="label">
       <iconify-icon v-if="icon" :icon="icon"></iconify-icon>
       {{ label }}
     </label>
-    <input
-      :type="type || 'text'"
-      :value="modelValue"
-      :placeholder="placeholder"
-      :disabled="disabled"
-      @input="onInput"
-    />
-    <span v-if="error" class="error-msg">{{ error }}</span>
+    
+    <div class="input-wrapper">
+      <input
+        :type="inputType"
+        :value="modelValue"
+        :placeholder="placeholder"
+        :disabled="disabled"
+        :class="{ mono }"
+        @input="onInput"
+        @focus="onFocus"
+        @blur="onBlur"
+      />
+      <div class="input-border"></div>
+      <div class="input-glow"></div>
+    </div>
+    
+    <Transition name="error">
+      <span v-if="error" class="error-msg">
+        <iconify-icon icon="ph:warning-circle-fill"></iconify-icon>
+        {{ error }}
+      </span>
+    </Transition>
   </div>
 </template>
 
 <style scoped>
 .base-input {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
   margin-bottom: 12px;
 }
 
 .base-input:last-child {
   margin-bottom: 0;
+}
+
+.base-input.block {
+  width: 100%;
+}
+
+.base-input.disabled {
+  opacity: 0.5;
+  pointer-events: none;
 }
 
 .label {
@@ -51,29 +103,78 @@ function onInput(e: Event) {
   font-size: 11px;
   font-weight: 500;
   color: var(--text-secondary);
-  margin-bottom: 6px;
+  transition: color var(--duration-fast) ease;
+}
+
+.base-input.focused .label {
+  color: var(--text-primary);
 }
 
 .label iconify-icon {
   font-size: 14px;
   color: var(--text-muted);
+  transition: color var(--duration-fast) ease;
+}
+
+.base-input.focused .label iconify-icon {
+  color: var(--accent-primary);
+}
+
+/* Input wrapper for effects */
+.input-wrapper {
+  position: relative;
+  border-radius: var(--radius-md);
+}
+
+.input-border {
+  position: absolute;
+  inset: 0;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  pointer-events: none;
+  transition: border-color var(--duration-fast) ease;
+}
+
+.input-glow {
+  position: absolute;
+  inset: -1px;
+  border-radius: var(--radius-md);
+  opacity: 0;
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  filter: blur(8px);
+  transition: opacity var(--duration-normal) ease;
+  pointer-events: none;
+  z-index: -1;
+}
+
+.base-input.focused .input-border {
+  border-color: var(--accent-primary);
+}
+
+.base-input.focused .input-glow {
+  opacity: 0.15;
 }
 
 input {
   width: 100%;
-  padding: 10px 12px;
+  padding: 10px 14px;
   background: var(--surface-1);
-  border: 1px solid var(--glass-border);
-  border-radius: 8px;
+  border: none;
+  border-radius: var(--radius-md);
   color: var(--text-primary);
-  font-size: 12px;
+  font-size: 13px;
   font-family: inherit;
-  transition: all 0.2s ease;
+  transition: background var(--duration-fast) ease;
+}
+
+input.mono {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  letter-spacing: -0.3px;
 }
 
 input:focus {
   outline: none;
-  border-color: var(--accent-primary);
   background: var(--surface-2);
 }
 
@@ -82,17 +183,59 @@ input::placeholder {
 }
 
 input:disabled {
-  opacity: 0.5;
   cursor: not-allowed;
 }
 
-.has-error input {
+/* Error state */
+.base-input.has-error .input-border {
   border-color: var(--error);
 }
 
+.base-input.has-error .input-glow {
+  background: var(--error);
+  opacity: 0.1;
+}
+
 .error-msg {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 11px;
   color: var(--error);
-  margin-top: 4px;
+}
+
+.error-msg iconify-icon {
+  font-size: 14px;
+}
+
+/* Error animation */
+.error-enter-active {
+  animation: errorIn 0.2s ease;
+}
+
+.error-leave-active {
+  animation: errorOut 0.15s ease;
+}
+
+@keyframes errorIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes errorOut {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
 }
 </style>

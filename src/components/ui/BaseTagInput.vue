@@ -3,6 +3,7 @@ import { ref } from 'vue';
 
 const props = defineProps<{
   label?: string;
+  icon?: string;
   modelValue: string[];
   placeholder?: string;
   disabled?: boolean;
@@ -13,6 +14,7 @@ const emit = defineEmits<{
 }>();
 
 const newValue = ref('');
+const isFocused = ref(false);
 
 function addTag() {
   if (props.disabled || !newValue.value.trim()) return;
@@ -37,31 +39,44 @@ function handleKeydown(e: KeyboardEvent) {
     e.preventDefault();
     addTag();
   }
+  if (e.key === 'Backspace' && !newValue.value && props.modelValue.length > 0) {
+    removeTag(props.modelValue[props.modelValue.length - 1]);
+  }
 }
 </script>
 
 <template>
-  <div class="base-tag-input">
-    <div v-if="label" class="label">{{ label }}</div>
+  <div class="base-tag-input" :class="{ disabled, focused: isFocused }">
+    <label v-if="label" class="label">
+      <iconify-icon v-if="icon" :icon="icon"></iconify-icon>
+      {{ label }}
+    </label>
 
-    <div class="tags-container" v-if="modelValue.length > 0">
-      <span v-for="tag in modelValue" :key="tag" class="tag">
-        {{ tag }}
-        <button class="remove-btn" @click="removeTag(tag)" :disabled="disabled">×</button>
-      </span>
-    </div>
+    <div class="input-container">
+      <TransitionGroup name="tag" tag="div" class="tags-wrapper">
+        <span v-for="tag in modelValue" :key="tag" class="tag">
+          <span class="tag-text">{{ tag }}</span>
+          <button 
+            type="button"
+            class="remove-btn" 
+            @click.stop="removeTag(tag)" 
+            :disabled="disabled"
+            tabindex="-1"
+          >
+            <iconify-icon icon="ph:x-bold"></iconify-icon>
+          </button>
+        </span>
+      </TransitionGroup>
 
-    <div class="input-row" :class="{ disabled }">
       <input
         type="text"
         v-model="newValue"
-        :placeholder="placeholder || 'Add item...'"
+        :placeholder="modelValue.length === 0 ? (placeholder || 'Add item...') : ''"
         :disabled="disabled"
         @keydown="handleKeydown"
+        @focus="isFocused = true"
+        @blur="isFocused = false"
       />
-      <button class="add-btn" @click="addTag" :disabled="disabled || !newValue.trim()">
-        <iconify-icon icon="ph:plus-duotone"></iconify-icon>
-      </button>
     </div>
   </div>
 </template>
@@ -70,95 +85,162 @@ function handleKeydown(e: KeyboardEvent) {
 .base-tag-input {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
+}
+
+.base-tag-input.disabled {
+  opacity: 0.5;
+  pointer-events: none;
 }
 
 .label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 11px;
-  color: var(--text-tertiary);
   font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+  transition: color var(--duration-fast) ease;
 }
 
-.tags-container {
+.base-tag-input.focused .label {
+  color: var(--text-primary);
+}
+
+.label iconify-icon {
+  font-size: 14px;
+  color: var(--text-muted);
+  transition: color var(--duration-fast) ease;
+}
+
+.base-tag-input.focused .label iconify-icon {
+  color: var(--accent-primary);
+}
+
+.input-container {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: var(--surface-1);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  transition: all var(--duration-fast) ease;
+  min-height: 42px;
+}
+
+.base-tag-input.focused .input-container {
+  border-color: var(--accent-primary);
+  background: var(--surface-2);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.tags-wrapper {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
 }
 
 .tag {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  background: var(--surface-2);
-  border: 1px solid var(--glass-border);
-  border-radius: 16px;
-  font-size: 12px;
-  color: var(--text-primary);
+  gap: 4px;
+  padding: 4px 8px;
+  background: var(--accent-glow);
+  border: 1px solid rgba(0, 217, 255, 0.2);
+  border-radius: 100px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--accent-primary);
+  transition: all var(--duration-fast) ease;
+}
+
+.tag:hover {
+  background: rgba(0, 217, 255, 0.2);
+}
+
+.tag-text {
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .remove-btn {
-  background: none;
-  border: none;
-  color: var(--text-tertiary);
-  cursor: pointer;
-  font-size: 14px;
-  padding: 0;
   display: flex;
   align-items: center;
-  line-height: 1;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 50%;
+  color: var(--accent-primary);
+  cursor: pointer;
+  opacity: 0.7;
+  transition: all var(--duration-fast) ease;
 }
 
 .remove-btn:hover:not(:disabled) {
-  color: var(--accent-error);
+  opacity: 1;
+  background: rgba(0, 217, 255, 0.2);
 }
 
-.input-row {
-  display: flex;
-  gap: 8px;
-  align-items: center;
+.remove-btn iconify-icon {
+  font-size: 10px;
 }
 
 input {
   flex: 1;
-  background: var(--surface-1);
-  border: 1px solid var(--glass-border);
-  padding: 8px 12px;
-  border-radius: 8px;
+  min-width: 80px;
+  background: transparent;
+  border: none;
+  padding: 0;
   color: var(--text-primary);
-  font-size: 13px;
+  font-size: 12px;
+  font-family: inherit;
   outline: none;
-  transition: all 0.2s;
 }
 
-input:focus {
-  border-color: var(--text-secondary);
-  background: var(--surface-2);
+input::placeholder {
+  color: var(--text-muted);
 }
 
-.add-btn {
-  width: 34px;
-  height: 34px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--surface-2);
-  border: 1px solid var(--glass-border);
-  border-radius: 8px;
-  color: var(--text-primary);
-  cursor: pointer;
-  transition: all 0.2s;
+/* Tag animations */
+.tag-enter-active {
+  animation: tagIn 0.2s var(--ease-out);
 }
 
-.add-btn:hover:not(:disabled) {
-  background: var(--surface-3);
-  border-color: var(--text-secondary);
+.tag-leave-active {
+  animation: tagOut 0.15s ease-in;
+  position: absolute;
 }
 
-.add-btn:disabled {
-  opacity: 0.5;
-  cursor: default;
+.tag-move {
+  transition: transform 0.2s var(--ease-out);
+}
+
+@keyframes tagIn {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes tagOut {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.8);
+  }
 }
 </style>

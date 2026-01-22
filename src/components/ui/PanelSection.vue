@@ -6,6 +6,7 @@ const props = defineProps<{
   icon?: string;
   collapsible?: boolean;
   defaultCollapsed?: boolean;
+  noPadding?: boolean;
 }>();
 
 const isCollapsed = ref(props.defaultCollapsed ?? false);
@@ -18,32 +19,90 @@ function toggle() {
 </script>
 
 <template>
-  <section class="panel-section" :class="{ collapsed: isCollapsed, collapsible: collapsible }">
-    <h3 v-if="title" @click="toggle" :class="{ 'section-toggle': collapsible }">
-      <div style="display: flex; align-items: center; gap: 8px; flex: 1;">
-        <iconify-icon v-if="icon" :icon="icon"></iconify-icon>
-        <span>{{ title }}</span>
+  <section 
+    class="panel-section" 
+    :class="{ 
+      collapsed: isCollapsed, 
+      collapsible, 
+      'no-padding': noPadding 
+    }"
+  >
+    <header 
+      v-if="title" 
+      class="section-header"
+      :class="{ clickable: collapsible }"
+      @click="toggle"
+    >
+      <div class="section-title">
+        <iconify-icon v-if="icon" :icon="icon" class="section-icon"></iconify-icon>
+        <h3>{{ title }}</h3>
       </div>
       <iconify-icon
         v-if="collapsible"
         icon="ph:caret-down-bold"
         class="toggle-icon"
       ></iconify-icon>
-    </h3>
-    <div v-show="!isCollapsed" class="section-content">
-      <slot></slot>
-    </div>
+    </header>
+    
+    <Transition name="collapse">
+      <div v-show="!isCollapsed" class="section-content">
+        <slot></slot>
+      </div>
+    </Transition>
   </section>
 </template>
 
 <style scoped>
 .panel-section {
-  padding: 14px 20px;
+  padding: 16px 20px;
   border-bottom: 1px solid var(--glass-border);
 }
 
 .panel-section:last-child {
   border-bottom: none;
+}
+
+.panel-section.no-padding {
+  padding: 0;
+}
+
+.panel-section.no-padding .section-content {
+  padding: 0 20px 16px;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  user-select: none;
+  margin-bottom: 14px;
+}
+
+.section-header.clickable {
+  cursor: pointer;
+  transition: color var(--duration-fast) ease;
+}
+
+.section-header.clickable:hover {
+  color: var(--text-primary);
+}
+
+.section-header.clickable:hover .section-icon {
+  color: var(--accent-primary);
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.section-icon {
+  font-size: 14px;
+  color: var(--text-muted);
+  transition: color var(--duration-fast) ease;
 }
 
 h3 {
@@ -52,55 +111,59 @@ h3 {
   text-transform: uppercase;
   letter-spacing: 1.2px;
   color: var(--text-muted);
-  margin-bottom: 12px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  user-select: none;
-}
-
-.section-toggle {
-  cursor: pointer;
-  transition: color 0.2s ease;
-}
-
-.section-toggle:hover {
-  color: var(--text-primary);
-}
-
-h3 iconify-icon {
-  font-size: 14px;
-  color: var(--text-muted);
+  margin: 0;
 }
 
 .toggle-icon {
-  font-size: 14px;
+  font-size: 12px;
   color: var(--text-muted);
-  transition: transform 0.25s ease;
+  transition: transform var(--duration-normal) var(--ease-out);
 }
 
 .collapsed .toggle-icon {
   transform: rotate(-90deg);
 }
 
-.collapsed h3 {
+.collapsed .section-header {
   margin-bottom: 0;
+}
+
+/* Collapse animation */
+.collapse-enter-active {
+  animation: collapseIn var(--duration-normal) var(--ease-out);
+}
+
+.collapse-leave-active {
+  animation: collapseOut var(--duration-fast) ease-in;
+}
+
+@keyframes collapseIn {
+  from {
+    opacity: 0;
+    max-height: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    max-height: 500px;
+    transform: translateY(0);
+  }
+}
+
+@keyframes collapseOut {
+  from {
+    opacity: 1;
+    max-height: 500px;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    max-height: 0;
+    transform: translateY(-8px);
+  }
 }
 
 .panel-section.hidden {
   display: none;
-}
-
-/* Section content transition for collapsible */
-.panel-section.collapsible .section-content {
-  max-height: 500px;
-  overflow: hidden;
-  transition: max-height 0.3s ease, opacity 0.2s ease, margin 0.2s ease;
-  opacity: 1;
-}
-
-.panel-section.collapsible.collapsed .section-content {
-  max-height: 0;
-  opacity: 0;
 }
 </style>

@@ -1,106 +1,274 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 
 const props = defineProps<{
   modelValue: number;
   label?: string;
+  icon?: string;
   min?: number;
   max?: number;
   step?: number;
   unit?: string;
   inline?: boolean;
+  showValue?: boolean;
 }>();
 
 const emit = defineEmits(['update:modelValue']);
 
+const sliderRef = ref<HTMLInputElement | null>(null);
+const isDragging = ref(false);
+
+const minVal = computed(() => props.min ?? 0);
+const maxVal = computed(() => props.max ?? 100);
+const stepVal = computed(() => props.step ?? 1);
+
 const displayValue = computed(() => {
-  const step = props.step ?? 1;
+  const step = stepVal.value;
   if (step < 0.01) return props.modelValue.toFixed(3);
-  if (step < 1) return props.modelValue.toFixed(2);
-  return props.modelValue;
+  if (step < 0.1) return props.modelValue.toFixed(2);
+  if (step < 1) return props.modelValue.toFixed(1);
+  return props.modelValue.toString();
 });
+
+const fillPercent = computed(() => {
+  const range = maxVal.value - minVal.value;
+  if (range === 0) return 0;
+  return ((props.modelValue - minVal.value) / range) * 100;
+});
+
+const trackStyle = computed(() => ({
+  '--fill-percent': `${fillPercent.value}%`
+}));
 
 function onInput(e: Event) {
   const target = e.target as HTMLInputElement;
   emit('update:modelValue', parseFloat(target.value));
 }
+
+function onMouseDown() {
+  isDragging.value = true;
+}
+
+function onMouseUp() {
+  isDragging.value = false;
+}
 </script>
 
 <template>
-  <div class="control-row" :class="{ stacked: !inline }">
-    <label v-if="label">{{ label }}</label>
-    <input
-      type="range"
-      :min="min ?? 0"
-      :max="max ?? 100"
-      :step="step ?? 1"
-      :value="modelValue"
-      @input="onInput"
-    />
-    <span class="value">{{ displayValue }}{{ unit }}</span>
+  <div 
+    class="slider-control" 
+    :class="{ inline, dragging: isDragging }"
+  >
+    <div v-if="label" class="slider-header">
+      <label class="slider-label">
+        <iconify-icon v-if="icon" :icon="icon"></iconify-icon>
+        {{ label }}
+      </label>
+      <span v-if="showValue !== false" class="slider-value">
+        {{ displayValue }}<span v-if="unit" class="slider-unit">{{ unit }}</span>
+      </span>
+    </div>
+    
+    <div class="slider-track-wrapper" :style="trackStyle">
+      <div class="slider-track">
+        <div class="slider-fill"></div>
+      </div>
+      <input
+        ref="sliderRef"
+        type="range"
+        :min="minVal"
+        :max="maxVal"
+        :step="stepVal"
+        :value="modelValue"
+        @input="onInput"
+        @mousedown="onMouseDown"
+        @mouseup="onMouseUp"
+        @touchstart="onMouseDown"
+        @touchend="onMouseUp"
+      />
+    </div>
   </div>
 </template>
 
 <style scoped>
-.control-row {
+.slider-control {
   display: flex;
-  align-items: center;
-  gap: 10px;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.control-row label {
-  width: 65px;
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--text-secondary);
+.slider-control.inline {
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+}
+
+.slider-control.inline .slider-header {
+  flex-shrink: 0;
+  min-width: 80px;
+}
+
+.slider-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.slider-label {
   display: flex;
   align-items: center;
   gap: 6px;
-  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  transition: color 0.2s ease;
 }
 
-.control-row input[type='range'] {
-  flex: 1;
-  height: 6px;
-  background: var(--surface-2);
-  border-radius: 3px;
-  appearance: none;
-  -webkit-appearance: none;
-  cursor: pointer;
+.slider-control:hover .slider-label {
+  color: var(--text-primary);
 }
 
-.control-row input[type='range']::-webkit-slider-thumb {
-  appearance: none;
-  -webkit-appearance: none;
-  width: 16px;
-  height: 16px;
-  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-  border-radius: 50%;
-  cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
-  box-shadow: 0 2px 8px rgba(124, 92, 255, 0.4);
+.slider-label iconify-icon {
+  font-size: 14px;
+  color: var(--text-muted);
 }
 
-.control-row input[type='range']::-webkit-slider-thumb:hover {
-  transform: scale(1.2);
-  box-shadow: 0 0 16px var(--accent-glow);
-}
-
-.control-row input[type='range']::-moz-range-thumb {
-  width: 16px;
-  height: 16px;
-  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-  border: none;
-  border-radius: 50%;
-  cursor: pointer;
-}
-
-.control-row .value {
-  width: 42px;
+.slider-value {
   font-size: 11px;
   font-family: 'JetBrains Mono', 'SF Mono', monospace;
-  color: var(--text-muted);
-  text-align: right;
-  flex-shrink: 0;
+  font-weight: 500;
+  color: var(--accent-primary);
+  background: var(--accent-glow);
+  padding: 2px 8px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.slider-control.dragging .slider-value {
+  background: var(--accent-primary);
+  color: white;
+  transform: scale(1.05);
+}
+
+.slider-unit {
+  opacity: 0.7;
+  margin-left: 1px;
+}
+
+/* Track wrapper */
+.slider-track-wrapper {
+  position: relative;
+  flex: 1;
+  height: 24px;
+  display: flex;
+  align-items: center;
+}
+
+.slider-track {
+  position: absolute;
+  inset: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 6px;
+  background: var(--surface-2);
+  border-radius: 100px;
+  overflow: hidden;
+}
+
+.slider-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: var(--fill-percent);
+  background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+  border-radius: 100px;
+  transition: width 0.05s ease;
+}
+
+.slider-control.dragging .slider-fill {
+  box-shadow: 0 0 12px var(--accent-glow);
+}
+
+/* Range input */
+input[type='range'] {
+  position: relative;
+  width: 100%;
+  height: 24px;
+  background: transparent;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  z-index: 1;
+}
+
+input[type='range']:focus {
+  outline: none;
+}
+
+/* Webkit thumb */
+input[type='range']::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  background: white;
+  border: none;
+  border-radius: 50%;
+  cursor: grab;
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 
+    0 2px 6px rgba(0, 0, 0, 0.2),
+    0 0 0 3px var(--accent-glow);
+}
+
+input[type='range']::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+  box-shadow: 
+    0 3px 10px rgba(0, 0, 0, 0.25),
+    0 0 0 4px var(--accent-glow),
+    0 0 20px var(--accent-glow);
+}
+
+input[type='range']:active::-webkit-slider-thumb {
+  cursor: grabbing;
+  transform: scale(1.1);
+  box-shadow: 
+    0 2px 8px rgba(0, 0, 0, 0.3),
+    0 0 0 5px var(--accent-glow),
+    0 0 24px var(--accent-glow);
+}
+
+/* Firefox thumb */
+input[type='range']::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  background: white;
+  border: none;
+  border-radius: 50%;
+  cursor: grab;
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 
+    0 2px 6px rgba(0, 0, 0, 0.2),
+    0 0 0 3px var(--accent-glow);
+}
+
+input[type='range']::-moz-range-thumb:hover {
+  transform: scale(1.15);
+  box-shadow: 
+    0 3px 10px rgba(0, 0, 0, 0.25),
+    0 0 0 4px var(--accent-glow),
+    0 0 20px var(--accent-glow);
+}
+
+input[type='range']:active::-moz-range-thumb {
+  cursor: grabbing;
+}
+
+/* Firefox track (hide default) */
+input[type='range']::-moz-range-track {
+  background: transparent;
+  height: 6px;
 }
 </style>
