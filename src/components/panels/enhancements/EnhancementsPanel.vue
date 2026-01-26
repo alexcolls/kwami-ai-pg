@@ -1,14 +1,13 @@
 <script setup lang="ts">
-import { reactive } from 'vue';
+import { reactive, watch } from 'vue';
 import { useKwami } from '@/composables/useKwami';
 import type { VoiceEnhancementsConfig, VADConfig } from 'kwami-ai';
 import PanelSection from '@/components/ui/PanelSection.vue';
 import BaseToggle from '@/components/ui/BaseToggle.vue';
 import BaseSlider from '@/components/ui/BaseSlider.vue';
 import BaseSelect from '@/components/ui/BaseSelect.vue';
-import BaseButton from '@/components/ui/BaseButton.vue';
 
-const { kwami } = useKwami();
+const { kwami, isConnected } = useKwami();
 
 // State
 const turnDetection = reactive({
@@ -26,6 +25,8 @@ const audioProcessing = reactive({ echoCancellation: true, autoGainControl: true
 const performance = reactive({ preemptiveGeneration: false });
 
 function applySettings() {
+  if (!kwami.value) return;
+
   const config: VoiceEnhancementsConfig = {
     turnDetection: {
       enabled: turnDetection.enabled,
@@ -50,18 +51,66 @@ function applySettings() {
     minSilenceDuration: vad.minSilence,
   };
 
-  kwami.value?.agent.updateConfig({
+  // Update local config
+  kwami.value.agent.updateConfig({
     livekit: {
-      ...kwami.value?.agent.getConfig().livekit,
+      ...kwami.value.agent.getConfig().livekit,
       voice: {
-        ...kwami.value?.agent.getConfig().livekit?.voice,
+        ...kwami.value.agent.getConfig().livekit?.voice,
         enhancements: config,
         vad: vadConfig,
       },
     },
   });
+
+  // If connected, sync to backend immediately
+  if (isConnected.value) {
+    console.log('📤 Syncing enhancements to backend:', config);
+    kwami.value.agent.syncConfigToBackend('voice', {
+      enhancements: config,
+      vad: vadConfig,
+    });
+  }
+
   console.log('Enhancements applied:', config, vadConfig);
 }
+
+// =============================================================================
+// Live Update Watchers - Apply settings automatically when values change
+// =============================================================================
+
+// Debounce helper to avoid too many updates
+let applyTimeout: ReturnType<typeof setTimeout> | null = null;
+function debouncedApply() {
+  if (applyTimeout) clearTimeout(applyTimeout);
+  applyTimeout = setTimeout(() => {
+    applySettings();
+  }, 300);
+}
+
+// Watch all enhancement settings for changes
+watch(() => turnDetection.enabled, debouncedApply);
+watch(() => turnDetection.mode, debouncedApply);
+watch(() => turnDetection.model, debouncedApply);
+watch(() => turnDetection.minEndpointingDelay, debouncedApply);
+watch(() => turnDetection.maxEndpointingDelay, debouncedApply);
+
+watch(() => interruptions.enabled, debouncedApply);
+watch(() => interruptions.minDuration, debouncedApply);
+watch(() => interruptions.minWords, debouncedApply);
+
+watch(() => noiseCancellation.enabled, debouncedApply);
+watch(() => noiseCancellation.mode, debouncedApply);
+
+watch(() => vad.provider, debouncedApply);
+watch(() => vad.threshold, debouncedApply);
+watch(() => vad.minSpeech, debouncedApply);
+watch(() => vad.minSilence, debouncedApply);
+
+watch(() => audioProcessing.echoCancellation, debouncedApply);
+watch(() => audioProcessing.autoGainControl, debouncedApply);
+
+watch(() => performance.preemptiveGeneration, debouncedApply);
 </script>
 
 <template>
@@ -231,11 +280,22 @@ function applySettings() {
         </div>
       </PanelSection>
 
-      <!-- Apply -->
+      <!-- Status -->
       <PanelSection>
-        <BaseButton variant="primary" block icon="ph:check-duotone" @click="applySettings">
-          Apply Enhancements
-        </BaseButton>
+        <div class="status-indicator">
+          <template v-if="isConnected">
+            <p class="live-notice">
+              <iconify-icon icon="ph:broadcast-duotone"></iconify-icon>
+              Connected - Changes apply instantly
+            </p>
+          </template>
+          <template v-else>
+            <p class="saved-notice">
+              <iconify-icon icon="ph:floppy-disk-duotone"></iconify-icon>
+              Settings saved - Will apply on connect
+            </p>
+          </template>
+        </div>
       </PanelSection>
     </div>
   </div>
@@ -273,5 +333,49 @@ function applySettings() {
   background: var(--surface-0);
   padding: 12px;
   border-radius: 8px;
+}
+
+.status-indicator {
+  margin: 0;
+}
+
+.live-notice,
+.saved-notice {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  font-weight: 500;
+  margin: 0;
+}
+
+.live-notice {
+  background: linear-gradient(135deg, rgba(0, 217, 255, 0.1), rgba(0, 255, 136, 0.1));
+  border: 1px solid rgba(0, 217, 255, 0.2);
+  color: var(--accent-primary);
+}
+
+.live-notice iconify-icon {
+  font-size: 16px;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.saved-notice {
+  background: var(--surface-1);
+  border: 1px solid var(--glass-border);
+  color: var(--text-secondary);
+}
+
+.saved-notice iconify-icon {
+  font-size: 16px;
+  color: var(--text-muted);
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }
 </style>

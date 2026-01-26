@@ -6,6 +6,7 @@ import TheSidebar from '@/components/sidebar/TheSidebar.vue';
 import AvatarPanel from '@/components/panels/avatar/AvatarPanel.vue';
 import AgentPanel from '@/components/panels/agent/AgentPanel.vue';
 import ScenePanel from '@/components/panels/scene/ScenePanel.vue';
+import InteractionPanel from '@/components/panels/interaction/InteractionPanel.vue';
 import AudioPanel from '@/components/panels/audio/AudioPanel.vue';
 import VoicePanel from '@/components/panels/voice/VoicePanel.vue';
 import EnhancementsPanel from '@/components/panels/enhancements/EnhancementsPanel.vue';
@@ -82,6 +83,7 @@ onMounted(() => {
       <AvatarPanel v-if="uiStore.activePanel === 'avatar'" />
       <AgentPanel v-if="uiStore.activePanel === 'agent'" />
       <ScenePanel v-if="uiStore.activePanel === 'scene'" />
+      <InteractionPanel v-if="uiStore.activePanel === 'interaction'" />
       <AudioPanel v-if="uiStore.activePanel === 'audio'" />
       <VoicePanel v-if="uiStore.activePanel === 'voice'" />
       <EnhancementsPanel v-if="uiStore.activePanel === 'enhancements'" />

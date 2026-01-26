@@ -15,7 +15,6 @@ const props = defineProps<{
 
 const emit = defineEmits(['update:modelValue']);
 
-const sliderRef = ref<HTMLInputElement | null>(null);
 const isDragging = ref(false);
 
 const minVal = computed(() => props.min ?? 0);

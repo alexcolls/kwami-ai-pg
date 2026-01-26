@@ -17,6 +17,12 @@ defineProps<{
     lightIntensity: number;
     wireframe: boolean;
     skin: string;
+    resolution: number;
+    touchStrength: number;
+    touchDuration: number;
+    maxTouchPoints: number;
+    transitionSpeed: number;
+    thinkingDuration: number;
   };
 }>();
 </script>
@@ -89,6 +95,64 @@ defineProps<{
         <BaseToggle label="Wireframe" v-model="state.wireframe" />
       </div>
     </PanelSection>
+
+    <PanelSection title="Quality">
+      <div class="slider-group">
+        <BaseSlider 
+          label="Resolution" 
+          :min="32" 
+          :max="512" 
+          :step="8" 
+          v-model="state.resolution"
+        />
+      </div>
+      <p class="hint">Higher resolution = more detail but lower performance</p>
+    </PanelSection>
+
+    <PanelSection title="Touch Interaction">
+      <div class="slider-group">
+        <BaseSlider 
+          label="Touch Strength" 
+          :min="0.1" 
+          :max="3" 
+          :step="0.1" 
+          v-model="state.touchStrength"
+        />
+        <BaseSlider 
+          label="Touch Duration (ms)" 
+          :min="100" 
+          :max="3000" 
+          :step="100" 
+          v-model="state.touchDuration"
+        />
+        <BaseSlider 
+          label="Max Touch Points" 
+          :min="1" 
+          :max="20" 
+          :step="1" 
+          v-model="state.maxTouchPoints"
+        />
+      </div>
+    </PanelSection>
+
+    <PanelSection title="Transitions">
+      <div class="slider-group">
+        <BaseSlider 
+          label="Transition Speed" 
+          :min="0.01" 
+          :max="0.2" 
+          :step="0.01" 
+          v-model="state.transitionSpeed"
+        />
+        <BaseSlider 
+          label="Thinking Duration (ms)" 
+          :min="1000" 
+          :max="30000" 
+          :step="500" 
+          v-model="state.thinkingDuration"
+        />
+      </div>
+    </PanelSection>
   </div>
 </template>
 
@@ -136,11 +200,11 @@ defineProps<{
 }
 
 .skin-preview.poles {
-  background: linear-gradient(180deg, #ff0066 0%, #00ff66 50%, #6600ff 100%);
+  background: conic-gradient(#ff0066, #00ff66, #6600ff, #ff0066);
 }
 
 .skin-preview.donut {
-  background: conic-gradient(#ff0066, #00ff66, #6600ff, #ff0066);
+  background: linear-gradient(180deg, #ff0066 0%, #00ff66 50%, #6600ff 100%);
 }
 
 .skin-preview.vintage {
@@ -172,5 +236,13 @@ defineProps<{
 
 .row-3 > * {
   flex: 1;
+}
+
+/* Hint text */
+.hint {
+  margin-top: 8px;
+  font-size: 10px;
+  color: var(--text-muted);
+  font-style: italic;
 }
 </style>

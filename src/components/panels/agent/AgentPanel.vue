@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useKwami } from '@/composables/useKwami';
+import { useVoiceStore } from '@/stores/voice';
 import PanelSection from '@/components/ui/PanelSection.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
 import BaseInput from '@/components/ui/BaseInput.vue';
 
 const { kwami, isConnected } = useKwami();
+const voiceStore = useVoiceStore();
 
 // Form State - defaults from .env
 const livekitUrl = ref(import.meta.env.VITE_LIVEKIT_URL || '');
@@ -50,11 +52,20 @@ async function handleConnect() {
     return;
   }
 
+  // Include voice config from store alongside connection settings
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const livekitConfig = {
     url: livekitUrl.value,
     roomName: roomName.value,
     tokenEndpoint: livekitTokenEndpoint.value,
-  };
+    voice: voiceStore.voiceConfig,  // Preserve voice pipeline config from store
+  } as any;
+
+  console.log('🔌 Connecting with config:', { 
+    url: livekitConfig.url, 
+    room: livekitConfig.roomName,
+    voice: livekitConfig.voice 
+  });
 
   try {
     if (kwami.value) {

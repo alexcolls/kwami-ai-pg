@@ -8,10 +8,6 @@ defineProps<{
 }>();
 
 const emit = defineEmits(['update:modelValue']);
-
-function toggle() {
-  emit('update:modelValue', !arguments[0]);
-}
 </script>
 
 <template>

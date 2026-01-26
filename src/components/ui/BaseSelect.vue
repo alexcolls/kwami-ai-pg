@@ -62,8 +62,9 @@ function handleKeydown(event: KeyboardEvent) {
     case 'Enter':
     case ' ':
       event.preventDefault();
-      if (highlightedIndex.value >= 0) {
-        select(props.options[highlightedIndex.value]);
+      const option = props.options[highlightedIndex.value];
+      if (highlightedIndex.value >= 0 && option) {
+        select(option);
       }
       break;
     case 'Escape':

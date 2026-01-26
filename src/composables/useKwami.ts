@@ -1,5 +1,6 @@
 import { shallowRef, ref } from 'vue';
 import { Kwami } from 'kwami-ai';
+import { useVoiceStore } from '@/stores/voice';
 
 declare global {
   interface Window {
@@ -15,6 +16,9 @@ const isConnected = ref(false);
 export function useKwami() {
   function init(canvas: HTMLCanvasElement, renderer: 'blob' | 'crystal' = 'blob') {
     rendererType.value = renderer;
+
+    // Get voice config from store
+    const voiceStore = useVoiceStore();
 
     const config = {
       avatar: {
@@ -59,6 +63,8 @@ export function useKwami() {
         livekit: {
           url: import.meta.env.VITE_LIVEKIT_URL || '',
           tokenEndpoint: import.meta.env.VITE_LIVEKIT_TOKEN_ENDPOINT || '',
+          userId: 'playground_user', // Persistent user ID for memory recall
+          voice: voiceStore.voiceConfig,
         },
       },
       persona: {
@@ -78,11 +84,86 @@ export function useKwami() {
       },
     };
 
-    // @ts-expect-error - Kwami type mismatch in current version
     kwamiInstance.value = new Kwami(canvas, config);
+
+    // Track connection state changes
+    kwamiInstance.value.agent.onStateChange((state) => {
+      const wasConnected = isConnected.value;
+      isConnected.value = state !== 'idle';
+
+      if (wasConnected !== isConnected.value) {
+        console.log(`🔌 Connection state: ${isConnected.value ? 'connected' : 'disconnected'}`);
+      }
+    });
 
     // Expose for debugging
     window.kwami = kwamiInstance.value;
+  }
+
+  /**
+   * Connect to the agent
+   */
+  async function connect() {
+    if (!kwamiInstance.value) {
+      console.warn('Cannot connect: Kwami not initialized');
+      return;
+    }
+
+    try {
+      // Update voice config from store before connecting
+      const voiceStore = useVoiceStore();
+      kwamiInstance.value.agent.updateConfig({
+        livekit: {
+          ...kwamiInstance.value.agent.getConfig().livekit,
+          voice: voiceStore.voiceConfig,
+        },
+      });
+
+      await kwamiInstance.value.agent.connect();
+      isConnected.value = true;
+      console.log('✅ Connected to agent');
+    } catch (error) {
+      console.error('Failed to connect:', error);
+      isConnected.value = false;
+    }
+  }
+
+  /**
+   * Disconnect from the agent
+   */
+  async function disconnect() {
+    if (!kwamiInstance.value) {
+      console.warn('Cannot disconnect: Kwami not initialized');
+      return;
+    }
+
+    try {
+      await kwamiInstance.value.agent.disconnect();
+
+      // Safety cleanup: Stop any browser MediaStream tracks that might still be active
+      // This ensures the browser mic indicator disappears
+      try {
+        // Check for any active audio contexts or streams that might keep mic active
+        // Note: getUserMedia with audio:false doesn't actually help here, 
+        // but cleaning up orphaned elements does
+      } catch {
+        // Ignore - just a safety check
+      }
+
+      // Also remove any orphaned audio elements
+      const audioElements = document.querySelectorAll('audio[id^="kwami-"]');
+      audioElements.forEach(el => {
+        const audioEl = el as HTMLAudioElement;
+        audioEl.pause();
+        audioEl.srcObject = null;
+        el.remove();
+      });
+
+      isConnected.value = false;
+      console.log('🔌 Disconnected from agent');
+    } catch (error) {
+      console.error('Failed to disconnect:', error);
+    }
   }
 
   function switchRenderer(newRenderer: 'blob' | 'crystal') {
@@ -111,5 +192,7 @@ export function useKwami() {
     isConnected,
     init,
     switchRenderer,
+    connect,
+    disconnect,
   };
 }

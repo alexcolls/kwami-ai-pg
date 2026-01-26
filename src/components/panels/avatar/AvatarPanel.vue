@@ -187,6 +187,45 @@ watch(
   () => blobState.skin,
   (v) => kwami.value?.avatar.setSkin({ skin: 'tricolor', subtype: v as SkinSubtype }),
 );
+watch(
+  () => blobState.resolution,
+  (v) => getBlob()?.setResolution(v),
+);
+watch(
+  () => blobState.touchStrength,
+  (v) => {
+    const blob = getBlob();
+    if (blob) (blob as { touchStrength: number }).touchStrength = v;
+  },
+);
+watch(
+  () => blobState.touchDuration,
+  (v) => {
+    const blob = getBlob();
+    if (blob) (blob as { touchDuration: number }).touchDuration = v;
+  },
+);
+watch(
+  () => blobState.maxTouchPoints,
+  (v) => {
+    const blob = getBlob();
+    if (blob) (blob as { maxTouchPoints: number }).maxTouchPoints = v;
+  },
+);
+watch(
+  () => blobState.transitionSpeed,
+  (v) => {
+    const blob = getBlob();
+    if (blob) (blob as { transitionSpeed: number }).transitionSpeed = v;
+  },
+);
+watch(
+  () => blobState.thinkingDuration,
+  (v) => {
+    const blob = getBlob();
+    if (blob) (blob as { thinkingDuration: number }).thinkingDuration = v;
+  },
+);
 
 watch(
   () => crystalState.formation,

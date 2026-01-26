@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { useUIStore } from '@/stores/ui';
-import { useWorkspaceStore, type KwamiWorkspace } from '@/stores/workspace';
+import { useWorkspaceStore } from '@/stores/workspace';
 
 const uiStore = useUIStore();
 const workspaceStore = useWorkspaceStore();
@@ -14,6 +14,7 @@ const workspaces = computed(() => workspaceStore.workspaces);
 const panelIcons: Record<string, string> = {
   avatar: 'ph:ghost-duotone',
   scene: 'ph:mountains-duotone',
+  interaction: 'ph:cursor-click-duotone',
   audio: 'ph:waveform-duotone',
   voice: 'ph:microphone-duotone',
   agent: 'ph:robot-duotone',
@@ -54,7 +55,7 @@ function handleKeydown(e: KeyboardEvent) {
   if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement).tagName)) return;
 
   const panelTypes = [
-    'avatar', 'scene', 'audio',
+    'avatar', 'scene', 'interaction', 'audio',
     'agent', 'voice', 'enhancements', 'metrics', 'transcription',
     'persona', 'memory', 'tools',
     'info'
@@ -62,7 +63,8 @@ function handleKeydown(e: KeyboardEvent) {
 
   if (e.key >= '1' && e.key <= '9') {
     const idx = parseInt(e.key) - 1;
-    if (idx < panelTypes.length) uiStore.setPanel(panelTypes[idx]);
+    const panel = panelTypes[idx];
+    if (panel) uiStore.setPanel(panel);
   } else if (e.key === '0') {
     uiStore.setPanel('memory');
   } else if (e.key === '-') {
@@ -133,7 +135,7 @@ function getGradient(colors: { x: string; y: string; z: string }) {
     <div class="nav-group">
       <span class="switcher-label">Visual</span>
       <button
-        v-for="p in ['avatar', 'scene', 'audio']"
+        v-for="p in ['avatar', 'scene', 'interaction', 'audio']"
         :key="p"
         class="nav-btn"
         :class="{ active: uiStore.activePanel === p }"

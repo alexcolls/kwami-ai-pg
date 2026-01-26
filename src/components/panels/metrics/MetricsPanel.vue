@@ -10,7 +10,7 @@ const config = reactive({
   vad: 'SILERO',
   stt: { provider: 'DEEPGRAM', model: 'NOVA-3' },
   llm: { provider: 'OPENAI', model: 'GPT-4.1-MINI' },
-  tts: { provider: 'CARTESIA', model: 'SONIC-3', voice: '—' },
+  tts: { provider: 'OPENAI', model: 'TTS-1', voice: '—' },
   enhancements: { turnDetection: true, noiseCancellation: true },
 });
 
@@ -57,8 +57,8 @@ function updateConfig(newConfig?: VoicePipelineConfig) {
   config.stt.model = newConfig.stt?.model?.toUpperCase() || 'NOVA-3';
   config.llm.provider = newConfig.llm?.provider?.toUpperCase() || 'OPENAI';
   config.llm.model = newConfig.llm?.model?.toUpperCase() || 'GPT-4.1-MINI';
-  config.tts.provider = newConfig.tts?.provider?.toUpperCase() || 'CARTESIA';
-  config.tts.model = newConfig.tts?.model?.toUpperCase() || 'SONIC-3';
+  config.tts.provider = newConfig.tts?.provider?.toUpperCase() || 'OPENAI';
+  config.tts.model = newConfig.tts?.model?.toUpperCase() || 'TTS-1';
   config.tts.voice = newConfig.tts?.voice?.substring(0, 8) || '—';
   config.enhancements.turnDetection = newConfig.enhancements?.turnDetection?.enabled ?? true;
   config.enhancements.noiseCancellation =

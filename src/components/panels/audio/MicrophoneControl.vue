@@ -3,7 +3,6 @@ import { ref } from 'vue';
 import { useKwami } from '@/composables/useKwami';
 import PanelSection from '@/components/ui/PanelSection.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
-import BaseSlider from '@/components/ui/BaseSlider.vue';
 
 const { kwami } = useKwami();
 const micActive = ref(false);

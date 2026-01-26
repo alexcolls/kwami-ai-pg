@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { useKwami } from '@/composables/useKwami';
 import type { MemoryContext, MemorySearchResult } from 'kwami-ai';
 import PanelSection from '@/components/ui/PanelSection.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
 import BaseInput from '@/components/ui/BaseInput.vue';
+import MemoryGraph from '@/components/MemoryGraph.vue';
 
 const { kwami } = useKwami();
 
@@ -74,6 +75,25 @@ async function clearMemory() {
   }
 }
 
+// Graph configuration
+const showGraphModal = ref(false);
+const apiBaseUrl = computed(() => {
+  // Get the token endpoint and derive the API base URL
+  const tokenEndpoint = import.meta.env.VITE_LIVEKIT_TOKEN_ENDPOINT || '';
+  // Extract base URL (remove /token path if present)
+  return tokenEndpoint.replace(/\/token\/?$/, '') || 'http://localhost:8080';
+});
+// Memory user_id - this should match what the agent uses
+// Before today's fix: random IDs like 'kwami_zweazjas' 
+// After fix: should be 'kwami_playground_user'
+const graphUserId = ref('kwami_zweazjas'); // Your most recent user with data
+
+// Allow changing the user_id
+const userIdInput = ref('kwami_zweazjas');
+function setGraphUserId() {
+  graphUserId.value = userIdInput.value;
+}
+
 function updateStatus() {
   if (kwami.value) {
     initialized.value = kwami.value.memory.isInitialized();
@@ -122,6 +142,59 @@ onUnmounted(() => clearInterval(interval));
           </div>
         </div>
       </PanelSection>
+
+      <!-- Knowledge Graph -->
+      <PanelSection title="Knowledge Graph">
+        <div class="graph-user-select">
+          <BaseInput
+            v-model="userIdInput"
+            label="User ID"
+            placeholder="kwami_xxx"
+            icon="ph:user-duotone"
+          />
+          <BaseButton
+            size="sm"
+            icon="ph:arrow-right"
+            @click="setGraphUserId"
+          >
+            Load
+          </BaseButton>
+        </div>
+        <div class="graph-actions">
+          <BaseButton
+            variant="primary"
+            size="sm"
+            icon="ph:graph-duotone"
+            @click="showGraphModal = true"
+          >
+            Open Graph View
+          </BaseButton>
+          <span class="graph-info">
+            <iconify-icon icon="ph:check-circle"></iconify-icon>
+            {{ graphUserId }}
+          </span>
+        </div>
+      </PanelSection>
+      
+      <!-- Graph Modal -->
+      <Teleport to="body">
+        <div v-if="showGraphModal" class="graph-modal-overlay" @click.self="showGraphModal = false">
+          <div class="graph-modal">
+            <div class="graph-modal-header">
+              <h2><iconify-icon icon="ph:graph-duotone"></iconify-icon> Memory Knowledge Graph</h2>
+              <button class="close-btn" @click="showGraphModal = false">
+                <iconify-icon icon="ph:x"></iconify-icon>
+              </button>
+            </div>
+            <div class="graph-modal-body">
+              <MemoryGraph 
+                :userId="graphUserId" 
+                :apiBaseUrl="apiBaseUrl"
+              />
+            </div>
+          </div>
+        </div>
+      </Teleport>
 
       <!-- Config (Read-only) -->
       <PanelSection title="Zep Configuration">
@@ -389,5 +462,89 @@ onUnmounted(() => clearInterval(interval));
   100% {
     transform: rotate(360deg);
   }
+}
+.graph-user-select {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  margin-bottom: 12px;
+}
+.graph-user-select :deep(.base-input) {
+  flex: 1;
+}
+.graph-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.graph-info {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Graph Modal */
+.graph-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.graph-modal {
+  width: 100%;
+  max-width: 1200px;
+  height: 90vh;
+  background: #0d1117;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+.graph-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+}
+.graph-modal-header h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #e2e8f0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.graph-modal-header h2 iconify-icon {
+  color: #00d9a6;
+}
+.close-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 8px;
+  color: #94a3b8;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.close-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+.graph-modal-body {
+  flex: 1;
+  padding: 20px;
+  overflow: auto;
 }
 </style>

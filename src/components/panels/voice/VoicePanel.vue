@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, watch } from 'vue';
+import { computed, watch } from 'vue';
 import { useKwami } from '@/composables/useKwami';
+import { useVoiceStore } from '@/stores/voice';
+import { storeToRefs } from 'pinia';
 import PanelSection from '@/components/ui/PanelSection.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
 import BaseSelect from '@/components/ui/BaseSelect.vue';
@@ -9,18 +11,10 @@ import BaseSlider from '@/components/ui/BaseSlider.vue';
 import type { STTConfig, LLMConfig, TTSConfig } from 'kwami-ai';
 
 const { kwami, isConnected } = useKwami();
+const voiceStore = useVoiceStore();
 
-const pipelineMode = ref<'standard' | 'realtime'>('standard');
-
-// =============================================================================
-// STT Configuration
-// =============================================================================
-
-const stt = reactive({
-  provider: 'deepgram',
-  model: 'nova-2',
-  language: 'en',
-});
+// Use store refs for reactive state that persists across panel switches
+const { pipelineMode, stt, llm, tts, realtime, activePreset } = storeToRefs(voiceStore);
 
 const sttProviders = [
   { provider: 'deepgram', label: 'Deepgram', icon: 'simple-icons:deepgram' },
@@ -31,7 +25,7 @@ const sttProviders = [
 ];
 
 const sttModels = computed(() => {
-  switch (stt.provider) {
+  switch (stt.value.provider) {
     case 'deepgram':
       return [
         { model: 'nova-3', name: 'Nova 3 (Latest)' },
@@ -98,13 +92,6 @@ const sttLanguages = [
 // LLM Configuration
 // =============================================================================
 
-const llm = reactive({
-  provider: 'openai',
-  model: 'gpt-4o-mini',
-  temperature: 0.7,
-  maxTokens: 1024,
-});
-
 const llmProviders = [
   { provider: 'openai', label: 'OpenAI', icon: 'simple-icons:openai' },
   { provider: 'google', label: 'Google Gemini', icon: 'simple-icons:googlegemini' },
@@ -117,7 +104,7 @@ const llmProviders = [
 ];
 
 const llmModels = computed(() => {
-  switch (llm.provider) {
+  switch (llm.value.provider) {
     case 'openai':
       return [
         { model: 'gpt-4o', name: 'GPT-4o' },
@@ -196,13 +183,6 @@ const llmModels = computed(() => {
 // TTS Configuration
 // =============================================================================
 
-const tts = reactive({
-  provider: 'cartesia',
-  model: 'sonic-2',
-  voice: '79a125e8-cd45-4c13-8a67-188112f4dd22',
-  speed: 1.0,
-});
-
 const ttsProviders = [
   { provider: 'cartesia', label: 'Cartesia', icon: 'ph:speaker-high-duotone' },
   { provider: 'elevenlabs', label: 'ElevenLabs', icon: 'ph:waveform-duotone' },
@@ -212,7 +192,7 @@ const ttsProviders = [
 ];
 
 const ttsModels = computed(() => {
-  switch (tts.provider) {
+  switch (tts.value.provider) {
     case 'cartesia':
       return [
         { model: 'sonic-2', name: 'Sonic 2 (Latest)' },
@@ -264,7 +244,7 @@ const ttsModels = computed(() => {
 });
 
 const ttsVoices = computed(() => {
-  switch (tts.provider) {
+  switch (tts.value.provider) {
     case 'cartesia':
       return [
         // English - Female
@@ -324,10 +304,10 @@ const ttsVoices = computed(() => {
         { id: 'nPczCjzI2devNBz1zQrb', name: 'Brian', category: 'Male' },
       ];
     case 'openai':
+      // Note: 'ballad' and 'verse' are only available for OpenAI Realtime API, not standard TTS
       return [
         { id: 'alloy', name: 'Alloy', category: 'Neutral' },
         { id: 'ash', name: 'Ash', category: 'Male' },
-        { id: 'ballad', name: 'Ballad', category: 'Male' },
         { id: 'coral', name: 'Coral', category: 'Female' },
         { id: 'echo', name: 'Echo', category: 'Male' },
         { id: 'fable', name: 'Fable', category: 'Neutral' },
@@ -335,7 +315,6 @@ const ttsVoices = computed(() => {
         { id: 'onyx', name: 'Onyx', category: 'Male' },
         { id: 'sage', name: 'Sage', category: 'Female' },
         { id: 'shimmer', name: 'Shimmer', category: 'Female' },
-        { id: 'verse', name: 'Verse', category: 'Male' },
       ];
     case 'deepgram':
       return [
@@ -391,27 +370,20 @@ const groupedVoices = computed(() => {
 // Realtime Configuration
 // =============================================================================
 
-const realtime = reactive({
-  provider: 'openai',
-  model: 'gpt-4o-realtime-preview',
-  voice: 'alloy',
-  modalities: ['text', 'audio'] as string[],
-});
-
 const realtimeProviders = [
   { provider: 'openai', label: 'OpenAI Realtime', icon: 'simple-icons:openai' },
-  { provider: 'google', label: 'Google Gemini Live', icon: 'simple-icons:googlegemini' },
+  { provider: 'gemini', label: 'Google Gemini Live', icon: 'simple-icons:googlegemini' },
 ];
 
 const realtimeModels = computed(() => {
-  switch (realtime.provider) {
+  switch (realtime.value.provider) {
     case 'openai':
       return [
         { model: 'gpt-4o-realtime-preview', name: 'GPT-4o Realtime Preview' },
         { model: 'gpt-4o-realtime-preview-2024-10-01', name: 'GPT-4o Realtime (Oct 2024)' },
         { model: 'gpt-4o-realtime-preview-2024-12-17', name: 'GPT-4o Realtime (Dec 2024)' },
       ];
-    case 'google':
+    case 'gemini':
       return [
         { model: 'gemini-2.0-flash-exp', name: 'Gemini 2.0 Flash Live' },
       ];
@@ -421,7 +393,7 @@ const realtimeModels = computed(() => {
 });
 
 const realtimeVoices = computed(() => {
-  switch (realtime.provider) {
+  switch (realtime.value.provider) {
     case 'openai':
       return [
         { id: 'alloy', name: 'Alloy' },
@@ -433,7 +405,7 @@ const realtimeVoices = computed(() => {
         { id: 'shimmer', name: 'Shimmer' },
         { id: 'verse', name: 'Verse' },
       ];
-    case 'google':
+    case 'gemini':
       return [
         { id: 'Puck', name: 'Puck' },
         { id: 'Charon', name: 'Charon' },
@@ -459,7 +431,7 @@ const presets = [
     config: {
       stt: { provider: 'deepgram', model: 'nova-3', language: 'en' },
       llm: { provider: 'groq', model: 'llama-3.1-8b-instant', temperature: 0.7, maxTokens: 512 },
-      tts: { provider: 'cartesia', model: 'sonic-2', voice: '79a125e8-cd45-4c13-8a67-188112f4dd22', speed: 1.0 },
+      tts: { provider: 'openai', model: 'tts-1', voice: 'nova', speed: 1.0 },
     }
   },
   { 
@@ -470,7 +442,7 @@ const presets = [
     config: {
       stt: { provider: 'deepgram', model: 'nova-2', language: 'en' },
       llm: { provider: 'openai', model: 'gpt-4o-mini', temperature: 0.7, maxTokens: 1024 },
-      tts: { provider: 'cartesia', model: 'sonic-2', voice: '79a125e8-cd45-4c13-8a67-188112f4dd22', speed: 1.0 },
+      tts: { provider: 'openai', model: 'tts-1', voice: 'nova', speed: 1.0 },
     }
   },
   { 
@@ -481,7 +453,7 @@ const presets = [
     config: {
       stt: { provider: 'deepgram', model: 'nova-3', language: 'en' },
       llm: { provider: 'openai', model: 'gpt-4o', temperature: 0.7, maxTokens: 2048 },
-      tts: { provider: 'elevenlabs', model: 'eleven_turbo_v2_5', voice: '21m00Tcm4TlvDq8ikWAM', speed: 1.0 },
+      tts: { provider: 'openai', model: 'tts-1-hd', voice: 'nova', speed: 1.0 },
     }
   },
   { 
@@ -492,18 +464,14 @@ const presets = [
     config: {
       stt: { provider: 'deepgram', model: 'nova-2', language: 'multi' },
       llm: { provider: 'openai', model: 'gpt-4o', temperature: 0.7, maxTokens: 1024 },
-      tts: { provider: 'cartesia', model: 'sonic-multilingual', voice: '79a125e8-cd45-4c13-8a67-188112f4dd22', speed: 1.0 },
+      tts: { provider: 'openai', model: 'tts-1', voice: 'nova', speed: 1.0 },
     }
   },
 ];
 
-const activePreset = ref('balanced');
-
-function applyPreset(preset: typeof presets[0]) {
-  activePreset.value = preset.id;
-  Object.assign(stt, preset.config.stt);
-  Object.assign(llm, preset.config.llm);
-  Object.assign(tts, preset.config.tts);
+function applyPresetConfig(preset: typeof presets[0]) {
+  voiceStore.setActivePreset(preset.id);
+  voiceStore.applyPreset(preset.config);
 }
 
 // =============================================================================
@@ -513,20 +481,20 @@ function applyPreset(preset: typeof presets[0]) {
 function applyConfig() {
   if (!kwami.value) return;
 
-  if (pipelineMode.value === 'standard') {
+  if (pipelineMode.value === 'stt-llm-tts') {
     const config = {
-      stt: { provider: stt.provider, model: stt.model, language: stt.language } as STTConfig,
+      stt: { provider: stt.value.provider, model: stt.value.model, language: stt.value.language } as STTConfig,
       llm: {
-        provider: llm.provider,
-        model: llm.model,
-        temperature: llm.temperature,
-        maxTokens: llm.maxTokens,
+        provider: llm.value.provider,
+        model: llm.value.model,
+        temperature: llm.value.temperature,
+        maxTokens: llm.value.maxTokens,
       } as LLMConfig,
       tts: { 
-        provider: tts.provider, 
-        model: tts.model,
-        voice: tts.voice, 
-        speed: tts.speed 
+        provider: tts.value.provider, 
+        model: tts.value.model,
+        voice: tts.value.voice, 
+        speed: tts.value.speed 
       } as TTSConfig,
     };
     kwami.value.agent.updateConfig({
@@ -534,21 +502,22 @@ function applyConfig() {
     });
   } else {
     // Realtime config
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const config = {
       type: 'realtime' as const,
       realtime: {
-        provider: realtime.provider,
-        model: realtime.model,
-        voice: realtime.voice,
-        modalities: realtime.modalities,
+        provider: realtime.value.provider,
+        model: realtime.value.model,
+        voice: realtime.value.voice,
+        modalities: realtime.value.modalities,
       }
-    };
+    } as any;
     kwami.value.agent.updateConfig({
       livekit: { ...kwami.value.agent.getConfig().livekit, voice: config },
     });
   }
   
-  console.log('Voice config applied', { mode: pipelineMode.value, stt, llm, tts, realtime });
+  console.log('Voice config applied', { mode: pipelineMode.value, stt: stt.value, llm: llm.value, tts: tts.value, realtime: realtime.value });
 }
 
 // =============================================================================
@@ -556,54 +525,86 @@ function applyConfig() {
 // =============================================================================
 
 function updateVoiceLive() {
-  if (!kwami.value || !isConnected.value) return;
+  console.log('📤 updateVoiceLive called, isConnected:', isConnected.value);
   
-  kwami.value.agent.updateVoiceLive({
-    voice: tts.voice,
-    speed: tts.speed,
-    model: tts.model,
-    language: stt.language,
-  });
-  console.log('🔊 Voice updated live:', { voice: tts.voice, speed: tts.speed });
+  if (!kwami.value) {
+    console.warn('❌ Cannot update voice: kwami not initialized');
+    return;
+  }
+  if (!isConnected.value) {
+    console.warn('❌ Cannot update voice: not connected');
+    return;
+  }
+  
+  // Include provider so agent can switch TTS providers if needed
+  const voiceConfig = {
+    tts_provider: tts.value.provider,
+    tts_model: tts.value.model,
+    tts_voice: tts.value.voice,
+    tts_speed: tts.value.speed,
+    stt_language: stt.value.language,
+  };
+  
+  console.log('🔊 Sending voice update:', voiceConfig);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  kwami.value.agent.updateVoiceLive(voiceConfig as any);
 }
 
 function updateLlmLive() {
-  if (!kwami.value || !isConnected.value) return;
+  console.log('📤 updateLlmLive called, isConnected:', isConnected.value);
   
-  kwami.value.agent.updateLlmLive({
-    provider: llm.provider,
-    model: llm.model,
-    temperature: llm.temperature,
-  });
-  console.log('🧠 LLM updated live:', { provider: llm.provider, model: llm.model });
+  if (!kwami.value) {
+    console.warn('❌ Cannot update LLM: kwami not initialized');
+    return;
+  }
+  if (!isConnected.value) {
+    console.warn('❌ Cannot update LLM: not connected');
+    return;
+  }
+  
+  const llmConfig = {
+    provider: llm.value.provider,
+    model: llm.value.model,
+    temperature: llm.value.temperature,
+  };
+  
+  console.log('🧠 Sending LLM update:', llmConfig);
+  kwami.value.agent.updateLlmLive(llmConfig);
 }
 
 function updateSttLive() {
+  console.log('📤 updateSttLive called, isConnected:', isConnected.value);
+  
   if (!kwami.value || !isConnected.value) return;
   
-  kwami.value.agent.updateVoiceLive({
-    language: stt.language,
-  });
-  console.log('🎤 STT language updated live:', stt.language);
+  const sttConfig = {
+    stt_provider: stt.value.provider,
+    stt_model: stt.value.model,
+    stt_language: stt.value.language,
+  };
+  
+  console.log('🎤 Sending STT update:', sttConfig);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  kwami.value.agent.updateVoiceLive(sttConfig as any);
 }
 
 // Reset model when provider changes
-watch(() => stt.provider, () => {
-  stt.model = sttModels.value[0]?.model || 'default';
+watch(() => stt.value.provider, () => {
+  stt.value.model = sttModels.value[0]?.model || 'default';
 });
 
-watch(() => llm.provider, () => {
-  llm.model = llmModels.value[0]?.model || 'default';
+watch(() => llm.value.provider, () => {
+  llm.value.model = llmModels.value[0]?.model || 'default';
 });
 
-watch(() => tts.provider, () => {
-  tts.model = ttsModels.value[0]?.model || 'default';
-  tts.voice = ttsVoices.value[0]?.id || 'default';
+watch(() => tts.value.provider, () => {
+  tts.value.model = ttsModels.value[0]?.model || 'default';
+  tts.value.voice = ttsVoices.value[0]?.id || 'default';
 });
 
-watch(() => realtime.provider, () => {
-  realtime.model = realtimeModels.value[0]?.model || 'default';
-  realtime.voice = realtimeVoices.value[0]?.id || 'default';
+watch(() => realtime.value.provider, () => {
+  realtime.value.model = realtimeModels.value[0]?.model || 'default';
+  realtime.value.voice = realtimeVoices.value[0]?.id || 'default';
 });
 
 // =============================================================================
@@ -611,28 +612,32 @@ watch(() => realtime.provider, () => {
 // =============================================================================
 
 // Watch for TTS voice changes when connected
-watch(() => tts.voice, (newVoice) => {
+watch(() => tts.value.voice, (newVoice, oldVoice) => {
+  console.log(`👀 TTS voice changed: ${oldVoice} → ${newVoice}, isConnected: ${isConnected.value}`);
   if (isConnected.value && newVoice) {
     updateVoiceLive();
   }
 });
 
 // Watch for TTS speed changes when connected
-watch(() => tts.speed, () => {
+watch(() => tts.value.speed, (newSpeed, oldSpeed) => {
+  console.log(`👀 TTS speed changed: ${oldSpeed} → ${newSpeed}, isConnected: ${isConnected.value}`);
   if (isConnected.value) {
     updateVoiceLive();
   }
 });
 
 // Watch for LLM model changes when connected
-watch(() => llm.model, () => {
+watch(() => llm.value.model, (newModel, oldModel) => {
+  console.log(`👀 LLM model changed: ${oldModel} → ${newModel}, isConnected: ${isConnected.value}`);
   if (isConnected.value) {
     updateLlmLive();
   }
 });
 
 // Watch for LLM provider changes when connected
-watch(() => llm.provider, (newProvider, oldProvider) => {
+watch(() => llm.value.provider, (newProvider, oldProvider) => {
+  console.log(`👀 LLM provider changed: ${oldProvider} → ${newProvider}, isConnected: ${isConnected.value}`);
   if (isConnected.value && newProvider !== oldProvider) {
     // After provider change, model will also update - wait for it
     setTimeout(() => updateLlmLive(), 100);
@@ -640,21 +645,19 @@ watch(() => llm.provider, (newProvider, oldProvider) => {
 });
 
 // Watch for LLM temperature changes when connected
-watch(() => llm.temperature, () => {
+watch(() => llm.value.temperature, (newTemp, oldTemp) => {
+  console.log(`👀 LLM temperature changed: ${oldTemp} → ${newTemp}, isConnected: ${isConnected.value}`);
   if (isConnected.value) {
     updateLlmLive();
   }
 });
 
 // Watch for STT language changes when connected
-watch(() => stt.language, () => {
+watch(() => stt.value.language, (newLang, oldLang) => {
+  console.log(`👀 STT language changed: ${oldLang} → ${newLang}, isConnected: ${isConnected.value}`);
   if (isConnected.value) {
     updateSttLive();
   }
-});
-
-onMounted(() => {
-  // Sync from kwami if needed
 });
 </script>
 
@@ -671,8 +674,8 @@ onMounted(() => {
         <div class="mode-selector">
           <button
             class="mode-btn"
-            :class="{ active: pipelineMode === 'standard' }"
-            @click="pipelineMode = 'standard'"
+            :class="{ active: pipelineMode === 'stt-llm-tts' }"
+            @click="pipelineMode = 'stt-llm-tts'"
           >
             <iconify-icon icon="ph:arrows-left-right-duotone"></iconify-icon> Standard
           </button>
@@ -695,7 +698,7 @@ onMounted(() => {
             class="preset-btn"
             :class="{ active: activePreset === preset.id }"
             :title="preset.title"
-            @click="applyPreset(preset)"
+            @click="applyPresetConfig(preset)"
           >
             <iconify-icon :icon="preset.icon"></iconify-icon>
             <span>{{ preset.label }}</span>
@@ -704,7 +707,7 @@ onMounted(() => {
       </PanelSection>
 
       <!-- Standard Pipeline Config -->
-      <div v-if="pipelineMode === 'standard'" class="pipeline-config">
+      <div v-if="pipelineMode === 'stt-llm-tts'" class="pipeline-config">
         <!-- STT Section -->
         <PanelSection title="Speech to Text (STT)" icon="ph:microphone-duotone">
           <div class="config-form">
@@ -831,15 +834,15 @@ onMounted(() => {
       <!-- Apply Button -->
       <PanelSection>
         <div class="action-buttons">
-          <BaseButton 
+        <BaseButton 
             v-if="!isConnected"
-            variant="primary" 
-            block 
-            icon="ph:check-duotone" 
-            @click="applyConfig"
-          >
+          variant="primary" 
+          block 
+          icon="ph:check-duotone" 
+          @click="applyConfig"
+        >
             Apply Configuration
-          </BaseButton>
+        </BaseButton>
           <div v-else class="live-actions">
             <p class="live-notice">
               <iconify-icon icon="ph:broadcast-duotone"></iconify-icon>
