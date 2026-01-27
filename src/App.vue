@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { onMounted, ref, watch } from 'vue';
 import { useKwami } from '@/composables/useKwami';
 import { useUIStore } from '@/stores/ui';
+import { useInteractionStore, type InteractionAction } from '@/stores/interaction';
 import TheSidebar from '@/components/sidebar/TheSidebar.vue';
 import AvatarPanel from '@/components/panels/avatar/AvatarPanel.vue';
 import AgentPanel from '@/components/panels/agent/AgentPanel.vue';
@@ -19,8 +20,129 @@ import MetricsPanel from '@/components/panels/metrics/MetricsPanel.vue';
 
 const { kwami, init, switchRenderer } = useKwami();
 const uiStore = useUIStore();
+const interactionStore = useInteractionStore();
 
 const canvasRef = ref<HTMLCanvasElement | null>(null);
+
+// Execute interaction action based on config
+function executeInteractionAction(action: InteractionAction) {
+  if (!kwami.value) return;
+
+  switch (action) {
+    case 'toggleListening': {
+      const currentState = kwami.value.getState() || 'idle';
+      if (currentState === 'listening') {
+        kwami.value.setState('idle');
+      } else {
+        kwami.value.setState('listening');
+      }
+      break;
+    }
+    case 'startListening':
+      kwami.value.setState('listening');
+      break;
+    case 'stopListening':
+      kwami.value.setState('idle');
+      break;
+    case 'randomize':
+      kwami.value.avatar.randomize();
+      window.dispatchEvent(new CustomEvent('kwami:randomized'));
+      break;
+    case 'switchRenderer': {
+      const renderer = kwami.value.avatar.getRendererType();
+      switchRenderer(renderer === 'blob' ? 'crystal' : 'blob');
+      break;
+    }
+    case 'cycleState': {
+      const states = ['idle', 'listening', 'thinking'] as const;
+      const current = kwami.value.getState() || 'idle';
+      const currentIndex = states.indexOf(current as typeof states[number]);
+      const nextIndex = (currentIndex + 1) % states.length;
+      const nextState = states[nextIndex] || 'idle';
+      kwami.value.setState(nextState);
+      window.dispatchEvent(new CustomEvent('kwami:stateChanged', { detail: nextState }));
+      break;
+    }
+    case 'pulse':
+      // Pulse effect is visual-only, handled by the renderer's touch system
+      break;
+    case 'none':
+    default:
+      break;
+  }
+}
+
+// Apply interaction configuration to the Kwami instance
+function applyInteractionConfig() {
+  if (!kwami.value) return;
+
+  const config = interactionStore.config;
+  const blob = kwami.value.avatar.getBlob();
+  const crystal = kwami.value.avatar.getCrystal();
+
+  // Apply click callback
+  const clickHandler = config.click.enabled
+    ? () => executeInteractionAction(config.click.action)
+    : undefined;
+
+  if (blob) {
+    blob.onClick = clickHandler;
+  }
+  if (crystal) {
+    crystal.onClick = clickHandler;
+  }
+
+  // Apply double-click callback
+  const doubleClickHandler = config.doubleClick.enabled
+    ? () => executeInteractionAction(config.doubleClick.action)
+    : undefined;
+
+  if (blob) {
+    blob.onDoubleClick = doubleClickHandler;
+  }
+  if (crystal) {
+    crystal.onDoubleClick = doubleClickHandler;
+  }
+
+  // Apply right-click callbacks
+  const rightClickHandler = config.rightClick.enabled
+    ? () => executeInteractionAction(config.rightClick.action)
+    : () => {};
+  const doubleRightClickHandler = config.doubleRightClick.enabled
+    ? () => executeInteractionAction(config.doubleRightClick.action)
+    : () => {};
+
+  if (blob) {
+    blob.setRightClickCallback(rightClickHandler);
+    blob.setDoubleRightClickCallback(doubleRightClickHandler);
+  }
+  if (crystal) {
+    crystal.setRightClickCallback(rightClickHandler);
+    crystal.setDoubleRightClickCallback(doubleRightClickHandler);
+  }
+
+  // Apply hover cursor style
+  if (canvasRef.value) {
+    canvasRef.value.style.cursor = config.hover.enabled
+      ? config.hover.cursorStyle
+      : 'default';
+  }
+}
+
+// Watch interaction config for changes and apply them
+watch(
+  () => interactionStore.config,
+  () => {
+    applyInteractionConfig();
+  },
+  { deep: true }
+);
+
+// Also re-apply when renderer switches
+window.addEventListener('kwami:rendererChanged', () => {
+  // Small delay to ensure new renderer is initialized
+  setTimeout(() => applyInteractionConfig(), 50);
+});
 
 onMounted(() => {
   if (canvasRef.value) {
@@ -29,6 +151,9 @@ onMounted(() => {
     const rendererType = (urlParams.get('renderer') as 'blob' | 'crystal') || 'blob';
 
     init(canvasRef.value, rendererType);
+
+    // Apply initial interaction configuration
+    applyInteractionConfig();
 
     // Console info
     const rendererEmoji = rendererType === 'crystal' ? '💎' : '🫧';

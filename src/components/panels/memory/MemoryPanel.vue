@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import { useKwami } from '@/composables/useKwami';
-import type { MemoryContext, MemorySearchResult } from 'kwami-ai';
 import PanelSection from '@/components/ui/PanelSection.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
 import BaseInput from '@/components/ui/BaseInput.vue';
@@ -9,78 +8,9 @@ import MemoryGraph from '@/components/MemoryGraph.vue';
 
 const { kwami } = useKwami();
 
-// State
-const initialized = ref(false);
-const config = ref({ adapter: 'zep', zep: { apiKey: '', baseUrl: '' } });
-const context = ref<MemoryContext | null>(null);
-const searchResults = ref<MemorySearchResult[]>([]);
-const searchQuery = ref('');
-const isLoadingSearch = ref(false);
-const searchError = ref('');
-const contextError = ref('');
-
-function formatShort(text: string, len = 100) {
-  return text.length <= len ? text : text.slice(0, len) + '...';
-}
-
-async function refreshContext() {
-  if (!kwami.value?.memory.isInitialized()) {
-    context.value = null;
-    return;
-  }
-  try {
-    contextError.value = '';
-    context.value = await kwami.value.getMemoryContext();
-  } catch (e) {
-    contextError.value = (e as Error).message;
-  }
-}
-
-async function searchMemory() {
-  if (!searchQuery.value.trim() || !kwami.value) return;
-  isLoadingSearch.value = true;
-  searchError.value = '';
-  searchResults.value = [];
-  try {
-    searchResults.value = await kwami.value.searchMemory(searchQuery.value, 5);
-  } catch (e) {
-    searchError.value = (e as Error).message;
-  } finally {
-    isLoadingSearch.value = false;
-  }
-}
-
-async function exportContext() {
-  try {
-    const json = JSON.stringify(await kwami.value?.getMemoryContext(), null, 2);
-    const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'kwami-memory.json';
-    a.click();
-    URL.revokeObjectURL(url);
-  } catch (error) {
-    alert('Failed: ' + (error as Error).message);
-  }
-}
-
-async function clearMemory() {
-  if (!confirm('⚠️ Delete all memory?')) return;
-  try {
-    await kwami.value?.memory.clear();
-    await refreshContext();
-    alert('Memory cleared');
-  } catch (error) {
-    alert('Failed: ' + (error as Error).message);
-  }
-}
-
-// Graph configuration
-const showGraphModal = ref(false);
+// API base URL derived from token endpoint
 const apiBaseUrl = computed(() => {
-  // Get the token endpoint and derive the API base URL
   const tokenEndpoint = import.meta.env.VITE_LIVEKIT_TOKEN_ENDPOINT || '';
-  // Extract base URL (remove /token path if present)
   return tokenEndpoint.replace(/\/token\/?$/, '') || 'http://localhost:8080';
 });
 
@@ -88,17 +18,63 @@ const apiBaseUrl = computed(() => {
 const actualUserId = computed(() => {
   const config = kwami.value?.agent?.getConfig();
   const userId = config?.livekit?.userId || 'playground_user';
-  // Backend prefixes with 'kwami_' so we match that format
   return `kwami_${userId}`;
 });
 
-// Memory user_id - initialized from agent config
+// User ID state
 const graphUserId = ref('');
 const userIdInput = ref('');
 
-// Initialize with actual user ID when available
-function initUserIds() {
-  if (!graphUserId.value || graphUserId.value === '') {
+// Loading states
+const isLoading = ref(false);
+const loadError = ref('');
+
+// Tab state
+const activeTab = ref<'facts' | 'entities' | 'messages'>('facts');
+
+// Memory data
+interface Edge {
+  uuid: string | null;
+  fact: string | null;
+  name: string | null;
+  valid_at: string | null;
+  invalid_at: string | null;
+  created_at: string | null;
+}
+
+interface Node {
+  uuid: string | null;
+  name: string | null;
+  summary: string | null;
+  labels: string[];
+  created_at: string | null;
+}
+
+interface Message {
+  uuid: string | null;
+  content: string | null;
+  role: string | null;
+  role_type: string | null;
+  created_at: string | null;
+  thread_id: string | null;
+}
+
+const edges = ref<Edge[]>([]);
+const nodes = ref<Node[]>([]);
+const messages = ref<Message[]>([]);
+const sessionCount = ref(0);
+
+// Graph modal state
+const showGraphModal = ref(false);
+
+// Delete confirmation state
+const showDeleteConfirm = ref(false);
+const isDeleting = ref(false);
+const deleteError = ref('');
+
+// Initialize user ID from agent config
+function initUserId() {
+  if (!graphUserId.value) {
     graphUserId.value = actualUserId.value;
     userIdInput.value = actualUserId.value;
   }
@@ -108,46 +84,107 @@ function setGraphUserId() {
   graphUserId.value = userIdInput.value;
 }
 
-function updateStatus() {
-  if (kwami.value) {
-    initialized.value = kwami.value.memory.isInitialized();
-    // @ts-expect-error config
-    config.value = kwami.value.memory.getConfig();
+// Format date for display
+function formatDate(dateStr: string | null): string {
+  if (!dateStr) return '';
+  try {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric',
+      year: 'numeric'
+    });
+  } catch {
+    return dateStr;
   }
 }
 
-let interval: ReturnType<typeof setInterval> | null = null;
-onMounted(() => {
-  updateStatus();
-  initUserIds(); // Initialize user IDs from agent config
+// Fetch all memory data from API
+async function loadMemoryData() {
+  if (!graphUserId.value) return;
   
-  // Only start polling if not already initialized
-  if (!initialized.value) {
-    interval = setInterval(() => {
-      updateStatus();
-      initUserIds(); // Retry initialization if kwami wasn't ready
-      
-      // Stop polling once memory is initialized
-      if (initialized.value) {
-        if (!context.value) {
-          refreshContext();
-        }
-        if (interval) {
-          clearInterval(interval);
-          interval = null;
-        }
-      }
-    }, 2000);
-  } else {
-    // Already initialized, just refresh context
-    refreshContext();
+  isLoading.value = true;
+  loadError.value = '';
+  
+  try {
+    // Fetch all data in parallel
+    const [edgesRes, nodesRes, messagesRes] = await Promise.all([
+      fetch(`${apiBaseUrl.value}/memory/${graphUserId.value}/edges`),
+      fetch(`${apiBaseUrl.value}/memory/${graphUserId.value}/nodes`),
+      fetch(`${apiBaseUrl.value}/memory/${graphUserId.value}/messages`),
+    ]);
+    
+    if (!edgesRes.ok || !nodesRes.ok || !messagesRes.ok) {
+      throw new Error('Failed to load memory data');
+    }
+    
+    const [edgesData, nodesData, messagesData] = await Promise.all([
+      edgesRes.json(),
+      nodesRes.json(),
+      messagesRes.json(),
+    ]);
+    
+    edges.value = edgesData.edges || [];
+    nodes.value = nodesData.nodes || [];
+    messages.value = messagesData.messages || [];
+    sessionCount.value = messagesData.session_count || 0;
+    
+  } catch (e) {
+    loadError.value = (e as Error).message;
+    edges.value = [];
+    nodes.value = [];
+    messages.value = [];
+    sessionCount.value = 0;
+  } finally {
+    isLoading.value = false;
+  }
+}
+
+async function deleteUserMemory() {
+  if (!graphUserId.value) return;
+  
+  isDeleting.value = true;
+  deleteError.value = '';
+  
+  try {
+    const response = await fetch(`${apiBaseUrl.value}/memory/${graphUserId.value}`, {
+      method: 'DELETE',
+    });
+    
+    const result = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(result.detail || 'Failed to delete memory');
+    }
+    
+    if (result.success) {
+      showDeleteConfirm.value = false;
+      edges.value = [];
+      nodes.value = [];
+      messages.value = [];
+      sessionCount.value = 0;
+      alert(`Memory deleted!\n\nDeleted ${result.deleted_threads} thread(s)\nUser deleted: ${result.deleted_user ? 'Yes' : 'No'}`);
+    } else {
+      throw new Error(result.errors?.join(', ') || 'Delete operation failed');
+    }
+  } catch (e) {
+    deleteError.value = (e as Error).message;
+  } finally {
+    isDeleting.value = false;
+  }
+}
+
+// Auto-load when user ID changes
+watch(graphUserId, (newId) => {
+  if (newId) {
+    loadMemoryData();
   }
 });
 
-onUnmounted(() => {
-  if (interval) {
-    clearInterval(interval);
-    interval = null;
+onMounted(() => {
+  initUserId();
+  if (graphUserId.value) {
+    loadMemoryData();
   }
 });
 </script>
@@ -161,30 +198,11 @@ onUnmounted(() => {
     </div>
 
     <div class="panel-body">
-      <!-- Status -->
-      <PanelSection title="Status">
-        <div class="memory-status-card">
-          <div class="status-row">
-            <span class="key">Adapter</span><span class="value">{{ config.adapter || 'zep' }}</span>
-          </div>
-          <div class="status-row">
-            <span class="key">Initialized</span>
-            <span class="value" :class="initialized ? 'yes' : 'no'"
-              ><iconify-icon
-                :icon="initialized ? 'ph:check-circle-duotone' : 'ph:x-circle-duotone'"
-              ></iconify-icon>
-              {{ initialized ? 'Yes' : 'No' }}</span
-            >
-          </div>
-        </div>
-      </PanelSection>
-
-      <!-- Knowledge Graph -->
-      <PanelSection title="Knowledge Graph">
-        <div class="graph-user-select">
+      <!-- User Selection -->
+      <PanelSection title="User">
+        <div class="user-select-row">
           <BaseInput
             v-model="userIdInput"
-            label="User ID"
             placeholder="kwami_xxx"
             icon="ph:user-duotone"
           />
@@ -196,6 +214,124 @@ onUnmounted(() => {
             Load
           </BaseButton>
         </div>
+        <div class="current-user">
+          <iconify-icon icon="ph:identification-badge-duotone"></iconify-icon>
+          <code>{{ graphUserId }}</code>
+        </div>
+      </PanelSection>
+
+      <!-- Memory Stats -->
+      <PanelSection title="Overview">
+        <div v-if="isLoading" class="loading-state">
+          <iconify-icon icon="ph:spinner-gap-duotone" class="spin"></iconify-icon>
+          Loading memory data...
+        </div>
+        <div v-else-if="loadError" class="error-state">
+          <iconify-icon icon="ph:warning-duotone"></iconify-icon>
+          {{ loadError }}
+          <BaseButton size="sm" variant="secondary" @click="loadMemoryData">Retry</BaseButton>
+        </div>
+        <div v-else class="stats-grid">
+          <div class="stat-card" :class="{ active: activeTab === 'facts' }" @click="activeTab = 'facts'">
+            <div class="stat-value">{{ edges.length }}</div>
+            <div class="stat-label">Facts</div>
+          </div>
+          <div class="stat-card" :class="{ active: activeTab === 'entities' }" @click="activeTab = 'entities'">
+            <div class="stat-value">{{ nodes.length }}</div>
+            <div class="stat-label">Entities</div>
+          </div>
+          <div class="stat-card" :class="{ active: activeTab === 'messages' }" @click="activeTab = 'messages'">
+            <div class="stat-value">{{ messages.length }}</div>
+            <div class="stat-label">Messages</div>
+            <div class="stat-sub">{{ sessionCount }} session{{ sessionCount !== 1 ? 's' : '' }}</div>
+          </div>
+        </div>
+      </PanelSection>
+
+      <!-- Facts with Temporal Data -->
+      <PanelSection v-if="activeTab === 'facts'" title="Facts (Temporal)">
+        <div v-if="isLoading" class="loading-state small">
+          <iconify-icon icon="ph:spinner-gap-duotone" class="spin"></iconify-icon>
+        </div>
+        <div v-else-if="!edges.length" class="empty-state small">
+          <iconify-icon icon="ph:lightbulb-duotone"></iconify-icon>
+          No facts learned yet
+        </div>
+        <div v-else class="facts-list">
+          <div v-for="(edge, i) in edges" :key="i" class="fact-item">
+            <div class="fact-content">
+              <iconify-icon 
+                :icon="edge.invalid_at ? 'ph:x-circle-duotone' : 'ph:check-circle-duotone'" 
+                :class="edge.invalid_at ? 'invalid' : 'valid'"
+              ></iconify-icon>
+              <span :class="{ 'strikethrough': edge.invalid_at }">{{ edge.fact }}</span>
+            </div>
+            <div class="fact-meta">
+              <span v-if="edge.valid_at" class="date valid">
+                <iconify-icon icon="ph:calendar-check-duotone"></iconify-icon>
+                {{ formatDate(edge.valid_at) }}
+              </span>
+              <span v-if="edge.invalid_at" class="date invalid">
+                <iconify-icon icon="ph:calendar-x-duotone"></iconify-icon>
+                {{ formatDate(edge.invalid_at) }}
+              </span>
+              <span v-if="!edge.valid_at && !edge.invalid_at && edge.created_at" class="date">
+                {{ formatDate(edge.created_at) }}
+              </span>
+            </div>
+          </div>
+        </div>
+      </PanelSection>
+
+      <!-- Entities with Summaries -->
+      <PanelSection v-if="activeTab === 'entities'" title="Entities (with Summaries)">
+        <div v-if="isLoading" class="loading-state small">
+          <iconify-icon icon="ph:spinner-gap-duotone" class="spin"></iconify-icon>
+        </div>
+        <div v-else-if="!nodes.length" class="empty-state small">
+          <iconify-icon icon="ph:tag-duotone"></iconify-icon>
+          No entities discovered
+        </div>
+        <div v-else class="entities-list">
+          <div v-for="(node, i) in nodes" :key="i" class="entity-item">
+            <div class="entity-header">
+              <span class="entity-name">{{ node.name }}</span>
+              <span v-for="label in node.labels" :key="label" class="entity-label">{{ label }}</span>
+            </div>
+            <p v-if="node.summary" class="entity-summary">{{ node.summary }}</p>
+            <span v-if="node.created_at" class="entity-date">
+              <iconify-icon icon="ph:clock-duotone"></iconify-icon>
+              {{ formatDate(node.created_at) }}
+            </span>
+          </div>
+        </div>
+      </PanelSection>
+
+      <!-- Messages (Conversation History) -->
+      <PanelSection v-if="activeTab === 'messages'" title="Conversation History">
+        <div v-if="isLoading" class="loading-state small">
+          <iconify-icon icon="ph:spinner-gap-duotone" class="spin"></iconify-icon>
+        </div>
+        <div v-else-if="!messages.length" class="empty-state small">
+          <iconify-icon icon="ph:chat-circle-dots-duotone"></iconify-icon>
+          No conversation history
+        </div>
+        <div v-else class="messages-list">
+          <div v-for="(msg, i) in messages" :key="i" class="message-item" :class="msg.role_type || msg.role">
+            <div class="message-header">
+              <span class="message-role">
+                <iconify-icon :icon="msg.role_type === 'assistant' || msg.role === 'assistant' ? 'ph:robot-duotone' : 'ph:user-duotone'"></iconify-icon>
+                {{ msg.role || msg.role_type || 'unknown' }}
+              </span>
+              <span v-if="msg.created_at" class="message-date">{{ formatDate(msg.created_at) }}</span>
+            </div>
+            <p class="message-content">{{ msg.content }}</p>
+          </div>
+        </div>
+      </PanelSection>
+
+      <!-- Knowledge Graph -->
+      <PanelSection title="Knowledge Graph">
         <div class="graph-actions">
           <BaseButton
             variant="primary"
@@ -205,10 +341,15 @@ onUnmounted(() => {
           >
             Open Graph View
           </BaseButton>
-          <span class="graph-info">
-            <iconify-icon icon="ph:check-circle"></iconify-icon>
-            {{ graphUserId }}
-          </span>
+          <BaseButton
+            variant="secondary"
+            size="sm"
+            icon="ph:arrows-clockwise-duotone"
+            @click="loadMemoryData"
+            :disabled="isLoading"
+          >
+            Refresh
+          </BaseButton>
         </div>
       </PanelSection>
       
@@ -232,113 +373,61 @@ onUnmounted(() => {
         </div>
       </Teleport>
 
-      <!-- Config (Read-only) -->
-      <PanelSection title="Zep Configuration">
-        <BaseInput
-          label="API Key"
-          :modelValue="config.zep?.apiKey"
-          icon="ph:key-duotone"
-          disabled
-          type="password"
-        />
-        <BaseInput
-          label="Base URL"
-          :modelValue="config.zep?.baseUrl"
-          icon="ph:link-duotone"
-          disabled
-        />
+      <!-- Danger Zone -->
+      <PanelSection title="Danger Zone">
+        <div class="danger-zone">
+          <p>Permanently delete all memory for this user.</p>
+          <BaseButton 
+            variant="danger" 
+            size="sm"
+            icon="ph:trash-simple-duotone" 
+            @click="showDeleteConfirm = true"
+          >
+            Delete All Memory
+          </BaseButton>
+        </div>
       </PanelSection>
-
-      <!-- Context -->
-      <PanelSection title="Current Context">
-        <div class="context-display">
-          <div v-if="!initialized" class="context-empty">
-            <iconify-icon icon="ph:warning-duotone"></iconify-icon> Not initialized
-          </div>
-          <div v-else-if="contextError" class="context-empty error">
-            <iconify-icon icon="ph:x-circle-duotone"></iconify-icon> {{ contextError }}
-          </div>
-          <div v-else-if="!context" class="context-empty">
-            <iconify-icon icon="ph:brain-duotone"></iconify-icon> No context
-          </div>
-          <div v-else>
-            <div v-if="context.summary" class="sect">
-              <h4><iconify-icon icon="ph:article-duotone"></iconify-icon> Summary</h4>
-              <p>{{ context.summary }}</p>
+      
+      <!-- Delete Confirmation Modal -->
+      <Teleport to="body">
+        <div v-if="showDeleteConfirm" class="confirm-modal-overlay" @click.self="showDeleteConfirm = false">
+          <div class="confirm-modal">
+            <div class="confirm-modal-header">
+              <iconify-icon icon="ph:warning-duotone" class="warning-icon"></iconify-icon>
+              <h3>Delete All Memory?</h3>
             </div>
-            <div v-if="context.facts?.length" class="sect">
-              <h4><iconify-icon icon="ph:lightbulb-duotone"></iconify-icon> Facts</h4>
-              <ul class="facts">
-                <li v-for="(f, i) in context.facts" :key="i">{{ f }}</li>
-              </ul>
-            </div>
-            <div v-if="context.entities?.length" class="sect">
-              <h4><iconify-icon icon="ph:tag-duotone"></iconify-icon> Entities</h4>
-              <div class="tags">
-                <span v-for="(e, i) in context.entities" :key="i" class="tag">{{ e.name }}</span>
+            <div class="confirm-modal-body">
+              <p>You are about to permanently delete all memory for:</p>
+              <code class="user-id-display">{{ graphUserId }}</code>
+              <p class="warning-text">
+                <strong>This action cannot be undone.</strong> All threads, facts, entities, 
+                and the knowledge graph will be permanently deleted.
+              </p>
+              <div v-if="deleteError" class="delete-error">
+                <iconify-icon icon="ph:x-circle-duotone"></iconify-icon>
+                {{ deleteError }}
               </div>
             </div>
+            <div class="confirm-modal-footer">
+              <BaseButton 
+                variant="secondary" 
+                @click="showDeleteConfirm = false"
+                :disabled="isDeleting"
+              >
+                Cancel
+              </BaseButton>
+              <BaseButton 
+                variant="danger" 
+                icon="ph:trash-simple-duotone"
+                @click="deleteUserMemory"
+                :disabled="isDeleting"
+              >
+                {{ isDeleting ? 'Deleting...' : 'Delete Forever' }}
+              </BaseButton>
+            </div>
           </div>
         </div>
-        <BaseButton
-          size="sm"
-          icon="ph:arrows-clockwise-duotone"
-          @click="refreshContext"
-          style="margin-top: 8px"
-          >Refresh</BaseButton
-        >
-      </PanelSection>
-
-      <!-- Search -->
-      <PanelSection title="Search Memory">
-        <div class="search-row">
-          <BaseInput
-            v-model="searchQuery"
-            @keypress.enter="searchMemory"
-            placeholder="Search..."
-            style="flex: 1"
-          />
-          <BaseButton icon="ph:magnifying-glass-duotone" @click="searchMemory" />
-        </div>
-        <div class="search-results">
-          <div v-if="isLoadingSearch" class="msg">
-            <iconify-icon icon="ph:spinner-gap-duotone" class="spin"></iconify-icon> Searching...
-          </div>
-          <div v-else-if="searchError" class="msg error">{{ searchError }}</div>
-          <div
-            v-else-if="!isLoadingSearch && searchQuery && searchResults.length === 0"
-            class="msg"
-          >
-            No results
-          </div>
-          <div v-for="(res, i) in searchResults" :key="i" class="res-card">
-            <div class="score">{{ (res.score * 100).toFixed(0) }}%</div>
-            <div class="content">{{ formatShort(res.content, 120) }}</div>
-          </div>
-        </div>
-      </PanelSection>
-
-      <!-- Recent Messages -->
-      <PanelSection title="Recent Messages">
-        <div class="messages-list">
-           <div class="messages-empty">
-             <iconify-icon icon="ph:chat-circle-dots-duotone"></iconify-icon>
-             <span>No recent messages</span>
-           </div>
-        </div>
-      </PanelSection>
-
-      <!-- Actions -->
-      <PanelSection title="Actions">
-        <div class="row">
-          <BaseButton variant="secondary" icon="ph:export-duotone" @click="exportContext"
-            >Export</BaseButton
-          >
-          <BaseButton variant="danger" icon="ph:trash-duotone" @click="clearMemory"
-            >Clear</BaseButton
-          >
-        </div>
-      </PanelSection>
+      </Teleport>
     </div>
   </div>
 </template>
@@ -354,171 +443,259 @@ onUnmounted(() => {
   border-radius: 12px;
   color: var(--text-secondary);
 }
-.memory-status-card {
+
+/* User Selection */
+.user-select-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  margin-bottom: 10px;
+}
+.user-select-row :deep(.base-input) {
+  flex: 1;
+}
+.current-user {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--surface-2);
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+.current-user code {
+  color: var(--accent-primary);
+  font-family: monospace;
+}
+
+/* Stats Grid */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.stat-card {
   background: var(--surface-2);
   border-radius: 8px;
   padding: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 2px solid transparent;
 }
-.status-row {
-  display: flex;
-  justify-content: space-between;
-  font-size: 13px;
+.stat-card:hover {
+  background: var(--surface-3);
 }
-.key {
+.stat-card.active {
+  border-color: var(--accent-primary);
+  background: rgba(var(--accent-primary-rgb), 0.1);
+}
+.stat-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--accent-primary);
+  line-height: 1;
+}
+.stat-label {
+  font-size: 11px;
   color: var(--text-tertiary);
+  margin-top: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
-.value {
-  color: var(--text-primary);
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-.value.yes {
-  color: var(--accent-success);
-}
-.value.no {
-  color: var(--accent-error);
+.stat-sub {
+  font-size: 9px;
+  color: var(--text-tertiary);
+  margin-top: 2px;
+  opacity: 0.7;
 }
 
-.context-display {
-  background: var(--surface-0);
-  border: 1px solid var(--glass-border);
-  border-radius: 8px;
-  padding: 12px;
-  min-height: 100px;
-  max-height: 250px;
-  overflow-y: auto;
-  font-size: 13px;
-}
-.context-empty {
+/* Loading / Empty / Error States */
+.loading-state,
+.empty-state,
+.error-state {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 80px;
-  color: var(--text-tertiary);
-  gap: 6px;
-}
-.sect {
-  margin-bottom: 12px;
-}
-.sect h4 {
-  font-size: 12px;
-  color: var(--text-secondary);
-  margin-bottom: 4px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.facts {
-  list-style: disc inside;
-  padding-left: 4px;
-}
-.tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-.tag {
-  background: var(--surface-2);
-  border: 1px solid var(--glass-border);
-  border-radius: 12px;
-  padding: 2px 8px;
-  font-size: 11px;
-}
-
-.search-row {
-  display: flex;
   gap: 8px;
-  align-items: flex-end;
-  margin-bottom: 8px;
-}
-.msg {
+  padding: 20px;
+  color: var(--text-tertiary);
+  font-size: 13px;
   text-align: center;
+}
+.loading-state.small,
+.empty-state.small {
   padding: 12px;
-  color: var(--text-tertiary);
   font-size: 12px;
 }
-.msg.error {
+.loading-state iconify-icon,
+.empty-state iconify-icon,
+.error-state iconify-icon {
+  font-size: 24px;
+}
+.error-state {
   color: var(--accent-error);
-}
-.res-card {
-  background: var(--surface-1);
-  border: 1px solid var(--glass-border);
-  border-radius: 6px;
-  padding: 8px;
-  display: flex;
-  gap: 8px;
-  margin-bottom: 6px;
-}
-.score {
-  background: var(--surface-3);
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 10px;
-  font-weight: bold;
-  color: var(--accent-secondary);
-  height: fit-content;
-}
-.content {
-  font-size: 12px;
-  color: var(--text-secondary);
-  line-height: 1.3;
-}
-.row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
 }
 .spin {
   animation: spin 1s linear infinite;
 }
-.messages-list {
-  background: var(--surface-1);
-  border-radius: 8px;
-  min-height: 60px;
-  padding: 12px;
-}
-.messages-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  color: var(--text-tertiary);
-  font-size: 12px;
-}
-.messages-empty iconify-icon {
-  font-size: 24px;
-}
 @keyframes spin {
-  100% {
-    transform: rotate(360deg);
-  }
+  100% { transform: rotate(360deg); }
 }
-.graph-user-select {
+
+/* Facts List */
+.facts-list {
+  max-height: 300px;
+  overflow-y: auto;
+}
+.fact-item {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--glass-border);
+}
+.fact-item:last-child {
+  border-bottom: none;
+}
+.fact-content {
   display: flex;
+  align-items: flex-start;
   gap: 8px;
-  align-items: flex-end;
-  margin-bottom: 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.4;
 }
-.graph-user-select :deep(.base-input) {
-  flex: 1;
+.fact-content iconify-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+  margin-top: 2px;
 }
-.graph-actions {
+.fact-content iconify-icon.valid {
+  color: var(--accent-success);
+}
+.fact-content iconify-icon.invalid {
+  color: var(--accent-error);
+}
+.fact-content .strikethrough {
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+.fact-meta {
   display: flex;
-  align-items: center;
   gap: 12px;
+  margin-top: 6px;
+  padding-left: 22px;
 }
-.graph-info {
-  font-size: 11px;
-  color: var(--text-tertiary);
+.fact-meta .date {
   display: flex;
   align-items: center;
   gap: 4px;
+  font-size: 10px;
+  color: var(--text-tertiary);
+}
+.fact-meta .date.valid iconify-icon {
+  color: var(--accent-success);
+}
+.fact-meta .date.invalid iconify-icon {
+  color: var(--accent-error);
+}
+
+/* Entities List */
+.entities-list {
+  max-height: 300px;
+  overflow-y: auto;
+}
+.entity-item {
+  padding: 12px;
+  background: var(--surface-2);
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+.entity-item:last-child {
+  margin-bottom: 0;
+}
+.entity-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.entity-name {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+.entity-label {
+  font-size: 10px;
+  padding: 2px 6px;
+  background: var(--accent-primary);
+  color: var(--surface-0);
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+.entity-summary {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+.entity-date {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  color: var(--text-tertiary);
+  margin-top: 8px;
+}
+
+/* Messages List */
+.messages-list {
+  max-height: 300px;
+  overflow-y: auto;
+}
+.message-item {
+  padding: 10px 12px;
+  border-left: 3px solid var(--glass-border);
+  margin-bottom: 8px;
+  background: var(--surface-1);
+  border-radius: 0 6px 6px 0;
+}
+.message-item.user, .message-item.human {
+  border-left-color: var(--accent-primary);
+}
+.message-item.assistant, .message-item.ai {
+  border-left-color: var(--accent-secondary);
+}
+.message-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+.message-role {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: capitalize;
+}
+.message-content {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+.message-date {
+  font-size: 10px;
+  color: var(--text-tertiary);
+}
+
+/* Graph Actions */
+.graph-actions {
+  display: flex;
+  gap: 8px;
 }
 
 /* Graph Modal */
@@ -582,5 +759,110 @@ onUnmounted(() => {
   flex: 1;
   padding: 20px;
   overflow: auto;
+}
+
+/* Danger Zone */
+.danger-zone {
+  padding: 12px;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.danger-zone p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+/* Delete Confirmation Modal */
+.confirm-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.confirm-modal {
+  width: 100%;
+  max-width: 420px;
+  background: var(--surface-1);
+  border-radius: 16px;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  overflow: hidden;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+.confirm-modal-header {
+  padding: 20px 24px;
+  background: rgba(239, 68, 68, 0.1);
+  border-bottom: 1px solid rgba(239, 68, 68, 0.2);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.confirm-modal-header .warning-icon {
+  font-size: 28px;
+  color: var(--accent-error);
+}
+.confirm-modal-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.confirm-modal-body {
+  padding: 20px 24px;
+}
+.confirm-modal-body p {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+.user-id-display {
+  display: block;
+  padding: 10px 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--glass-border);
+  border-radius: 6px;
+  font-family: monospace;
+  font-size: 13px;
+  color: var(--accent-primary);
+  margin-bottom: 16px;
+  word-break: break-all;
+}
+.warning-text {
+  padding: 12px;
+  background: rgba(239, 68, 68, 0.08);
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--accent-error);
+}
+.delete-error {
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--accent-error);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.confirm-modal-footer {
+  padding: 16px 24px;
+  background: var(--surface-0);
+  border-top: 1px solid var(--glass-border);
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
 }
 </style>
