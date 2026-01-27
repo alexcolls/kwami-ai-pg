@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue';
+import { ref, reactive, onMounted, watch } from 'vue';
 import { useKwami } from '@/composables/useKwami';
 import PanelSection from '@/components/ui/PanelSection.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
@@ -45,22 +45,73 @@ const emotionalTraitDefs = [
 // Sync from Kwami
 function syncFromKwami() {
   if (!kwami.value) return;
-  const pConfig = kwami.value.persona.getConfig();
+  
+  // Prevent watchers from firing during sync
+  isSyncing = true;
+  
+  try {
+    const pConfig = kwami.value.persona.getConfig();
 
-  config.name = pConfig.name || 'Kwami';
-  config.personality = pConfig.personality || '';
-  config.conversationStyle = pConfig.conversationStyle || 'friendly';
-  config.language = pConfig.language || 'en';
-  config.responseLength = pConfig.responseLength || 'medium';
-  config.emotionalTone = pConfig.emotionalTone || 'neutral';
-  config.systemPrompt = pConfig.systemPrompt || '';
+    config.name = pConfig.name || 'Kwami';
+    config.personality = pConfig.personality || '';
+    config.conversationStyle = pConfig.conversationStyle || 'friendly';
+    config.language = pConfig.language || 'en';
+    config.responseLength = pConfig.responseLength || 'medium';
+    config.emotionalTone = pConfig.emotionalTone || 'neutral';
+    config.systemPrompt = pConfig.systemPrompt || '';
 
-  traits.value = [...kwami.value.persona.getTraits()];
+    traits.value = [...kwami.value.persona.getTraits()];
 
-  if (pConfig.emotionalTraits) {
-    Object.assign(emotionalTraits, pConfig.emotionalTraits);
+    if (pConfig.emotionalTraits) {
+      Object.assign(emotionalTraits, pConfig.emotionalTraits);
+    }
+  } finally {
+    // Re-enable watchers after sync completes (use setTimeout to ensure all reactive updates are processed)
+    setTimeout(() => { isSyncing = false; }, 0);
   }
 }
+
+// Live sync watchers - sync changes to kwami automatically
+let isSyncing = false; // Prevent infinite loops during sync
+
+watch(() => config.name, (v) => {
+  if (!isSyncing && kwami.value) kwami.value.persona.setName(v);
+});
+
+watch(() => config.personality, (v) => {
+  if (!isSyncing && kwami.value) kwami.value.persona.updateConfig({ personality: v });
+});
+
+watch(() => config.conversationStyle, (v) => {
+  if (!isSyncing && kwami.value) kwami.value.persona.setConversationStyle(v);
+});
+
+watch(() => config.language, (v) => {
+  if (!isSyncing && kwami.value) kwami.value.persona.setLanguage(v);
+});
+
+watch(() => config.responseLength, (v) => {
+  if (!isSyncing && kwami.value) kwami.value.persona.setResponseLength(v);
+});
+
+watch(() => config.emotionalTone, (v) => {
+  if (!isSyncing && kwami.value) kwami.value.persona.setEmotionalTone(v);
+});
+
+watch(() => config.systemPrompt, (v) => {
+  if (!isSyncing && kwami.value) kwami.value.persona.updateConfig({ systemPrompt: v });
+});
+
+watch(emotionalTraits, (v) => {
+  if (!isSyncing && kwami.value) {
+    Object.keys(v).forEach((key) => {
+      kwami.value?.persona.setEmotionalTrait(
+        key as keyof typeof emotionalTraits, 
+        v[key as keyof typeof v]
+      );
+    });
+  }
+}, { deep: true });
 
 // Actions
 function updateName() {

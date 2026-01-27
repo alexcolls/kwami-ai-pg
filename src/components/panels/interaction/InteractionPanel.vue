@@ -1,82 +1,16 @@
 <script setup lang="ts">
-import { reactive, watch, onMounted } from 'vue';
 import { useKwami } from '@/composables/useKwami';
+import { useInteractionStore, type InteractionAction } from '@/stores/interaction';
 import PanelSection from '@/components/ui/PanelSection.vue';
 import BaseSelect from '@/components/ui/BaseSelect.vue';
 import BaseToggle from '@/components/ui/BaseToggle.vue';
 import BaseSlider from '@/components/ui/BaseSlider.vue';
 
 const { kwami, switchRenderer } = useKwami();
+const interactionStore = useInteractionStore();
 
-type InteractionAction =
-  | 'none'
-  | 'toggleListening'
-  | 'startListening'
-  | 'stopListening'
-  | 'toggleSpeaking'
-  | 'randomize'
-  | 'switchRenderer'
-  | 'cycleState'
-  | 'pulse'
-  | 'custom';
-
-interface InteractionState {
-  click: {
-    action: InteractionAction;
-    enabled: boolean;
-  };
-  doubleClick: {
-    action: InteractionAction;
-    enabled: boolean;
-  };
-  rightClick: {
-    action: InteractionAction;
-    enabled: boolean;
-  };
-  doubleRightClick: {
-    action: InteractionAction;
-    enabled: boolean;
-  };
-  drag: {
-    enabled: boolean;
-    sensitivity: number;
-    rotateOnDrag: boolean;
-  };
-  hover: {
-    enabled: boolean;
-    highlightOnHover: boolean;
-    cursorStyle: string;
-  };
-}
-
-const state = reactive<InteractionState>({
-  click: {
-    action: 'pulse',
-    enabled: true,
-  },
-  doubleClick: {
-    action: 'toggleListening',
-    enabled: true,
-  },
-  rightClick: {
-    action: 'randomize',
-    enabled: true,
-  },
-  doubleRightClick: {
-    action: 'switchRenderer',
-    enabled: true,
-  },
-  drag: {
-    enabled: true,
-    sensitivity: 1.0,
-    rotateOnDrag: true,
-  },
-  hover: {
-    enabled: true,
-    highlightOnHover: false,
-    cursorStyle: 'pointer',
-  },
-});
+// Use store's reactive config directly
+const state = interactionStore.config;
 
 const actionOptions = [
   { label: 'None', value: 'none' },
@@ -138,35 +72,13 @@ function executeAction(action: InteractionAction) {
   }
 }
 
-// Store interaction config on the renderer
-function updateInteractionConfig() {
-  if (!kwami.value) return;
-
-  const blob = kwami.value.avatar.getBlob();
-  if (blob) {
-    // Store config for use in click handlers
-    (blob as unknown as Record<string, unknown>)._interactionConfig = {
-      click: state.click,
-      doubleClick: state.doubleClick,
-      rightClick: state.rightClick,
-      doubleRightClick: state.doubleRightClick,
-      drag: state.drag,
-      hover: state.hover,
-    };
-  }
-}
-
-// Watch for changes and update config
-watch(state, updateInteractionConfig, { deep: true });
-
 // Test action button
 function testAction(action: InteractionAction) {
   executeAction(action);
 }
 
-onMounted(() => {
-  updateInteractionConfig();
-});
+// Note: Interaction config is now stored in the Pinia store (interactionStore)
+// and persists across panel switches and renderer changes
 </script>
 
 <template>

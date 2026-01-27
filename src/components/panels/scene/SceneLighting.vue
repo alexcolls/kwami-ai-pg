@@ -2,9 +2,8 @@
 import PanelSection from '@/components/ui/PanelSection.vue';
 import BaseSlider from '@/components/ui/BaseSlider.vue';
 
-defineProps<{
-  lighting: { top: number; bottom: number; ambient: number };
-}>();
+// Use defineModel for proper two-way binding (Vue 3.3+)
+const lighting = defineModel<{ top: number; bottom: number; ambient: number }>('lighting', { required: true });
 </script>
 
 <template>

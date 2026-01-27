@@ -37,6 +37,9 @@ function toggle() {
         <iconify-icon v-if="icon" :icon="icon" class="section-icon"></iconify-icon>
         <h3>{{ title }}</h3>
       </div>
+      <div class="section-actions" @click.stop>
+        <slot name="actions"></slot>
+      </div>
       <iconify-icon
         v-if="collapsible"
         icon="ph:caret-down-bold"
@@ -97,6 +100,12 @@ function toggle() {
   align-items: center;
   gap: 8px;
   flex: 1;
+}
+
+.section-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .section-icon {

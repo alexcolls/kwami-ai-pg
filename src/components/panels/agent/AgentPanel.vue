@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useKwami } from '@/composables/useKwami';
 import { useVoiceStore } from '@/stores/voice';
 import PanelSection from '@/components/ui/PanelSection.vue';
@@ -76,13 +76,13 @@ async function handleConnect() {
         onError: (err) => console.error('Error:', err),
       });
 
-      isConnected.value = true;
+      // Note: isConnected is managed by useKwami composable via onStateChange
       sessionStartTime.value = Date.now();
       durationInterval = setInterval(updateDuration, 1000);
     }
   } catch (err: unknown) {
     alert(`Connection failed: ${(err as Error).message}`);
-    isConnected.value = false;
+    // Note: isConnected is managed by useKwami composable via onStateChange
   }
 }
 
@@ -90,7 +90,7 @@ async function handleDisconnect() {
   try {
     if (kwami.value) {
       await kwami.value.disconnect();
-      isConnected.value = false;
+      // Note: isConnected is managed by useKwami composable via onStateChange
       if (durationInterval) {
         clearInterval(durationInterval);
         durationInterval = null;
@@ -102,6 +102,16 @@ async function handleDisconnect() {
     console.error('Disconnect error:', err);
   }
 }
+
+// Watch for external disconnection events to clean up session timer
+watch(isConnected, (connected) => {
+  if (!connected && durationInterval) {
+    clearInterval(durationInterval);
+    durationInterval = null;
+    sessionStartTime.value = null;
+    sessionDuration.value = '0:00';
+  }
+});
 
 onMounted(() => {
   if (kwami.value) {

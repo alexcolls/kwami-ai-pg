@@ -2,11 +2,8 @@
 import PanelSection from '@/components/ui/PanelSection.vue';
 import BaseSlider from '@/components/ui/BaseSlider.vue';
 
-defineProps<{
-  camera: { fov: number; distance: number };
-}>();
-
-const emit = defineEmits(['update:camera']);
+// Use defineModel for proper two-way binding (Vue 3.3+)
+const camera = defineModel<{ fov: number; distance: number }>('camera', { required: true });
 </script>
 
 <template>

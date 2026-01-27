@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed, watch } from 'vue';
 import PanelSection from '@/components/ui/PanelSection.vue';
 import BaseColorPicker from '@/components/ui/BaseColorPicker.vue';
 import BaseSelect from '@/components/ui/BaseSelect.vue';
@@ -10,31 +10,32 @@ type GradientDirection = 'radial' | 'vertical' | 'horizontal' | 'diagonal';
 type BackgroundType = 'gradient' | 'solid' | 'transparent' | 'image' | 'video';
 type MediaFit = 'cover' | 'contain' | 'stretch';
 
-const props = defineProps<{
-  background: {
-    type: BackgroundType;
-    gradient: { 
-      colors: [string, string, string]; 
-      direction: GradientDirection;
-      opacity?: number;
-      angle?: number;
-    };
-    solidColor: string;
-    solidOpacity?: number;
-    image?: {
-      url: string;
-      fit: MediaFit;
-      opacity: number;
-    };
-    video?: {
-      url: string;
-      fit: MediaFit;
-      opacity: number;
-      loop: boolean;
-      muted: boolean;
-    };
+interface BackgroundConfig {
+  type: BackgroundType;
+  gradient: { 
+    colors: [string, string, string]; 
+    direction: GradientDirection;
+    opacity?: number;
+    angle?: number;
   };
-}>();
+  solidColor: string;
+  solidOpacity?: number;
+  image?: {
+    url: string;
+    fit: MediaFit;
+    opacity: number;
+  };
+  video?: {
+    url: string;
+    fit: MediaFit;
+    opacity: number;
+    loop: boolean;
+    muted: boolean;
+  };
+}
+
+// Use defineModel for proper two-way binding (Vue 3.3+)
+const background = defineModel<BackgroundConfig>('background', { required: true });
 
 const emit = defineEmits<{
   (e: 'preset', name: string): void;
@@ -42,16 +43,21 @@ const emit = defineEmits<{
   (e: 'videoUpload', file: File): void;
 }>();
 
-// Initialize optional properties with defaults
-if (!props.background.gradient.opacity) props.background.gradient.opacity = 1;
-if (!props.background.gradient.angle) props.background.gradient.angle = 0;
-if (!props.background.solidOpacity) props.background.solidOpacity = 1;
-if (!props.background.image) {
-  props.background.image = { url: '', fit: 'cover', opacity: 1 };
-}
-if (!props.background.video) {
-  props.background.video = { url: '', fit: 'cover', opacity: 1, loop: true, muted: true };
-}
+// Initialize optional properties with defaults using watchers and computed
+// This ensures reactivity without direct prop mutation
+watch(background, (bg) => {
+  if (bg) {
+    if (bg.gradient.opacity === undefined) bg.gradient.opacity = 1;
+    if (bg.gradient.angle === undefined) bg.gradient.angle = 0;
+    if (bg.solidOpacity === undefined) bg.solidOpacity = 1;
+    if (!bg.image) {
+      bg.image = { url: '', fit: 'cover', opacity: 1 };
+    }
+    if (!bg.video) {
+      bg.video = { url: '', fit: 'cover', opacity: 1, loop: true, muted: true };
+    }
+  }
+}, { immediate: true, deep: true });
 
 const imageFileInput = ref<HTMLInputElement | null>(null);
 const videoFileInput = ref<HTMLInputElement | null>(null);
@@ -61,8 +67,8 @@ function handleImageUpload(event: Event) {
   if (input.files && input.files[0]) {
     const file = input.files[0];
     const url = URL.createObjectURL(file);
-    if (props.background.image) {
-      props.background.image.url = url;
+    if (background.value?.image) {
+      background.value.image.url = url;
     }
     emit('imageUpload', file);
   }
@@ -73,8 +79,8 @@ function handleVideoUpload(event: Event) {
   if (input.files && input.files[0]) {
     const file = input.files[0];
     const url = URL.createObjectURL(file);
-    if (props.background.video) {
-      props.background.video.url = url;
+    if (background.value?.video) {
+      background.value.video.url = url;
     }
     emit('videoUpload', file);
   }

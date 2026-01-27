@@ -1,102 +1,18 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted, watch } from 'vue';
+import { onMounted, onUnmounted, watch } from 'vue';
+import { storeToRefs } from 'pinia';
 import { useKwami } from '@/composables/useKwami';
+import { useAvatarStore, type SkinSubtype, type CrystalFormation, type AvatarState } from '@/stores/avatar';
 import PanelSection from '@/components/ui/PanelSection.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
 import BlobSettings from './BlobSettings.vue';
 import CrystalSettings from './CrystalSettings.vue';
 
-const { kwami, rendererType, switchRenderer } = useKwami();
+const { kwami, rendererType: kwamiRendererType, switchRenderer } = useKwami();
+const avatarStore = useAvatarStore();
 
-// Types
-type SkinSubtype = 'poles' | 'donut' | 'vintage';
-type CrystalFormation = 'constellation' | 'helix' | 'vortex';
-
-interface BlobPanelState {
-  colors: { x: string; y: string; z: string };
-  spikes: { x: number; y: number; z: number };
-  amplitude: { x: number; y: number; z: number };
-  time: { x: number; y: number; z: number };
-  rotation: { x: number; y: number; z: number };
-  scale: number;
-  opacity: number;
-  shininess: number;
-  lightIntensity: number;
-  wireframe: boolean;
-  skin: string;
-  resolution: number;
-  touchStrength: number;
-  touchDuration: number;
-  maxTouchPoints: number;
-  transitionSpeed: number;
-  thinkingDuration: number;
-}
-
-interface CrystalPanelState {
-  formation: string;
-  colors: { primary: string; secondary: string; accent: string };
-  coreColors: { inner: string; outer: string };
-  glowIntensity: number;
-  shardCount: number;
-  scale: number;
-  rotation: { x: number; y: number; z: number };
-  audioEffects: {
-    reactivity: number;
-    bassOrbitBoost: number;
-    midRotationBoost: number;
-    highGlowBoost: number;
-    enabled: boolean;
-  };
-  transitionSpeed: number;
-  thinkingDuration: number;
-}
-
-function getDefaultBlobState(): BlobPanelState {
-  return {
-    colors: { x: '#ff0066', y: '#00ff66', z: '#6600ff' },
-    spikes: { x: 0.2, y: 0.2, z: 0.2 },
-    amplitude: { x: 0.8, y: 0.8, z: 0.8 },
-    time: { x: 1, y: 1, z: 1 },
-    rotation: { x: 0.002, y: 0.003, z: 0.001 },
-    scale: 3.2,
-    opacity: 1,
-    shininess: 50,
-    lightIntensity: 0,
-    wireframe: false,
-    skin: 'poles',
-    resolution: 180,
-    touchStrength: 1,
-    touchDuration: 1100,
-    maxTouchPoints: 5,
-    transitionSpeed: 0.05,
-    thinkingDuration: 10000,
-  };
-}
-
-function getDefaultCrystalState(): CrystalPanelState {
-  return {
-    formation: 'constellation',
-    colors: { primary: '#00e5ff', secondary: '#7c4dff', accent: '#ff4081' },
-    coreColors: { inner: '#ffffff', outer: '#00ffff' },
-    glowIntensity: 1.2,
-    shardCount: 24,
-    scale: 1,
-    rotation: { x: 0, y: 0.002, z: 0 },
-    audioEffects: {
-      reactivity: 1.5,
-      bassOrbitBoost: 0.4,
-      midRotationBoost: 0.6,
-      highGlowBoost: 0.8,
-      enabled: true,
-    },
-    transitionSpeed: 0.05,
-    thinkingDuration: 10000,
-  };
-}
-
-const blobState = reactive<BlobPanelState>(getDefaultBlobState());
-const crystalState = reactive<CrystalPanelState>(getDefaultCrystalState());
-const activeState = ref<'idle' | 'listening' | 'thinking'>('idle');
+// Use store state
+const { blob, crystal, activeState, rendererType, blobPresets, crystalPresets } = storeToRefs(avatarStore);
 
 // Helpers
 function getBlob() {
@@ -106,186 +22,219 @@ function getCrystal() {
   return kwami.value?.avatar.getCrystal();
 }
 
-// Sync
+// Sync from Kwami to Store
 function syncFromKwami() {
   if (!kwami.value) return;
-  const blob = getBlob();
-  if (blob) {
-    const c = blob.getColors();
-    blobState.colors = { x: c.x, y: c.y, z: c.z };
-    blobState.spikes = blob.getSpikes();
-    blobState.amplitude = blob.getAmplitude();
-    blobState.time = blob.getTime();
-    blobState.rotation = blob.getRotation();
-    blobState.scale = blob.getScale();
-    blobState.opacity = blob.getOpacity();
-    blobState.shininess = blob.getShininess();
-    blobState.lightIntensity = blob.lightIntensity;
-    blobState.wireframe = blob.getWireframe();
-    blobState.skin = blob.getCurrentSkinSubtype() as SkinSubtype;
+  
+  const blobInstance = getBlob();
+  if (blobInstance) {
+    avatarStore.syncBlobFromExternal(blobInstance);
   }
 
-  const crystal = getCrystal();
-  if (crystal) {
-    crystalState.formation = crystal.getFormation().formation as CrystalFormation;
-    crystalState.colors = crystal.getColors();
-    // crystalState.coreColors = crystal.getCoreColors()
-    crystalState.scale = crystal.getScale();
-    crystalState.rotation = crystal.getRotation();
-    // crystalState.glowIntensity = crystal.getGlowIntensity()
-    // crystalState.shardCount = crystal.getShardCount()
+  const crystalInstance = getCrystal();
+  if (crystalInstance) {
+    avatarStore.syncCrystalFromExternal(crystalInstance);
   }
+  
+  // Sync renderer type from kwami
+  avatarStore.setRendererType(kwamiRendererType.value);
 }
 
-// Watchers: Sync changes from state to Kwami
+// Sync Store to Kwami - Blob watchers
 watch(
-  () => blobState.colors,
+  () => blob.value.colors,
   (v) => getBlob()?.setColors(v.x, v.y, v.z),
-  { deep: true },
+  { deep: true }
 );
 watch(
-  () => blobState.spikes,
+  () => blob.value.spikes,
   (v) => getBlob()?.setSpikes(v.x, v.y, v.z),
-  { deep: true },
+  { deep: true }
 );
 watch(
-  () => blobState.amplitude,
+  () => blob.value.amplitude,
   (v) => getBlob()?.setAmplitude(v.x, v.y, v.z),
-  { deep: true },
+  { deep: true }
 );
 watch(
-  () => blobState.time,
+  () => blob.value.time,
   (v) => getBlob()?.setTime(v.x, v.y, v.z),
-  { deep: true },
+  { deep: true }
 );
 watch(
-  () => blobState.rotation,
+  () => blob.value.rotation,
   (v) => kwami.value?.avatar.setRotation(v.x, v.y, v.z),
-  { deep: true },
+  { deep: true }
 );
+watch(() => blob.value.scale, (v) => kwami.value?.avatar.setScale(v));
+watch(() => blob.value.opacity, (v) => kwami.value?.avatar.setOpacity(v));
+watch(() => blob.value.shininess, (v) => kwami.value?.avatar.setShininess(v));
+watch(() => blob.value.lightIntensity, (v) => getBlob()?.setLightIntensity(v));
+watch(() => blob.value.wireframe, (v) => kwami.value?.avatar.setWireframe(v));
 watch(
-  () => blobState.scale,
-  (v) => kwami.value?.avatar.setScale(v),
+  () => blob.value.skin,
+  (v) => kwami.value?.avatar.setSkin({ skin: 'tricolor', subtype: v as SkinSubtype })
 );
-watch(
-  () => blobState.opacity,
-  (v) => kwami.value?.avatar.setOpacity(v),
-);
-watch(
-  () => blobState.shininess,
-  (v) => kwami.value?.avatar.setShininess(v),
-);
-watch(
-  () => blobState.lightIntensity,
-  (v) => getBlob()?.setLightIntensity(v),
-);
-watch(
-  () => blobState.wireframe,
-  (v) => kwami.value?.avatar.setWireframe(v),
-);
-watch(
-  () => blobState.skin,
-  (v) => kwami.value?.avatar.setSkin({ skin: 'tricolor', subtype: v as SkinSubtype }),
-);
-watch(
-  () => blobState.resolution,
-  (v) => getBlob()?.setResolution(v),
-);
-watch(
-  () => blobState.touchStrength,
-  (v) => {
-    const blob = getBlob();
-    if (blob) (blob as { touchStrength: number }).touchStrength = v;
-  },
-);
-watch(
-  () => blobState.touchDuration,
-  (v) => {
-    const blob = getBlob();
-    if (blob) (blob as { touchDuration: number }).touchDuration = v;
-  },
-);
-watch(
-  () => blobState.maxTouchPoints,
-  (v) => {
-    const blob = getBlob();
-    if (blob) (blob as { maxTouchPoints: number }).maxTouchPoints = v;
-  },
-);
-watch(
-  () => blobState.transitionSpeed,
-  (v) => {
-    const blob = getBlob();
-    if (blob) (blob as { transitionSpeed: number }).transitionSpeed = v;
-  },
-);
-watch(
-  () => blobState.thinkingDuration,
-  (v) => {
-    const blob = getBlob();
-    if (blob) (blob as { thinkingDuration: number }).thinkingDuration = v;
-  },
-);
+watch(() => blob.value.resolution, (v) => getBlob()?.setResolution(v));
+watch(() => blob.value.touchStrength, (v) => {
+  const b = getBlob();
+  if (b) (b as { touchStrength: number }).touchStrength = v;
+});
+watch(() => blob.value.touchDuration, (v) => {
+  const b = getBlob();
+  if (b) (b as { touchDuration: number }).touchDuration = v;
+});
+watch(() => blob.value.maxTouchPoints, (v) => {
+  const b = getBlob();
+  if (b) (b as { maxTouchPoints: number }).maxTouchPoints = v;
+});
+watch(() => blob.value.transitionSpeed, (v) => {
+  const b = getBlob();
+  if (b) (b as { transitionSpeed: number }).transitionSpeed = v;
+});
+watch(() => blob.value.thinkingDuration, (v) => {
+  const b = getBlob();
+  if (b) (b as { thinkingDuration: number }).thinkingDuration = v;
+});
 
+// Sync Store to Kwami - Crystal watchers
 watch(
-  () => crystalState.formation,
-  (v) => getCrystal()?.setFormation({ formation: v as CrystalFormation }),
+  () => crystal.value.formation,
+  (v) => getCrystal()?.setFormation({ formation: v as CrystalFormation })
 );
 watch(
-  () => crystalState.colors,
+  () => crystal.value.colors,
   (v) => getCrystal()?.setColors(v.primary, v.secondary, v.accent),
-  { deep: true },
+  { deep: true }
 );
 watch(
-  () => crystalState.coreColors,
+  () => crystal.value.coreColors,
   (v) => getCrystal()?.setCoreColors(v.inner, v.outer),
-  { deep: true },
+  { deep: true }
 );
+watch(() => crystal.value.glowIntensity, (v) => getCrystal()?.setGlowIntensity(v));
+watch(() => crystal.value.shardCount, (v) => getCrystal()?.setShardCount(v));
+watch(() => crystal.value.scale, (v) => getCrystal()?.setScale(v));
 watch(
-  () => crystalState.glowIntensity,
-  (v) => getCrystal()?.setGlowIntensity(v),
-);
-watch(
-  () => crystalState.shardCount,
-  (v) => getCrystal()?.setShardCount(v),
-);
-watch(
-  () => crystalState.scale,
-  (v) => getCrystal()?.setScale(v),
-);
-watch(
-  () => crystalState.rotation,
+  () => crystal.value.rotation,
   (v) => getCrystal()?.setRotation(v.x, v.y, v.z),
-  { deep: true },
+  { deep: true }
 );
+// Crystal audio effects watchers
+watch(
+  () => crystal.value.audioEffects,
+  (v) => {
+    const c = getCrystal();
+    if (c && typeof (c as any).setAudioEffects === 'function') {
+      (c as any).setAudioEffects(v);
+    }
+  },
+  { deep: true }
+);
+// Crystal transition watchers
+watch(() => crystal.value.transitionSpeed, (v) => {
+  const c = getCrystal();
+  if (c) (c as { transitionSpeed?: number }).transitionSpeed = v;
+});
+watch(() => crystal.value.thinkingDuration, (v) => {
+  const c = getCrystal();
+  if (c) (c as { thinkingDuration?: number }).thinkingDuration = v;
+});
 
+// Sync renderer type changes
+watch(rendererType, (type) => {
+  if (kwamiRendererType.value !== type) {
+    switchRenderer(type);
+  }
+});
+
+// Actions
 function handleSwitchRenderer(type: 'blob' | 'crystal') {
+  avatarStore.setRendererType(type);
   switchRenderer(type);
 }
-function handleStateChange(state: 'idle' | 'listening' | 'thinking') {
-  activeState.value = state;
+
+function handleStateChange(state: AvatarState) {
+  avatarStore.setActiveState(state);
   kwami.value?.avatar.setState(state);
 }
+
 function handleRandomize() {
   kwami.value?.avatar.randomize();
   syncFromKwami();
 }
+
 function handleExport() {
   kwami.value?.avatar.exportGLTF();
 }
+
 function handleReset() {
-  if (rendererType.value === 'blob') Object.assign(blobState, getDefaultBlobState());
-  else Object.assign(crystalState, getDefaultCrystalState());
+  // Reset store state
+  avatarStore.reset();
+  
+  // Apply defaults to kwami instance
+  if (rendererType.value === 'blob') {
+    const b = getBlob();
+    if (b && kwami.value) {
+      kwami.value.avatar.setColors(blob.value.colors.x, blob.value.colors.y, blob.value.colors.z);
+      kwami.value.avatar.setRotation(blob.value.rotation.x, blob.value.rotation.y, blob.value.rotation.z);
+      kwami.value.avatar.setScale(blob.value.scale);
+      kwami.value.avatar.setOpacity(blob.value.opacity);
+      kwami.value.avatar.setShininess(blob.value.shininess);
+      kwami.value.avatar.setWireframe(blob.value.wireframe);
+      b.setSpikes(blob.value.spikes.x, blob.value.spikes.y, blob.value.spikes.z);
+      b.setAmplitude(blob.value.amplitude.x, blob.value.amplitude.y, blob.value.amplitude.z);
+      b.setTime(blob.value.time.x, blob.value.time.y, blob.value.time.z);
+      b.setLightIntensity(blob.value.lightIntensity);
+      b.setResolution(blob.value.resolution);
+    }
+  } else {
+    const c = getCrystal();
+    if (c) {
+      c.setFormation({ formation: crystal.value.formation as CrystalFormation });
+      c.setColors(crystal.value.colors.primary, crystal.value.colors.secondary, crystal.value.colors.accent);
+      c.setCoreColors(crystal.value.coreColors.inner, crystal.value.coreColors.outer);
+      c.setGlowIntensity(crystal.value.glowIntensity);
+      c.setShardCount(crystal.value.shardCount);
+      c.setScale(crystal.value.scale);
+      c.setRotation(crystal.value.rotation.x, crystal.value.rotation.y, crystal.value.rotation.z);
+    }
+  }
+}
+
+function handleApplyPreset(presetId: string) {
+  const success = avatarStore.applyPreset(presetId);
+  if (success) {
+    // Sync to kwami - watchers will handle most of it
+    // But we need to switch renderer if needed
+    if (kwamiRendererType.value !== rendererType.value) {
+      switchRenderer(rendererType.value);
+    }
+  }
+}
+
+// Event handlers for cleanup
+function onStateChanged(e: Event) {
+  avatarStore.setActiveState((e as CustomEvent).detail as AvatarState);
+}
+function onRandomized() {
+  syncFromKwami();
+}
+function onRendererChanged() {
+  syncFromKwami();
 }
 
 onMounted(() => {
   syncFromKwami();
-  window.addEventListener(
-    'kwami:stateChanged',
-    ((e: CustomEvent) => (activeState.value = e.detail)) as EventListener,
-  );
-  window.addEventListener('kwami:randomized', () => syncFromKwami());
-  window.addEventListener('kwami:rendererChanged', () => syncFromKwami());
+  window.addEventListener('kwami:stateChanged', onStateChanged);
+  window.addEventListener('kwami:randomized', onRandomized);
+  window.addEventListener('kwami:rendererChanged', onRendererChanged);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('kwami:stateChanged', onStateChanged);
+  window.removeEventListener('kwami:randomized', onRandomized);
+  window.removeEventListener('kwami:rendererChanged', onRendererChanged);
 });
 </script>
 
@@ -325,9 +274,25 @@ onMounted(() => {
         </div>
       </PanelSection>
 
+      <!-- Presets -->
+      <PanelSection title="Quick Presets">
+        <div class="presets-grid">
+          <button
+            v-for="preset in (rendererType === 'blob' ? blobPresets : crystalPresets)"
+            :key="preset.id"
+            class="preset-btn"
+            @click="handleApplyPreset(preset.id)"
+            :title="preset.name"
+          >
+            <iconify-icon :icon="preset.icon" class="preset-icon"></iconify-icon>
+            <span class="preset-name">{{ preset.name }}</span>
+          </button>
+        </div>
+      </PanelSection>
+
       <!-- Sub-components -->
-      <BlobSettings v-if="rendererType === 'blob'" :state="blobState" />
-      <CrystalSettings v-if="rendererType === 'crystal'" :state="crystalState" />
+      <BlobSettings v-if="rendererType === 'blob'" v-model:state="blob" />
+      <CrystalSettings v-if="rendererType === 'crystal'" v-model:state="crystal" />
 
       <PanelSection title="State">
         <div class="state-buttons">
@@ -351,6 +316,13 @@ onMounted(() => {
             size="sm"
             icon="ph:brain-duotone"
             >Think</BaseButton
+          >
+          <BaseButton
+            :variant="activeState === 'speaking' ? 'primary' : 'secondary'"
+            @click="handleStateChange('speaking')"
+            size="sm"
+            icon="ph:speaker-high-duotone"
+            >Speak</BaseButton
           >
         </div>
       </PanelSection>
@@ -436,10 +408,58 @@ onMounted(() => {
   color: var(--text-primary);
 }
 
+/* Presets Grid */
+.presets-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.preset-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 8px;
+  background: var(--surface-1);
+  border: 1px solid transparent;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.preset-btn:hover {
+  background: var(--surface-2);
+  border-color: var(--accent-primary);
+  transform: translateY(-2px);
+}
+
+.preset-btn:active {
+  transform: translateY(0);
+}
+
+.preset-icon {
+  font-size: 22px;
+  color: var(--accent-primary);
+}
+
+.preset-name {
+  font-size: 9px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-align: center;
+  line-height: 1.2;
+}
+
+.preset-btn:hover .preset-name {
+  color: var(--text-primary);
+}
+
 /* State Buttons */
 .state-buttons {
   display: flex;
   gap: 6px;
+  flex-wrap: wrap;
 }
 
 /* Action Buttons */

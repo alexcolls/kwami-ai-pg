@@ -2,18 +2,11 @@
 import PanelSection from '@/components/ui/PanelSection.vue';
 import BaseSlider from '@/components/ui/BaseSlider.vue';
 import BaseColorPicker from '@/components/ui/BaseColorPicker.vue';
+import BaseToggle from '@/components/ui/BaseToggle.vue';
+import type { CrystalState } from '@/stores/avatar';
 
-defineProps<{
-  state: {
-    formation: string;
-    colors: { primary: string; secondary: string; accent: string };
-    coreColors: { inner: string; outer: string };
-    glowIntensity: number;
-    shardCount: number;
-    scale: number;
-    rotation: { x: number; y: number; z: number };
-  };
-}>();
+// Use defineModel for proper two-way binding (Vue 3.3+)
+const state = defineModel<CrystalState>('state', { required: true });
 </script>
 
 <template>
@@ -87,6 +80,64 @@ defineProps<{
         />
       </div>
     </PanelSection>
+
+    <PanelSection title="Audio Reactivity">
+      <div class="toggle-row">
+        <BaseToggle label="Enable Audio Effects" v-model="state.audioEffects.enabled" />
+      </div>
+      <div v-if="state.audioEffects.enabled" class="slider-group" style="margin-top: 12px">
+        <BaseSlider 
+          label="Reactivity" 
+          :min="0" 
+          :max="3" 
+          :step="0.1" 
+          v-model="state.audioEffects.reactivity"
+        />
+        <BaseSlider 
+          label="Bass Orbit Boost" 
+          :min="0" 
+          :max="1" 
+          :step="0.05" 
+          v-model="state.audioEffects.bassOrbitBoost"
+        />
+        <BaseSlider 
+          label="Mid Rotation Boost" 
+          :min="0" 
+          :max="1" 
+          :step="0.05" 
+          v-model="state.audioEffects.midRotationBoost"
+        />
+        <BaseSlider 
+          label="High Glow Boost" 
+          :min="0" 
+          :max="1" 
+          :step="0.05" 
+          v-model="state.audioEffects.highGlowBoost"
+        />
+      </div>
+      <p v-if="!state.audioEffects.enabled" class="hint">
+        Enable to make crystals react to audio input
+      </p>
+    </PanelSection>
+
+    <PanelSection title="Transitions">
+      <div class="slider-group">
+        <BaseSlider 
+          label="Transition Speed" 
+          :min="0.01" 
+          :max="0.2" 
+          :step="0.01" 
+          v-model="state.transitionSpeed"
+        />
+        <BaseSlider 
+          label="Thinking Duration (ms)" 
+          :min="1000" 
+          :max="30000" 
+          :step="500" 
+          v-model="state.thinkingDuration"
+        />
+      </div>
+    </PanelSection>
   </div>
 </template>
 
@@ -141,5 +192,16 @@ defineProps<{
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 8px;
+}
+
+.toggle-row {
+  margin-bottom: 4px;
+}
+
+.hint {
+  margin-top: 8px;
+  font-size: 10px;
+  color: var(--text-muted);
+  font-style: italic;
 }
 </style>

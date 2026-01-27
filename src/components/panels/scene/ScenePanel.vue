@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { reactive, onMounted, watch } from 'vue';
+import { reactive, onMounted, onUnmounted, watch } from 'vue';
 import { useKwami } from '@/composables/useKwami';
 import * as THREE from 'three';
 import SceneCamera from './SceneCamera.vue';
@@ -384,6 +384,16 @@ onMounted(() => {
       { once: true },
     );
 });
+
+onUnmounted(() => {
+  // Clean up video element if it exists
+  const video = document.getElementById('scene-bg-video') as HTMLVideoElement;
+  if (video) {
+    video.pause();
+    video.src = '';
+    video.remove();
+  }
+});
 </script>
 
 <template>
@@ -394,9 +404,9 @@ onMounted(() => {
     </div>
 
     <div class="panel-body">
-      <SceneCamera :camera="state.camera" />
-      <SceneLighting :lighting="state.lighting" />
-      <SceneBackground :background="state.background" @preset="applyPreset" />
+      <SceneCamera v-model:camera="state.camera" />
+      <SceneLighting v-model:lighting="state.lighting" />
+      <SceneBackground v-model:background="state.background" @preset="applyPreset" />
     </div>
   </div>
 </template>

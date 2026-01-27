@@ -83,13 +83,27 @@ const apiBaseUrl = computed(() => {
   // Extract base URL (remove /token path if present)
   return tokenEndpoint.replace(/\/token\/?$/, '') || 'http://localhost:8080';
 });
-// Memory user_id - this should match what the agent uses
-// Before today's fix: random IDs like 'kwami_zweazjas' 
-// After fix: should be 'kwami_playground_user'
-const graphUserId = ref('kwami_zweazjas'); // Your most recent user with data
 
-// Allow changing the user_id
-const userIdInput = ref('kwami_zweazjas');
+// Get actual user ID from agent config (with kwami_ prefix as used by backend)
+const actualUserId = computed(() => {
+  const config = kwami.value?.agent?.getConfig();
+  const userId = config?.livekit?.userId || 'playground_user';
+  // Backend prefixes with 'kwami_' so we match that format
+  return `kwami_${userId}`;
+});
+
+// Memory user_id - initialized from agent config
+const graphUserId = ref('');
+const userIdInput = ref('');
+
+// Initialize with actual user ID when available
+function initUserIds() {
+  if (!graphUserId.value || graphUserId.value === '') {
+    graphUserId.value = actualUserId.value;
+    userIdInput.value = actualUserId.value;
+  }
+}
+
 function setGraphUserId() {
   graphUserId.value = userIdInput.value;
 }
@@ -102,18 +116,40 @@ function updateStatus() {
   }
 }
 
-let interval: ReturnType<typeof setInterval>;
+let interval: ReturnType<typeof setInterval> | null = null;
 onMounted(() => {
   updateStatus();
-  interval = setInterval(() => {
-    updateStatus();
-    if (initialized.value && !context.value) {
-      refreshContext();
-      clearInterval(interval);
-    }
-  }, 2000);
+  initUserIds(); // Initialize user IDs from agent config
+  
+  // Only start polling if not already initialized
+  if (!initialized.value) {
+    interval = setInterval(() => {
+      updateStatus();
+      initUserIds(); // Retry initialization if kwami wasn't ready
+      
+      // Stop polling once memory is initialized
+      if (initialized.value) {
+        if (!context.value) {
+          refreshContext();
+        }
+        if (interval) {
+          clearInterval(interval);
+          interval = null;
+        }
+      }
+    }, 2000);
+  } else {
+    // Already initialized, just refresh context
+    refreshContext();
+  }
 });
-onUnmounted(() => clearInterval(interval));
+
+onUnmounted(() => {
+  if (interval) {
+    clearInterval(interval);
+    interval = null;
+  }
+});
 </script>
 
 <template>
