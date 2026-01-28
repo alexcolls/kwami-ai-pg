@@ -17,9 +17,7 @@
   gap: 10px;
   padding: 18px 20px;
   border-bottom: 1px solid var(--glass-border);
-  background: var(--glass-bg);
-  backdrop-filter: blur(var(--glass-blur, 12px));
-  -webkit-backdrop-filter: blur(var(--glass-blur, 12px));
+  background: transparent;
   flex-shrink: 0;
 }
 
@@ -39,8 +37,10 @@
   padding: 8px 0;
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   scrollbar-width: thin;
   scrollbar-color: var(--surface-3) transparent;
+  margin-bottom: max(4px, calc(var(--radius-xl, 16px) - 16px));
 }
 
 .panel-body::-webkit-scrollbar {

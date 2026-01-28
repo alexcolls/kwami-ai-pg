@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, watch, computed } from 'vue';
+import { useToast } from 'vue-toastification';
 import { useKwami } from '@/composables/useKwami';
 import PanelSection from '@/components/ui/PanelSection.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
@@ -8,6 +9,8 @@ import BaseSelect from '@/components/ui/BaseSelect.vue';
 import BaseSlider from '@/components/ui/BaseSlider.vue';
 import BaseTagInput from '@/components/ui/BaseTagInput.vue';
 import { personaTemplates, templateCategories, type PersonaTemplate } from '@/templates/persona-templates';
+
+const toast = useToast();
 
 const { kwami, isConnected } = useKwami();
 
@@ -233,7 +236,7 @@ function updateEmotionalTrait(key: keyof typeof emotionalTraits) {
 function previewPrompt() {
   if (!kwami.value) return;
   console.log('📝 Full System Prompt:\n', kwami.value.persona.getSystemPrompt());
-  alert('Full prompt logged to console');
+  toast.info('Full prompt logged to console');
 }
 
 function exportPersona() {
@@ -257,10 +260,10 @@ function importPersona() {
     if (!file) return;
     try {
       kwami.value?.persona.importFromJSON(await file.text());
-      alert('Persona imported!');
+      toast.success('Persona imported!');
       syncFromKwami();
     } catch (error) {
-      alert('Failed to import: ' + (error as Error).message);
+      toast.error('Failed to import: ' + (error as Error).message);
     }
   };
   input.click();
@@ -278,7 +281,7 @@ function resetPersona() {
       responseLength: 'medium',
       emotionalTone: 'warm',
     });
-    alert('Persona reset!');
+    toast.success('Persona reset!');
     syncFromKwami();
   }
 }

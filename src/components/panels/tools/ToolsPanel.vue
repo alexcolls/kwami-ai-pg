@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
+import { useToast } from 'vue-toastification';
 import { useKwami } from '@/composables/useKwami';
 import type { ToolDefinition } from 'kwami-ai';
 import PanelSection from '@/components/ui/PanelSection.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
 import BaseInput from '@/components/ui/BaseInput.vue';
 import BaseSelect from '@/components/ui/BaseSelect.vue';
+
+const toast = useToast();
 
 const { kwami } = useKwami();
 
@@ -61,14 +64,14 @@ function useTemplate(key: string) {
 
 function addTool() {
   if (!newTool.value.name || !newTool.value.description) {
-    alert('Name/Desc required');
+    toast.warning('Name and description are required');
     return;
   }
   let parsedParams;
   try {
     if (newTool.value.parameters) parsedParams = JSON.parse(newTool.value.parameters);
   } catch {
-    alert('Invalid JSON');
+    toast.error('Invalid JSON in parameters');
     return;
   }
 
@@ -97,7 +100,7 @@ async function connectMCP() {
     mcp.value = { name: '', url: '', apiKey: '' };
     refreshTools();
   } catch (e) {
-    alert('MCP Failed: ' + (e as Error).message);
+    toast.error('MCP connection failed: ' + (e as Error).message);
   }
 }
 

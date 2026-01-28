@@ -4,69 +4,103 @@
 
 import type { MemoryNode, MemoryEdge, Position2D, LayoutResult } from './types'
 
-// Entity type colors (matching Zep's schema + custom types)
+// Entity type colors (matching Zep's schema + inferred types)
 export const typeColors: Record<string, number> = {
-  // Zep built-in types
+  // Core types
   user: 0x00d9a6,         // Teal/green - central user node
   assistant: 0x7c4dff,    // Purple - AI assistant
-  preference: 0xffb74d,   // Amber - user preferences
-  procedure: 0x4db6ac,    // Teal - procedures/instructions
   
-  // Common entity types
+  // People & Pets
   person: 0xff6b9d,       // Pink - people
-  organization: 0xffa726, // Orange - companies, institutions
-  location: 0x26c6da,     // Cyan - places
-  event: 0x5c6bc0,        // Indigo - events, meetings
-  project: 0xffca28,      // Yellow - projects
-  topic: 0x7e57c2,        // Deep purple - topics/subjects
-  product: 0x4fc3f7,      // Light blue - products/services
-  skill: 0x81c784,        // Light green - skills/expertise
+  pet: 0xffab91,          // Coral/peach - pets and animals
   
-  // Additional types
-  attribute: 0x29b6f6,    // Sky blue - attributes/properties
-  genre: 0xab47bc,        // Purple - categories
-  artist: 0xff6b9d,       // Pink - artists
-  venue: 0x26c6da,        // Cyan - venues
-  fact: 0x90a4ae,         // Blue-grey - facts
-  tool: 0x66bb6a,         // Green - tools
+  // Places
+  location: 0x26c6da,     // Cyan - geographic locations (cities, countries)
+  place: 0x4dd0e1,        // Light cyan - specific places (home, park, office)
+  
+  // Preferences & Interests
+  preference: 0xffb74d,   // Amber - user preferences
+  topic: 0x7e57c2,        // Deep purple - topics/subjects of interest
+  
+  // Work & Skills
+  skill: 0x81c784,        // Light green - skills/expertise/profession
+  project: 0xffca28,      // Yellow - projects
+  organization: 0xffa726, // Orange - companies, institutions
+  product: 0x4fc3f7,      // Light blue - products/services
+  
+  // Events & Activities
+  event: 0x5c6bc0,        // Indigo - events, meetings
   activity: 0xec407a,     // Pink - activities
   
+  // Goals & Procedures
+  goal: 0xef5350,         // Red - goals/objectives
+  procedure: 0x4db6ac,    // Teal - procedures/instructions
+  
+  // Properties
+  attribute: 0x29b6f6,    // Sky blue - attributes/properties (colors, ages)
+  
+  // Media & Arts
+  genre: 0xab47bc,        // Purple - genres/categories
+  artist: 0xce93d8,       // Light purple - artists/creators
+  
+  // Other
+  fact: 0x90a4ae,         // Blue-grey - facts
+  tool: 0x66bb6a,         // Green - tools
+  venue: 0x80deea,        // Aqua - venues
+  
   // Default fallback
-  entity: 0xffa726,       // Orange (default)
+  entity: 0xb0bec5,       // Light blue-grey (default - neutral)
 }
 
 export const typeColorsHex: Record<string, string> = {
-  // Zep built-in types
+  // Core types
   user: '#00d9a6',
   assistant: '#7c4dff',
-  preference: '#ffb74d',
-  procedure: '#4db6ac',
   
-  // Common entity types
+  // People & Pets
   person: '#ff6b9d',
-  organization: '#ffa726',
-  location: '#26c6da',
-  event: '#5c6bc0',
-  project: '#ffca28',
-  topic: '#7e57c2',
-  product: '#4fc3f7',
-  skill: '#81c784',
+  pet: '#ffab91',
   
-  // Additional types
-  attribute: '#29b6f6',
-  genre: '#ab47bc',
-  artist: '#ff6b9d',
-  venue: '#26c6da',
-  fact: '#90a4ae',
-  tool: '#66bb6a',
+  // Places
+  location: '#26c6da',
+  place: '#4dd0e1',
+  
+  // Preferences & Interests
+  preference: '#ffb74d',
+  topic: '#7e57c2',
+  
+  // Work & Skills
+  skill: '#81c784',
+  project: '#ffca28',
+  organization: '#ffa726',
+  product: '#4fc3f7',
+  
+  // Events & Activities
+  event: '#5c6bc0',
   activity: '#ec407a',
   
+  // Goals & Procedures
+  goal: '#ef5350',
+  procedure: '#4db6ac',
+  
+  // Properties
+  attribute: '#29b6f6',
+  
+  // Media & Arts
+  genre: '#ab47bc',
+  artist: '#ce93d8',
+  
+  // Other
+  fact: '#90a4ae',
+  tool: '#66bb6a',
+  venue: '#80deea',
+  
   // Default fallback
-  entity: '#ffa726',
+  entity: '#b0bec5',
 }
 
-export const defaultColor = 0xffa726
-export const defaultColorHex = '#ffa726'
+export const defaultColor = 0xb0bec5
+export const defaultColorHex = '#b0bec5'
 
 export function getNodeColor(type: string): number {
   const key = type.toLowerCase() as keyof typeof typeColors

@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue';
+import { useToast } from 'vue-toastification';
 import { useKwami } from '@/composables/useKwami';
 import { useAuthStore } from '@/stores/auth';
 import PanelSection from '@/components/ui/PanelSection.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
 import { MemoryGraph } from '@/components/memory';
+
+const toast = useToast();
 
 const { userId: sharedUserId } = useKwami();
 const authStore = useAuthStore();
@@ -162,7 +165,7 @@ async function deleteUserMemory() {
       nodes.value = [];
       messages.value = [];
       sessionCount.value = 0;
-      alert(`Memory deleted!\n\nDeleted ${result.deleted_threads} thread(s)\nUser deleted: ${result.deleted_user ? 'Yes' : 'No'}`);
+      toast.success(`Memory deleted! ${result.deleted_threads} thread(s) removed`);
     } else {
       throw new Error(result.errors?.join(', ') || 'Delete operation failed');
     }
