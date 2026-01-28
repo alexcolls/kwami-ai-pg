@@ -17,11 +17,10 @@
   gap: 10px;
   padding: 18px 20px;
   border-bottom: 1px solid var(--glass-border);
-  background: var(--glass-highlight);
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  backdrop-filter: blur(12px);
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur, 12px));
+  -webkit-backdrop-filter: blur(var(--glass-blur, 12px));
+  flex-shrink: 0;
 }
 
 .panel-icon {
@@ -38,6 +37,29 @@
 
 .panel-body {
   padding: 8px 0;
+  flex: 1;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--surface-3) transparent;
+}
+
+.panel-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.panel-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.panel-body::-webkit-scrollbar-thumb {
+  background: var(--surface-3);
+  border-radius: 3px;
+}
+
+.panel-inner {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 
 /* =====================================================

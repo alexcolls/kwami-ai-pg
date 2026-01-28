@@ -50,21 +50,8 @@
 .panel-content-wrapper {
   position: relative;
   height: 100%;
-  overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: var(--surface-3) transparent;
-}
-
-.panel-content-wrapper::-webkit-scrollbar {
-  width: 6px;
-}
-
-.panel-content-wrapper::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.panel-content-wrapper::-webkit-scrollbar-thumb {
-  background: var(--surface-3);
-  border-radius: 3px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 </style>

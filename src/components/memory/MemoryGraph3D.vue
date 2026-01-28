@@ -31,6 +31,28 @@ let nodeDegrees: Map<string, number> = new Map()
 let raycaster: THREE.Raycaster
 let mouse: THREE.Vector2
 
+// Get CSS variable value
+function getCSSVar(name: string): string {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim()
+}
+
+// Check if light mode
+function isLightMode(): boolean {
+  return document.documentElement.getAttribute('data-theme') === 'light'
+}
+
+// Get theme-aware background color
+function getSceneBgColor(): number {
+  const opacity = parseFloat(getCSSVar('--glass-opacity')) || 0.88
+  if (isLightMode()) {
+    const base = Math.round(245 * opacity + 255 * (1 - opacity))
+    return (base << 16) | (base << 8) | base
+  } else {
+    const base = Math.round(8 * opacity)
+    return (base << 16) | ((base + 2) << 8) | (base + 10)
+  }
+}
+
 function initScene() {
   if (!containerRef.value) return
   
@@ -40,7 +62,7 @@ function initScene() {
   const height = containerRef.value.clientHeight || 500
 
   scene = new THREE.Scene()
-  scene.background = new THREE.Color(0x0a0e14)
+  scene.background = new THREE.Color(getSceneBgColor())
 
   camera = new THREE.PerspectiveCamera(55, width / height, 0.1, 2000)
   camera.position.set(0, 50, 280)
@@ -272,7 +294,8 @@ function buildGraphObjects() {
       edgeLabelPositions.push(labelPos.clone())
       
       const relationLabel = truncateText(edge.relation, 20)
-      const labelSprite = createTextSprite(relationLabel, 0x8fa4bd, 0.7, 8, true)
+      const edgeLabelColor = isLightMode() ? 0x334155 : 0x8fa4bd
+      const labelSprite = createTextSprite(relationLabel, edgeLabelColor, 0.7, 8, true)
       labelSprite.position.copy(labelPos)
       scene.add(labelSprite)
       edgeLabelSprites.push(labelSprite)
@@ -317,7 +340,8 @@ function buildGraphObjects() {
     const maxLabelLength = degree > 3 ? 20 : 14
     const label = truncateText(node.label, maxLabelLength)
     const fontSize = 10 + Math.floor(degreeScale * 4)
-    const labelSprite = createTextSprite(label, 0xe2e8f0, 1, fontSize)
+    const nodeLabelColor = isLightMode() ? 0x0f172a : 0xe2e8f0
+    const labelSprite = createTextSprite(label, nodeLabelColor, 1, fontSize)
     labelSprite.position.copy(pos)
     labelSprite.position.y -= radius + 10 + radius * 0.3
     scene.add(labelSprite)
@@ -351,6 +375,8 @@ function createTextSprite(
   
   context.clearRect(0, 0, canvas.width, canvas.height)
   
+  const lightMode = isLightMode()
+  
   if (isEdgeLabel) {
     const padding = 12 * scale
     const bgWidth = textWidth + padding * 2
@@ -359,7 +385,7 @@ function createTextSprite(
     const bgY = (canvas.height - bgHeight) / 2
     const radius = 6 * scale
     
-    context.fillStyle = 'rgba(13, 17, 23, 0.85)'
+    context.fillStyle = lightMode ? 'rgba(255, 255, 255, 0.95)' : 'rgba(13, 17, 23, 0.85)'
     context.beginPath()
     if (context.roundRect) {
       context.roundRect(bgX, bgY, bgWidth, bgHeight, radius)
@@ -381,12 +407,21 @@ function createTextSprite(
   context.textAlign = 'center'
   context.textBaseline = 'middle'
   
-  context.shadowColor = 'rgba(0, 0, 0, 0.9)'
+  context.shadowColor = lightMode ? 'rgba(255, 255, 255, 0.9)' : 'rgba(0, 0, 0, 0.9)'
   context.shadowBlur = 6 * scale
   context.shadowOffsetX = 1 * scale
   context.shadowOffsetY = 1 * scale
   
-  context.fillStyle = `#${color.toString(16).padStart(6, '0')}`
+  // Use darker version of color in light mode for better readability
+  if (lightMode && !isEdgeLabel) {
+    // Darken the color for light mode
+    const r = Math.max(0, ((color >> 16) & 0xff) - 60)
+    const g = Math.max(0, ((color >> 8) & 0xff) - 60)
+    const b = Math.max(0, (color & 0xff) - 60)
+    context.fillStyle = `rgb(${r}, ${g}, ${b})`
+  } else {
+    context.fillStyle = `#${color.toString(16).padStart(6, '0')}`
+  }
   context.fillText(text, canvas.width / 2, canvas.height / 2)
   
   const texture = new THREE.CanvasTexture(canvas)

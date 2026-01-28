@@ -45,14 +45,14 @@ const uniqueTypes = (nodes: MemoryNode[]) => {
   gap: 12px;
   margin-bottom: 12px;
   padding: 8px 12px;
-  background: rgba(255,255,255,0.02);
-  border-radius: 6px;
+  background: var(--surface-1);
+  border-radius: var(--radius-sm);
   flex-wrap: wrap;
 }
 
 .legend-label {
   font-size: 11px;
-  color: #ff6b9d;
+  color: var(--accent-secondary);
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -70,7 +70,7 @@ const uniqueTypes = (nodes: MemoryNode[]) => {
   align-items: center;
   gap: 6px;
   font-size: 12px;
-  color: #94a3b8;
+  color: var(--text-secondary);
 }
 
 .legend-dot {
@@ -81,7 +81,7 @@ const uniqueTypes = (nodes: MemoryNode[]) => {
 
 .legend-hint {
   font-size: 11px;
-  color: #64748b;
+  color: var(--text-muted);
   display: flex;
   align-items: center;
   gap: 4px;

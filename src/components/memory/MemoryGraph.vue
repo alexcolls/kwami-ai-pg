@@ -180,11 +180,11 @@ watch(() => props.userId, fetchGraph)
 
 <style scoped>
 .memory-graph-container {
-  background: #0d1117;
-  border-radius: 12px;
+  background: var(--glass-bg);
+  border-radius: var(--radius-lg);
   padding: 16px;
-  border: 1px solid rgba(255,255,255,0.08);
-  color: #e2e8f0;
+  border: 1px solid var(--glass-border);
+  color: var(--text-primary);
   width: 100%;
   height: 100%;
   display: flex;
@@ -195,15 +195,15 @@ watch(() => props.userId, fetchGraph)
   position: relative;
   flex: 1;
   min-height: 500px;
-  border: 1px solid rgba(255,255,255,0.05);
-  border-radius: 8px;
+  border: 1px solid var(--surface-2);
+  border-radius: var(--radius-md);
   overflow: hidden;
 }
 
 .loading, .error, .empty {
   padding: 60px 20px;
   text-align: center;
-  color: #64748b;
+  color: var(--text-muted);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -215,21 +215,21 @@ watch(() => props.userId, fetchGraph)
 }
 
 .error {
-  color: #f87171;
+  color: var(--error);
 }
 
 .empty small {
   font-size: 12px;
-  color: #475569;
+  color: var(--text-muted);
 }
 
 .empty small.hint {
   margin-top: 12px;
   padding: 8px 12px;
-  background: rgba(255, 171, 64, 0.1);
-  border: 1px solid rgba(255, 171, 64, 0.2);
-  border-radius: 6px;
-  color: #ffa726;
+  background: var(--warning-glow);
+  border: 1px solid var(--warning);
+  border-radius: var(--radius-sm);
+  color: var(--warning);
   max-width: 400px;
   text-align: center;
 }
@@ -244,8 +244,8 @@ watch(() => props.userId, fetchGraph)
   gap: 16px;
   padding: 8px 12px;
   font-size: 12px;
-  color: #64748b;
-  background: rgba(0,0,0,0.6);
+  color: var(--text-muted);
+  background: var(--glass-bg);
 }
 
 .spin {

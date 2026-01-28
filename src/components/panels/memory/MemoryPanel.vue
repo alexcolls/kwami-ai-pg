@@ -336,22 +336,24 @@ onMounted(() => {
       
       <!-- Graph Modal -->
       <Teleport to="body">
-        <div v-if="showGraphModal" class="graph-modal-overlay" @click.self="showGraphModal = false">
-          <div class="graph-modal">
-            <div class="graph-modal-header">
-              <h2><iconify-icon icon="ph:graph-duotone"></iconify-icon> Memory Knowledge Graph</h2>
-              <button class="close-btn" @click="showGraphModal = false">
-                <iconify-icon icon="ph:x"></iconify-icon>
-              </button>
-            </div>
-            <div class="graph-modal-body">
-              <MemoryGraph 
-                :userId="userId" 
-                :apiBaseUrl="apiBaseUrl"
-              />
+        <Transition name="modal">
+          <div v-if="showGraphModal" class="graph-modal-overlay" @click.self="showGraphModal = false">
+            <div class="graph-modal">
+              <div class="graph-modal-header">
+                <h2><iconify-icon icon="ph:graph-duotone"></iconify-icon> Memory Knowledge Graph</h2>
+                <button class="close-btn" @click="showGraphModal = false">
+                  <iconify-icon icon="ph:x"></iconify-icon>
+                </button>
+              </div>
+              <div class="graph-modal-body">
+                <MemoryGraph 
+                  :userId="userId" 
+                  :apiBaseUrl="apiBaseUrl"
+                />
+              </div>
             </div>
           </div>
-        </div>
+        </Transition>
       </Teleport>
 
       <!-- Danger Zone -->
@@ -371,43 +373,45 @@ onMounted(() => {
       
       <!-- Delete Confirmation Modal -->
       <Teleport to="body">
-        <div v-if="showDeleteConfirm" class="confirm-modal-overlay" @click.self="showDeleteConfirm = false">
-          <div class="confirm-modal">
-            <div class="confirm-modal-header">
-              <iconify-icon icon="ph:warning-duotone" class="warning-icon"></iconify-icon>
-              <h3>Delete All Memory?</h3>
-            </div>
-            <div class="confirm-modal-body">
-              <p>You are about to permanently delete all memory for:</p>
-              <code class="user-id-display">{{ userId }}</code>
-              <p class="warning-text">
-                <strong>This action cannot be undone.</strong> All threads, facts, entities, 
-                and the knowledge graph will be permanently deleted.
-              </p>
-              <div v-if="deleteError" class="delete-error">
-                <iconify-icon icon="ph:x-circle-duotone"></iconify-icon>
-                {{ deleteError }}
+        <Transition name="confirm-modal">
+          <div v-if="showDeleteConfirm" class="confirm-modal-overlay" @click.self="showDeleteConfirm = false">
+            <div class="confirm-modal">
+              <div class="confirm-modal-header">
+                <iconify-icon icon="ph:warning-duotone" class="warning-icon"></iconify-icon>
+                <h3>Delete All Memory?</h3>
+              </div>
+              <div class="confirm-modal-body">
+                <p>You are about to permanently delete all memory for:</p>
+                <code class="user-id-display">{{ userId }}</code>
+                <p class="warning-text">
+                  <strong>This action cannot be undone.</strong> All threads, facts, entities, 
+                  and the knowledge graph will be permanently deleted.
+                </p>
+                <div v-if="deleteError" class="delete-error">
+                  <iconify-icon icon="ph:x-circle-duotone"></iconify-icon>
+                  {{ deleteError }}
+                </div>
+              </div>
+              <div class="confirm-modal-footer">
+                <BaseButton 
+                  variant="secondary" 
+                  @click="showDeleteConfirm = false"
+                  :disabled="isDeleting"
+                >
+                  Cancel
+                </BaseButton>
+                <BaseButton 
+                  variant="danger" 
+                  icon="ph:trash-simple-duotone"
+                  @click="deleteUserMemory"
+                  :disabled="isDeleting"
+                >
+                  {{ isDeleting ? 'Deleting...' : 'Delete Forever' }}
+                </BaseButton>
               </div>
             </div>
-            <div class="confirm-modal-footer">
-              <BaseButton 
-                variant="secondary" 
-                @click="showDeleteConfirm = false"
-                :disabled="isDeleting"
-              >
-                Cancel
-              </BaseButton>
-              <BaseButton 
-                variant="danger" 
-                icon="ph:trash-simple-duotone"
-                @click="deleteUserMemory"
-                :disabled="isDeleting"
-              >
-                {{ isDeleting ? 'Deleting...' : 'Delete Forever' }}
-              </BaseButton>
-            </div>
           </div>
-        </div>
+        </Transition>
       </Teleport>
     </div>
   </div>
@@ -658,8 +662,9 @@ onMounted(() => {
 .graph-modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.85);
-  backdrop-filter: blur(8px);
+  background: rgba(0, 0, 0, var(--glass-opacity, 0.85));
+  backdrop-filter: blur(var(--glass-blur, 12px));
+  -webkit-backdrop-filter: blur(var(--glass-blur, 12px));
   z-index: 9999;
   display: flex;
   align-items: center;
@@ -670,51 +675,144 @@ onMounted(() => {
   width: 100%;
   max-width: 1200px;
   height: 90vh;
-  background: #0d1117;
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--glass-bg);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--glass-border);
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--glass-shadow);
 }
 .graph-modal-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 16px 20px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid var(--glass-border);
+  background: var(--glass-highlight);
 }
 .graph-modal-header h2 {
   margin: 0;
   font-size: 18px;
   font-weight: 600;
-  color: #e2e8f0;
+  color: var(--text-primary);
   display: flex;
   align-items: center;
   gap: 10px;
 }
 .graph-modal-header h2 iconify-icon {
-  color: #00d9a6;
+  color: var(--accent-secondary);
 }
 .close-btn {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
+  background: var(--surface-1);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
   padding: 8px;
-  color: #94a3b8;
+  color: var(--text-secondary);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all var(--duration-fast) ease;
 }
 .close-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
+  background: var(--surface-2);
+  color: var(--text-primary);
 }
 .graph-modal-body {
   flex: 1;
   padding: 20px;
   overflow: auto;
+  background: var(--surface-0);
+}
+
+/* Modal animations */
+.modal-enter-active {
+  animation: modal-in var(--duration-normal, 0.3s) cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.modal-leave-active {
+  animation: modal-out var(--duration-fast, 0.2s) cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.modal-enter-active .graph-modal {
+  animation: modal-content-in var(--duration-normal, 0.3s) cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.modal-leave-active .graph-modal {
+  animation: modal-content-out var(--duration-fast, 0.2s) cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modal-in {
+  from {
+    opacity: 0;
+    backdrop-filter: blur(0);
+  }
+  to {
+    opacity: 1;
+    backdrop-filter: blur(var(--glass-blur, 12px));
+  }
+}
+
+@keyframes modal-out {
+  from {
+    opacity: 1;
+    backdrop-filter: blur(var(--glass-blur, 12px));
+  }
+  to {
+    opacity: 0;
+    backdrop-filter: blur(0);
+  }
+}
+
+@keyframes modal-content-in {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes modal-content-out {
+  from {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+  }
+}
+
+/* Confirm modal animations */
+.confirm-modal-enter-active {
+  animation: modal-in var(--duration-normal, 0.3s) cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.confirm-modal-leave-active {
+  animation: modal-out var(--duration-fast, 0.2s) cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.confirm-modal-enter-active .confirm-modal {
+  animation: confirm-in var(--duration-normal, 0.3s) cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.confirm-modal-leave-active .confirm-modal {
+  animation: modal-content-out var(--duration-fast, 0.2s) cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes confirm-in {
+  from {
+    opacity: 0;
+    transform: scale(0.85) translateY(-20px);
+  }
+  50% {
+    transform: scale(1.02) translateY(0);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
 }
 
 /* Danger Zone */

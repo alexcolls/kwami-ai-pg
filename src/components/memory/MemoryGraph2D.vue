@@ -39,6 +39,28 @@ let hoveredNodeId: string | null = null
 
 const canvasSize = ref({ width: 800, height: 600 })
 
+// Get CSS variable value
+function getCSSVar(name: string): string {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim()
+}
+
+// Check if light mode
+function isLightMode(): boolean {
+  return document.documentElement.getAttribute('data-theme') === 'light'
+}
+
+// Get theme-aware canvas background
+function getCanvasBg(): string {
+  const opacity = parseFloat(getCSSVar('--glass-opacity')) || 0.88
+  if (isLightMode()) {
+    const base = Math.round(245 * opacity + 255 * (1 - opacity))
+    return `rgb(${base}, ${base}, ${base})`
+  } else {
+    const base = Math.round(8 * opacity)
+    return `rgb(${base}, ${base + 2}, ${base + 10})`
+  }
+}
+
 function initCanvas() {
   if (!canvasRef.value || !containerRef.value) return
   
@@ -74,9 +96,17 @@ function draw() {
   if (!ctx) return
   
   const { width, height } = canvasSize.value
+  const lightMode = isLightMode()
   
-  // Clear canvas
-  ctx.fillStyle = '#0a0e14'
+  // Get theme colors - use black text in light mode for readability
+  const textColor = lightMode ? '#0f172a' : '#e2e8f0'
+  const textMuted = lightMode ? '#334155' : '#94a3b8'
+  const edgeColor = lightMode ? 'rgba(71, 85, 105, 0.6)' : 'rgba(61, 74, 92, 0.6)'
+  const labelBg = lightMode ? 'rgba(255, 255, 255, 0.95)' : 'rgba(0, 0, 0, 0.8)'
+  const textShadow = lightMode ? 'rgba(255, 255, 255, 0.9)' : 'rgba(0, 0, 0, 0.8)'
+  
+  // Clear canvas with theme background
+  ctx.fillStyle = getCanvasBg()
   ctx.fillRect(0, 0, width, height)
   
   // Apply transform
@@ -115,7 +145,7 @@ function draw() {
       ctx.beginPath()
       ctx.moveTo(startPos.x, startPos.y)
       ctx.quadraticCurveTo(ctrlX, ctrlY, endPos.x, endPos.y)
-      ctx.strokeStyle = 'rgba(61, 74, 92, 0.6)'
+      ctx.strokeStyle = edgeColor
       ctx.lineWidth = 1.5
       ctx.stroke()
       
@@ -133,12 +163,12 @@ function draw() {
         const bgHeight = 14
         
         // Draw background
-        ctx.fillStyle = 'rgba(13, 17, 23, 0.9)'
+        ctx.fillStyle = labelBg
         roundRect(ctx, labelX - bgWidth/2, labelY - bgHeight/2, bgWidth, bgHeight, 3)
         ctx.fill()
         
         // Draw text
-        ctx.fillStyle = '#8fa4bd'
+        ctx.fillStyle = textMuted
         ctx.textAlign = 'center'
         ctx.textBaseline = 'middle'
         ctx.fillText(label, labelX, labelY)
@@ -190,11 +220,11 @@ function draw() {
     ctx.textBaseline = 'top'
     
     // Text shadow
-    ctx.fillStyle = 'rgba(0,0,0,0.8)'
+    ctx.fillStyle = textShadow
     ctx.fillText(label, pos.x + 1, pos.y + radius + 6 + 1)
     
     // Text
-    ctx.fillStyle = '#e2e8f0'
+    ctx.fillStyle = textColor
     ctx.fillText(label, pos.x, pos.y + radius + 6)
   })
   

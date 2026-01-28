@@ -95,11 +95,11 @@ const emit = defineEmits<{
   display: flex;
   align-items: center;
   gap: 8px;
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 8px;
+  background: var(--surface-1);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
   padding: 8px 12px;
-  color: #94a3b8;
+  color: var(--text-secondary);
 }
 
 .search-input {
@@ -107,33 +107,33 @@ const emit = defineEmits<{
   background: transparent;
   border: none;
   outline: none;
-  color: #e2e8f0;
+  color: var(--text-primary);
   font-size: 13px;
 }
 
 .search-input::placeholder {
-  color: #64748b;
+  color: var(--text-muted);
 }
 
 .type-filter {
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 8px;
+  background: var(--surface-1);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
   padding: 8px 12px;
-  color: #e2e8f0;
+  color: var(--text-primary);
   font-size: 13px;
   cursor: pointer;
 }
 
 .type-filter option {
-  background: #1e293b;
+  background: var(--glass-bg);
 }
 
 .view-toggle {
   display: flex;
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 8px;
+  background: var(--surface-1);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
   overflow: hidden;
 }
 
@@ -144,41 +144,41 @@ const emit = defineEmits<{
   padding: 8px 12px;
   background: transparent;
   border: none;
-  color: #64748b;
+  color: var(--text-muted);
   font-size: 12px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all var(--duration-fast) ease;
 }
 
 .view-btn:hover {
-  color: #94a3b8;
-  background: rgba(255,255,255,0.05);
+  color: var(--text-secondary);
+  background: var(--surface-2);
 }
 
 .view-btn.active {
-  color: #42a5f5;
-  background: rgba(66, 165, 245, 0.15);
+  color: var(--accent-primary);
+  background: var(--accent-glow);
 }
 
 .view-btn:first-child {
-  border-right: 1px solid rgba(255,255,255,0.1);
+  border-right: 1px solid var(--glass-border);
 }
 
 .refresh-btn,
 .toggle-btn {
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 8px;
+  background: var(--surface-1);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
   padding: 8px;
-  color: #94a3b8;
+  color: var(--text-secondary);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all var(--duration-fast) ease;
 }
 
 .refresh-btn:hover,
 .toggle-btn:hover {
-  background: rgba(255,255,255,0.1);
-  color: #e2e8f0;
+  background: var(--surface-2);
+  color: var(--text-primary);
 }
 
 .refresh-btn:disabled {
@@ -187,9 +187,9 @@ const emit = defineEmits<{
 }
 
 .toggle-btn.active {
-  background: rgba(66, 165, 245, 0.2);
-  border-color: rgba(66, 165, 245, 0.4);
-  color: #42a5f5;
+  background: var(--accent-glow);
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
 }
 
 .spin {

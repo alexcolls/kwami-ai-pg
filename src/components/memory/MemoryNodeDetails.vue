@@ -120,14 +120,15 @@ function getConnectedNodeLabel(nodeId: string): string {
   right: 12px;
   width: 340px;
   max-height: calc(100% - 60px);
-  background: rgba(20, 27, 40, 0.98);
-  border: 1px solid rgba(255,255,255,0.12);
-  border-radius: 12px;
-  backdrop-filter: blur(16px);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  box-shadow: var(--glass-shadow);
   z-index: 10;
 }
 
@@ -136,21 +137,21 @@ function getConnectedNodeLabel(nodeId: string): string {
   align-items: center;
   gap: 12px;
   padding: 16px 18px;
-  border-bottom: 1px solid rgba(255,255,255,0.08);
-  background: rgba(255,255,255,0.02);
+  border-bottom: 1px solid var(--glass-border);
+  background: var(--glass-highlight);
 }
 
 .panel-title {
   flex: 1;
   font-size: 16px;
   font-weight: 600;
-  color: #e2e8f0;
+  color: var(--text-primary);
   margin: 0;
 }
 
 .type-badge-header {
   padding: 4px 12px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   font-size: 12px;
   font-weight: 600;
   color: #fff;
@@ -160,19 +161,19 @@ function getConnectedNodeLabel(nodeId: string): string {
 .close-btn {
   background: transparent;
   border: none;
-  color: #64748b;
+  color: var(--text-muted);
   cursor: pointer;
   padding: 6px;
-  border-radius: 6px;
-  transition: all 0.2s;
+  border-radius: var(--radius-sm);
+  transition: all var(--duration-fast) ease;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .close-btn:hover {
-  background: rgba(255,255,255,0.1);
-  color: #e2e8f0;
+  background: var(--surface-2);
+  color: var(--text-primary);
 }
 
 .panel-content {
@@ -188,13 +189,13 @@ function getConnectedNodeLabel(nodeId: string): string {
 .detail-label {
   display: block;
   font-size: 12px;
-  color: #64748b;
+  color: var(--text-muted);
   margin-bottom: 4px;
 }
 
 .detail-value {
   font-size: 14px;
-  color: #e2e8f0;
+  color: var(--text-primary);
 }
 
 .detail-value.name-value {
@@ -203,9 +204,9 @@ function getConnectedNodeLabel(nodeId: string): string {
 }
 
 .detail-value.mono {
-  font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+  font-family: 'JetBrains Mono', monospace;
   font-size: 12px;
-  color: #94a3b8;
+  color: var(--text-secondary);
 }
 
 .detail-value.uuid-value {
@@ -215,18 +216,18 @@ function getConnectedNodeLabel(nodeId: string): string {
 
 .summary-section {
   padding-top: 12px;
-  border-top: 1px solid rgba(255,255,255,0.06);
+  border-top: 1px solid var(--glass-border);
 }
 
 .summary-text {
   font-size: 13px;
-  color: #b8c5d6;
+  color: var(--text-secondary);
   line-height: 1.6;
   margin: 6px 0 0 0;
   padding: 12px;
-  background: rgba(255,255,255,0.03);
-  border-radius: 8px;
-  border-left: 3px solid #42a5f5;
+  background: var(--surface-1);
+  border-radius: var(--radius-md);
+  border-left: 3px solid var(--accent-primary);
 }
 
 .labels-container {
@@ -238,12 +239,12 @@ function getConnectedNodeLabel(nodeId: string): string {
 
 .label-badge {
   padding: 4px 10px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   font-size: 12px;
   font-weight: 500;
-  background: rgba(100, 116, 139, 0.2);
-  color: #94a3b8;
-  border: 1px solid rgba(100, 116, 139, 0.3);
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  border: 1px solid var(--glass-border);
 }
 
 .connections-section {
@@ -255,7 +256,7 @@ function getConnectedNodeLabel(nodeId: string): string {
   align-items: center;
   gap: 6px;
   font-size: 12px;
-  color: #ff6b9d;
+  color: var(--accent-secondary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   margin-bottom: 12px;
@@ -272,20 +273,20 @@ function getConnectedNodeLabel(nodeId: string): string {
   align-items: center;
   gap: 8px;
   padding: 10px 12px;
-  background: rgba(255,255,255,0.03);
-  border-radius: 8px;
-  border: 1px solid rgba(255,255,255,0.05);
+  background: var(--surface-1);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--glass-border);
 }
 
 .connection-direction {
-  color: #64748b;
+  color: var(--text-muted);
   font-size: 14px;
 }
 
 .connection-relation {
   font-size: 11px;
-  color: #42a5f5;
-  background: rgba(66, 165, 245, 0.15);
+  color: var(--accent-primary);
+  background: var(--accent-glow);
   padding: 2px 8px;
   border-radius: 4px;
   text-transform: uppercase;
@@ -295,7 +296,7 @@ function getConnectedNodeLabel(nodeId: string): string {
 .connection-target {
   flex: 1;
   font-size: 13px;
-  color: #e2e8f0;
+  color: var(--text-primary);
   text-align: right;
 }
 
@@ -305,14 +306,14 @@ function getConnectedNodeLabel(nodeId: string): string {
   justify-content: center;
   gap: 8px;
   padding: 24px;
-  color: #64748b;
+  color: var(--text-muted);
   font-size: 13px;
 }
 
 /* Transitions */
 .slide-enter-active,
 .slide-leave-active {
-  transition: all 0.3s ease;
+  transition: all var(--duration-normal) ease;
 }
 
 .slide-enter-from,
