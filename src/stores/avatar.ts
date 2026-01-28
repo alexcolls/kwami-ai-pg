@@ -171,10 +171,11 @@ export const AVATAR_PRESETS: AvatarPreset[] = [
     renderer: 'blob',
     blob: {
       colors: { x: '#ffb6c1', y: '#87ceeb', z: '#dda0dd' },
-      spikes: { x: 0.08, y: 0.08, z: 0.08 },
+      spikes: { x: 2.88, y: 1.11, z: 0.25 },
       skin: 'donut',
       shininess: 150,
-      amplitude: { x: 0.6, y: 0.6, z: 0.6 },
+      amplitude: { x: 1.6, y: 2.6, z: 3.6 },
+      opacity: 0.5,
     },
   },
   {

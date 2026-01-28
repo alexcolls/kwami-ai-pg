@@ -17,7 +17,6 @@ const panelIcons: Record<string, string> = {
   interaction: 'ph:cursor-click-duotone',
   audio: 'ph:waveform-duotone',
   voice: 'ph:microphone-duotone',
-  agent: 'ph:robot-duotone',
   enhancements: 'ph:sliders-duotone',
   persona: 'ph:user-circle-duotone',
   memory: 'ph:brain-duotone',
@@ -25,6 +24,7 @@ const panelIcons: Record<string, string> = {
   metrics: 'ph:chart-line-up-duotone',
   transcription: 'ph:chat-circle-text-duotone',
   info: 'ph:info-duotone',
+  account: 'ph:user-duotone',
 };
 
 function toggleTray() {
@@ -56,9 +56,9 @@ function handleKeydown(e: KeyboardEvent) {
 
   const panelTypes = [
     'avatar', 'scene', 'interaction', 'audio',
-    'agent', 'voice', 'enhancements', 'metrics', 'transcription',
+    'voice', 'enhancements', 'metrics', 'transcription',
     'persona', 'memory', 'tools',
-    'info'
+    'info', 'account'
   ];
 
   if (e.key >= '1' && e.key <= '9') {
@@ -87,6 +87,17 @@ onUnmounted(() => {
 
 function getGradient(colors: { x: string; y: string; z: string }) {
   return `linear-gradient(135deg, ${colors.x} 0%, ${colors.y} 50%, ${colors.z} 100%)`;
+}
+
+// Toggle panel or switch to it
+function handlePanelClick(panel: string) {
+  if (uiStore.activePanel === panel && uiStore.isPanelOpen) {
+    // Clicking active panel closes it
+    uiStore.togglePanel();
+  } else {
+    // Clicking different panel opens/switches to it
+    uiStore.setPanel(panel);
+  }
 }
 </script>
 
@@ -138,8 +149,8 @@ function getGradient(colors: { x: string; y: string; z: string }) {
         v-for="p in ['avatar', 'scene', 'interaction', 'audio']"
         :key="p"
         class="nav-btn"
-        :class="{ active: uiStore.activePanel === p }"
-        @click="uiStore.setPanel(p)"
+        :class="{ active: uiStore.activePanel === p && uiStore.isPanelOpen }"
+        @click="handlePanelClick(p)"
         :title="p.charAt(0).toUpperCase() + p.slice(1)"
       >
         <iconify-icon :icon="panelIcons[p]"></iconify-icon>
@@ -152,11 +163,11 @@ function getGradient(colors: { x: string; y: string; z: string }) {
     <div class="nav-group">
       <span class="switcher-label">Agent</span>
       <button
-        v-for="p in ['agent', 'voice', 'enhancements', 'memory', 'tools', 'persona']"
+        v-for="p in ['voice', 'enhancements', 'memory', 'tools', 'persona']"
         :key="p"
         class="nav-btn"
-        :class="{ active: uiStore.activePanel === p }"
-        @click="uiStore.setPanel(p)"
+        :class="{ active: uiStore.activePanel === p && uiStore.isPanelOpen }"
+        @click="handlePanelClick(p)"
         :title="p.charAt(0).toUpperCase() + p.slice(1)"
       >
         <iconify-icon :icon="panelIcons[p]"></iconify-icon>
@@ -172,19 +183,24 @@ function getGradient(colors: { x: string; y: string; z: string }) {
         v-for="p in ['transcription', 'metrics', 'info']"
         :key="p"
         class="nav-btn"
-        :class="{ active: uiStore.activePanel === p }"
-        @click="uiStore.setPanel(p)"
+        :class="{ active: uiStore.activePanel === p && uiStore.isPanelOpen }"
+        @click="handlePanelClick(p)"
         :title="p.charAt(0).toUpperCase() + p.slice(1)"
       >
         <iconify-icon :icon="panelIcons[p]"></iconify-icon>
       </button>
     </div>
 
-    <!-- Toggle -->
-    <button class="nav-btn toggle-btn" @click="uiStore.togglePanel">
-      <iconify-icon
-        :icon="uiStore.isPanelOpen ? 'ph:caret-left-bold' : 'ph:caret-right-bold'"
-      ></iconify-icon>
+    <div class="nav-spacer"></div>
+
+    <!-- Account -->
+    <button
+      class="nav-btn account-btn"
+      :class="{ active: uiStore.activePanel === 'account' && uiStore.isPanelOpen }"
+      @click="handlePanelClick('account')"
+      title="Account"
+    >
+      <iconify-icon icon="ph:user-duotone"></iconify-icon>
     </button>
   </div>
 </template>
@@ -247,16 +263,6 @@ function getGradient(colors: { x: string; y: string; z: string }) {
   border-color: var(--accent-primary);
   color: var(--accent-primary);
   box-shadow: 0 0 20px var(--accent-glow), 0 0 0 1px rgba(0, 217, 255, 0.2) inset;
-}
-
-.toggle-btn {
-  margin-top: auto;
-  width: 40px !important;
-  height: 40px !important;
-  min-height: 40px;
-  max-height: 40px;
-  flex-shrink: 0;
-  flex-grow: 0;
 }
 
 /* Kwami Selector Styles */

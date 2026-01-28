@@ -3,11 +3,10 @@ import { onMounted, onUnmounted, ref, watch } from 'vue';
 import { useKwami } from '@/composables/useKwami';
 import { useUIStore } from '@/stores/ui';
 import { useInteractionStore, type InteractionAction } from '@/stores/interaction';
-import { useAuthStore } from '@/stores/auth';
 import AuthGuard from '@/components/auth/AuthGuard.vue';
 import TheSidebar from '@/components/sidebar/TheSidebar.vue';
+import ControlBar from '@/components/controls/ControlBar.vue';
 import AvatarPanel from '@/components/panels/avatar/AvatarPanel.vue';
-import AgentPanel from '@/components/panels/agent/AgentPanel.vue';
 import ScenePanel from '@/components/panels/scene/ScenePanel.vue';
 import InteractionPanel from '@/components/panels/interaction/InteractionPanel.vue';
 import AudioPanel from '@/components/panels/audio/AudioPanel.vue';
@@ -19,16 +18,11 @@ import MemoryPanel from '@/components/panels/memory/MemoryPanel.vue';
 import ToolsPanel from '@/components/panels/tools/ToolsPanel.vue';
 import InfoPanel from '@/components/panels/info/InfoPanel.vue';
 import MetricsPanel from '@/components/panels/metrics/MetricsPanel.vue';
+import AccountPanel from '@/components/panels/account/AccountPanel.vue';
 
 const { kwami, init, switchRenderer } = useKwami();
 const uiStore = useUIStore();
 const interactionStore = useInteractionStore();
-const authStore = useAuthStore();
-
-// Logout handler
-async function handleLogout() {
-  await authStore.signOut();
-}
 
 const canvasRef = ref<HTMLCanvasElement | null>(null);
 
@@ -265,21 +259,13 @@ onUnmounted(() => {
     <div id="kwami-root">
       <canvas id="kwami-canvas" ref="canvasRef"></canvas>
 
-      <!-- User info & logout button -->
-      <div class="user-controls">
-        <span class="user-email">{{ authStore.userEmail }}</span>
-        <button class="logout-btn" @click="handleLogout" title="Logout">
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-            <polyline points="16 17 21 12 16 7"></polyline>
-            <line x1="21" y1="12" x2="9" y2="12"></line>
-          </svg>
-        </button>
+      <!-- Control Bar (top-right) -->
+      <div class="control-bar-container">
+        <ControlBar />
       </div>
 
       <TheSidebar>
         <AvatarPanel v-if="uiStore.activePanel === 'avatar'" />
-        <AgentPanel v-if="uiStore.activePanel === 'agent'" />
         <ScenePanel v-if="uiStore.activePanel === 'scene'" />
         <InteractionPanel v-if="uiStore.activePanel === 'interaction'" />
         <AudioPanel v-if="uiStore.activePanel === 'audio'" />
@@ -291,6 +277,7 @@ onUnmounted(() => {
         <ToolsPanel v-if="uiStore.activePanel === 'tools'" />
         <InfoPanel v-if="uiStore.activePanel === 'info'" />
         <MetricsPanel v-if="uiStore.activePanel === 'metrics'" />
+        <AccountPanel v-if="uiStore.activePanel === 'account'" />
       </TheSidebar>
     </div>
   </AuthGuard>
@@ -307,49 +294,11 @@ onUnmounted(() => {
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* User controls */
-.user-controls {
+/* Control Bar Container */
+.control-bar-container {
   position: fixed;
   top: 16px;
   right: 16px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
   z-index: 100;
-  background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(8px);
-  padding: 8px 12px;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.user-email {
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 13px;
-  max-width: 200px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.logout-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 6px;
-  color: rgba(255, 255, 255, 0.7);
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.logout-btn:hover {
-  background: rgba(239, 68, 68, 0.2);
-  border-color: rgba(239, 68, 68, 0.4);
-  color: #ef4444;
 }
 </style>

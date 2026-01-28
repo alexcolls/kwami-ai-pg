@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted, watch } from 'vue';
+import { ref, reactive, onMounted, watch, computed } from 'vue';
 import { useKwami } from '@/composables/useKwami';
 import PanelSection from '@/components/ui/PanelSection.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
@@ -7,8 +7,68 @@ import BaseInput from '@/components/ui/BaseInput.vue';
 import BaseSelect from '@/components/ui/BaseSelect.vue';
 import BaseSlider from '@/components/ui/BaseSlider.vue';
 import BaseTagInput from '@/components/ui/BaseTagInput.vue';
+import { personaTemplates, templateCategories, type PersonaTemplate } from '@/templates/persona-templates';
 
-const { kwami } = useKwami();
+const { kwami, isConnected } = useKwami();
+
+// Template selection state
+const selectedCategory = ref<string | null>(null);
+const selectedTemplateId = ref<string | null>(null);
+
+const filteredTemplates = computed(() => {
+  if (!selectedCategory.value) return personaTemplates;
+  return personaTemplates.filter(t => t.category === selectedCategory.value);
+});
+
+function selectCategory(categoryId: string | null) {
+  selectedCategory.value = selectedCategory.value === categoryId ? null : categoryId;
+}
+
+function applyTemplate(template: PersonaTemplate) {
+  if (!kwami.value) return;
+  
+  selectedTemplateId.value = template.id;
+  
+  const personaConfig = {
+    name: template.name,
+    personality: template.personality,
+    systemPrompt: template.systemPrompt,
+    traits: [...template.traits],
+    conversationStyle: template.conversationStyle,
+    responseLength: template.responseLength,
+    emotionalTone: template.emotionalTone as 'neutral' | 'warm' | 'enthusiastic' | 'calm',
+    emotionalTraits: { ...template.emotionalTraits },
+  };
+  
+  // Apply template values to kwami persona
+  kwami.value.persona.updateConfig(personaConfig);
+  
+  // Sync to backend if connected
+  syncPersonaToBackend(personaConfig);
+  
+  // Sync local state
+  syncFromKwami();
+}
+
+/**
+ * Sync persona changes to the backend agent (if connected)
+ */
+function syncPersonaToBackend(personaConfig?: Record<string, unknown>) {
+  if (!kwami.value || !isConnected.value) return;
+  
+  const configToSync = personaConfig ?? {
+    name: config.name,
+    personality: config.personality,
+    systemPrompt: config.systemPrompt,
+    traits: traits.value,
+    conversationStyle: config.conversationStyle,
+    responseLength: config.responseLength,
+    emotionalTone: config.emotionalTone,
+  };
+  
+  kwami.value.agent.syncConfigToBackend('persona', configToSync);
+  console.log('📤 Synced persona to backend:', configToSync);
+}
 
 // State
 const config = reactive({
@@ -75,15 +135,24 @@ function syncFromKwami() {
 let isSyncing = false; // Prevent infinite loops during sync
 
 watch(() => config.name, (v) => {
-  if (!isSyncing && kwami.value) kwami.value.persona.setName(v);
+  if (!isSyncing && kwami.value) {
+    kwami.value.persona.setName(v);
+    syncPersonaToBackend();
+  }
 });
 
 watch(() => config.personality, (v) => {
-  if (!isSyncing && kwami.value) kwami.value.persona.updateConfig({ personality: v });
+  if (!isSyncing && kwami.value) {
+    kwami.value.persona.updateConfig({ personality: v });
+    syncPersonaToBackend();
+  }
 });
 
 watch(() => config.conversationStyle, (v) => {
-  if (!isSyncing && kwami.value) kwami.value.persona.setConversationStyle(v);
+  if (!isSyncing && kwami.value) {
+    kwami.value.persona.setConversationStyle(v);
+    syncPersonaToBackend();
+  }
 });
 
 watch(() => config.language, (v) => {
@@ -91,15 +160,24 @@ watch(() => config.language, (v) => {
 });
 
 watch(() => config.responseLength, (v) => {
-  if (!isSyncing && kwami.value) kwami.value.persona.setResponseLength(v);
+  if (!isSyncing && kwami.value) {
+    kwami.value.persona.setResponseLength(v);
+    syncPersonaToBackend();
+  }
 });
 
 watch(() => config.emotionalTone, (v) => {
-  if (!isSyncing && kwami.value) kwami.value.persona.setEmotionalTone(v);
+  if (!isSyncing && kwami.value) {
+    kwami.value.persona.setEmotionalTone(v);
+    syncPersonaToBackend();
+  }
 });
 
 watch(() => config.systemPrompt, (v) => {
-  if (!isSyncing && kwami.value) kwami.value.persona.updateConfig({ systemPrompt: v });
+  if (!isSyncing && kwami.value) {
+    kwami.value.persona.updateConfig({ systemPrompt: v });
+    syncPersonaToBackend();
+  }
 });
 
 watch(emotionalTraits, (v) => {
@@ -145,6 +223,7 @@ function updateTraits(newTraits: string[]) {
   // We need to sync the difference
   kwami.value?.persona.updateConfig({ traits: newTraits });
   syncFromKwami(); // Refresh local reference
+  syncPersonaToBackend(); // Sync to backend if connected
 }
 
 function updateEmotionalTrait(key: keyof typeof emotionalTraits) {
@@ -190,6 +269,7 @@ function importPersona() {
 function resetPersona() {
   if (!kwami.value) return;
   if (confirm('Reset persona to defaults?')) {
+    selectedTemplateId.value = null;
     kwami.value.persona.updateConfig({
       name: 'Kwami',
       personality: 'A friendly and helpful AI companion',
@@ -203,6 +283,11 @@ function resetPersona() {
   }
 }
 
+// Auto-sync when connection state changes (in case persona was modified during conversation)
+watch(isConnected, () => {
+  syncFromKwami();
+});
+
 onMounted(() => {
   syncFromKwami();
 });
@@ -213,9 +298,47 @@ onMounted(() => {
     <div class="panel-header">
       <iconify-icon icon="ph:user-circle-duotone" class="panel-icon"></iconify-icon>
       <h2>Persona</h2>
+      <button class="refresh-btn" @click="syncFromKwami" title="Refresh from Kwami">
+        <iconify-icon icon="ph:arrows-clockwise-duotone"></iconify-icon>
+      </button>
     </div>
 
     <div class="panel-body">
+      <!-- Templates -->
+      <PanelSection title="Templates">
+        <div class="template-categories">
+          <button
+            v-for="cat in templateCategories"
+            :key="cat.id"
+            class="category-chip"
+            :class="{ active: selectedCategory === cat.id }"
+            :style="{ '--cat-color': cat.color }"
+            @click="selectCategory(cat.id)"
+          >
+            <iconify-icon :icon="cat.icon"></iconify-icon>
+            <span>{{ cat.label }}</span>
+          </button>
+        </div>
+        <div class="template-grid">
+          <div
+            v-for="template in filteredTemplates"
+            :key="template.id"
+            class="template-card"
+            :class="{ selected: selectedTemplateId === template.id }"
+            :style="{ '--template-color': template.color }"
+            @click="applyTemplate(template)"
+          >
+            <div class="template-icon">
+              <iconify-icon :icon="template.icon"></iconify-icon>
+            </div>
+            <div class="template-info">
+              <span class="template-name">{{ template.name }}</span>
+              <span class="template-desc">{{ template.personality.substring(0, 50) }}...</span>
+            </div>
+          </div>
+        </div>
+      </PanelSection>
+
       <!-- Identity -->
       <PanelSection title="Identity">
         <BaseInput
@@ -386,6 +509,35 @@ onMounted(() => {
 </template>
 
 <style scoped>
+.refresh-btn {
+  margin-left: auto;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-2);
+  border: 1px solid var(--glass-border);
+  border-radius: 6px;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.refresh-btn:hover {
+  background: var(--surface-3);
+  color: var(--text-primary);
+  border-color: var(--accent-primary);
+}
+
+.refresh-btn:active {
+  transform: rotate(180deg);
+}
+
+.refresh-btn iconify-icon {
+  font-size: 16px;
+}
+
 textarea {
   width: 100%;
   padding: 8px 12px;
@@ -504,5 +656,114 @@ textarea {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
+}
+
+/* Template Selector Styles */
+.template-categories {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.category-chip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.category-chip:hover {
+  background: var(--surface-3);
+  border-color: var(--cat-color, var(--accent-primary));
+}
+
+.category-chip.active {
+  background: color-mix(in srgb, var(--cat-color, var(--accent-primary)) 15%, transparent);
+  border-color: var(--cat-color, var(--accent-primary));
+  color: var(--text-primary);
+}
+
+.category-chip iconify-icon {
+  font-size: 14px;
+  color: var(--cat-color, var(--text-tertiary));
+}
+
+.template-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  max-height: 280px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.template-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px;
+  background: var(--surface-1);
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.template-card:hover {
+  background: var(--surface-2);
+  border-color: var(--template-color, var(--accent-primary));
+  transform: translateY(-1px);
+}
+
+.template-card.selected {
+  background: color-mix(in srgb, var(--template-color, var(--accent-primary)) 12%, transparent);
+  border-color: var(--template-color, var(--accent-primary));
+  box-shadow: 0 0 12px color-mix(in srgb, var(--template-color, var(--accent-primary)) 25%, transparent);
+}
+
+.template-icon {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--template-color, var(--accent-primary)) 15%, transparent);
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.template-icon iconify-icon {
+  font-size: 18px;
+  color: var(--template-color, var(--accent-primary));
+}
+
+.template-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.template-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.template-desc {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>

@@ -121,3 +121,163 @@ canvas#kwami-canvas {
   background: var(--accent-glow);
   color: var(--text-primary);
 }
+
+/* =====================================================
+   COMPACT MODE - Reduced spacing throughout UI
+   Using !important to override scoped component styles
+   ===================================================== */
+
+body.compact-mode .panel-header {
+  padding: 12px 14px !important;
+  gap: 8px !important;
+}
+
+body.compact-mode .panel-body {
+  padding: 4px 0 !important;
+}
+
+body.compact-mode .panel-section {
+  padding: 10px 14px !important;
+}
+
+body.compact-mode .section-header {
+  margin-bottom: 10px !important;
+}
+
+body.compact-mode .slider-group,
+body.compact-mode .settings-group {
+  gap: 8px !important;
+}
+
+body.compact-mode .toggle-group {
+  gap: 8px !important;
+}
+
+body.compact-mode .info-grid {
+  gap: 6px !important;
+}
+
+body.compact-mode .info-item {
+  padding: 8px !important;
+  gap: 2px !important;
+}
+
+body.compact-mode .action-buttons {
+  gap: 6px !important;
+}
+
+body.compact-mode .config-form {
+  gap: 8px !important;
+}
+
+body.compact-mode .shortcuts-list {
+  gap: 4px !important;
+}
+
+body.compact-mode .row-2,
+body.compact-mode .row-3 {
+  gap: 6px !important;
+}
+
+body.compact-mode .profile-card {
+  padding: 12px !important;
+  gap: 10px !important;
+}
+
+body.compact-mode .user-id {
+  padding: 8px 10px !important;
+  margin-top: 8px !important;
+}
+
+body.compact-mode .theme-modes {
+  gap: 6px !important;
+}
+
+body.compact-mode .theme-mode-btn {
+  padding: 10px 6px !important;
+  gap: 4px !important;
+}
+
+body.compact-mode .accent-grid {
+  gap: 4px !important;
+}
+
+body.compact-mode .accent-btn {
+  padding: 2px !important;
+}
+
+body.compact-mode .slider-control {
+  gap: 6px !important;
+}
+
+body.compact-mode .slider-header {
+  gap: 6px !important;
+}
+
+body.compact-mode .toggle-wrapper {
+  gap: 10px !important;
+}
+
+body.compact-mode .switcher-column {
+  padding: 5px !important;
+  gap: 3px !important;
+  border-radius: 14px !important;
+}
+
+body.compact-mode .nav-group {
+  gap: 3px !important;
+}
+
+body.compact-mode .nav-divider {
+  margin: 2px 0 !important;
+}
+
+body.compact-mode .switcher-label {
+  font-size: 7px !important;
+  padding: 0 2px !important;
+}
+
+body.compact-mode .nav-btn {
+  width: 32px !important;
+  height: 32px !important;
+  font-size: 16px !important;
+  border-radius: 8px !important;
+}
+
+body.compact-mode .kwami-active-btn {
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 8px !important;
+}
+
+body.compact-mode .kwami-preview {
+  width: 20px !important;
+  height: 20px !important;
+  border-radius: 5px !important;
+}
+
+body.compact-mode .avatar {
+  width: 44px !important;
+  height: 44px !important;
+}
+
+body.compact-mode .avatar-initials {
+  font-size: 16px !important;
+}
+
+/* Sidebar compact */
+body.compact-mode .sidebar {
+  left: 12px !important;
+  top: 12px !important;
+  bottom: 12px !important;
+  gap: 8px !important;
+}
+
+body.compact-mode .panel-column {
+  width: 280px !important;
+}
+
+body.compact-mode .control-bar-container {
+  top: 12px !important;
+  right: 12px !important;
+}

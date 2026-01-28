@@ -4,7 +4,7 @@ import { useKwami } from '@/composables/useKwami';
 import { useAuthStore } from '@/stores/auth';
 import PanelSection from '@/components/ui/PanelSection.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
-import MemoryGraph from '@/components/MemoryGraph.vue';
+import { MemoryGraph } from '@/components/memory';
 
 const { userId: sharedUserId } = useKwami();
 const authStore = useAuthStore();
