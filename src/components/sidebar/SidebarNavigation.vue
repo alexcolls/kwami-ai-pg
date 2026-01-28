@@ -152,7 +152,7 @@ function getGradient(colors: { x: string; y: string; z: string }) {
     <div class="nav-group">
       <span class="switcher-label">Agent</span>
       <button
-        v-for="p in ['agent', 'voice', 'enhancements', 'metrics', 'transcription']"
+        v-for="p in ['agent', 'voice', 'enhancements', 'memory', 'tools', 'persona']"
         :key="p"
         class="nav-btn"
         :class="{ active: uiStore.activePanel === p }"
@@ -167,9 +167,9 @@ function getGradient(colors: { x: string; y: string; z: string }) {
 
     <!-- Config Group -->
     <div class="nav-group">
-      <span class="switcher-label">Config</span>
+      <span class="switcher-label">Info</span>
       <button
-        v-for="p in ['persona', 'memory', 'tools']"
+        v-for="p in ['transcription', 'metrics', 'info']"
         :key="p"
         class="nav-btn"
         :class="{ active: uiStore.activePanel === p }"
@@ -179,20 +179,6 @@ function getGradient(colors: { x: string; y: string; z: string }) {
         <iconify-icon :icon="panelIcons[p]"></iconify-icon>
       </button>
     </div>
-
-    <div class="nav-divider"></div>
-
-    <!-- Info (no label) -->
-    <button
-      class="nav-btn"
-      :class="{ active: uiStore.activePanel === 'info' }"
-      @click="uiStore.setPanel('info')"
-      title="Info (=)"
-    >
-      <iconify-icon :icon="panelIcons.info"></iconify-icon>
-    </button>
-
-    <div class="nav-spacer"></div>
 
     <!-- Toggle -->
     <button class="nav-btn toggle-btn" @click="uiStore.togglePanel">

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, computed, nextTick } from 'vue'
 import { getMemoryGraph, type MemoryGraph as GraphData, type MemoryNode, type MemoryEdge } from 'kwami-ai'
+import { useAuthStore } from '@/stores/auth'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 
@@ -8,6 +9,8 @@ const props = defineProps<{
   userId: string
   apiBaseUrl?: string
 }>()
+
+const authStore = useAuthStore()
 
 const graph = ref<GraphData>({ nodes: [], edges: [] })
 const loading = ref(false)
@@ -111,7 +114,10 @@ async function fetchGraph() {
     const baseUrl = props.apiBaseUrl || 'http://localhost:8080'
     console.log(`📊 Fetching memory graph from: ${baseUrl}/memory/${props.userId}/graph`)
     
-    graph.value = await getMemoryGraph(baseUrl, props.userId)
+    // Get auth token for API request
+    const authToken = await authStore.getAccessToken()
+    
+    graph.value = await getMemoryGraph(baseUrl, props.userId, { authToken: authToken || undefined })
     console.log(`📊 Graph data:`, graph.value)
     
     if (graph.value.nodes.length === 0) {

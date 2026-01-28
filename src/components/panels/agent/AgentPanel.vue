@@ -2,18 +2,19 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useKwami } from '@/composables/useKwami';
 import { useVoiceStore } from '@/stores/voice';
+import { useAuthStore } from '@/stores/auth';
 import PanelSection from '@/components/ui/PanelSection.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
 import BaseInput from '@/components/ui/BaseInput.vue';
 
-const { kwami, isConnected } = useKwami();
+const { kwami, isConnected, userId } = useKwami();
 const voiceStore = useVoiceStore();
+const authStore = useAuthStore();
 
 // Form State - defaults from .env
 const livekitUrl = ref(import.meta.env.VITE_LIVEKIT_URL || '');
 const livekitTokenEndpoint = ref(import.meta.env.VITE_LIVEKIT_TOKEN_ENDPOINT || '');
 const roomName = ref('kwami-playground');
-const userId = ref('playground_user');
 
 // Session State
 const sessionStartTime = ref<number | null>(null);
@@ -52,6 +53,13 @@ async function handleConnect() {
     return;
   }
 
+  // Get auth token for API authentication
+  const authToken = await authStore.getAccessToken();
+  if (!authToken) {
+    alert('Authentication required. Please log in.');
+    return;
+  }
+
   // Include voice config from store alongside connection settings
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const livekitConfig = {
@@ -59,12 +67,14 @@ async function handleConnect() {
     roomName: roomName.value,
     tokenEndpoint: livekitTokenEndpoint.value,
     voice: voiceStore.voiceConfig,  // Preserve voice pipeline config from store
+    authToken: authToken,  // Include auth token for API calls
   } as any;
 
   console.log('🔌 Connecting with config:', { 
     url: livekitConfig.url, 
     room: livekitConfig.roomName,
-    voice: livekitConfig.voice 
+    voice: livekitConfig.voice,
+    hasAuthToken: !!authToken,
   });
 
   try {

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, onUnmounted } from 'vue';
 import { useKwami } from '@/composables/useKwami';
+import PanelSection from '@/components/ui/PanelSection.vue';
+import BaseButton from '@/components/ui/BaseButton.vue';
 import type { VoicePipelineConfig, VoicePipelineMetrics } from 'kwami-ai';
 
 const { kwami } = useKwami();
@@ -152,8 +154,7 @@ onUnmounted(() => {
 
     <div class="panel-body">
       <!-- Config -->
-      <section class="panel-section">
-        <h3><iconify-icon icon="ph:gear-duotone"></iconify-icon> Agent Configuration</h3>
+      <PanelSection title="Agent Configuration" icon="ph:gear-duotone" collapsible>
         <div class="config-summary">
           <div class="config-row">
             <span class="label">VAD</span> <span class="val">{{ config.vad }}</span>
@@ -180,114 +181,139 @@ onUnmounted(() => {
             <span class="label">Voice</span> <span class="val normal">{{ config.tts.voice }}</span>
           </div>
         </div>
-      </section>
+      </PanelSection>
 
       <!-- Enhancements -->
-      <section class="panel-section">
-        <h3><iconify-icon icon="ph:sliders-duotone"></iconify-icon> Enhancements</h3>
+      <PanelSection title="Enhancements" icon="ph:sliders-duotone" collapsible>
         <div class="config-summary">
           <div class="config-row">
             <span class="label">Turn Detection</span>
             <span class="val" :class="config.enhancements.turnDetection ? 'ok' : 'no'">{{
-              config.enhancements.turnDetection ? 'TRUE' : 'FALSE'
+              config.enhancements.turnDetection ? 'ON' : 'OFF'
             }}</span>
           </div>
           <div class="config-row">
             <span class="label">Noise Cancellation</span>
             <span class="val" :class="config.enhancements.noiseCancellation ? 'ok' : 'no'">{{
-              config.enhancements.noiseCancellation ? 'TRUE' : 'FALSE'
+              config.enhancements.noiseCancellation ? 'ON' : 'OFF'
             }}</span>
           </div>
         </div>
-      </section>
+      </PanelSection>
 
       <!-- Latency -->
-      <section class="panel-section">
-        <h3><iconify-icon icon="ph:timer-duotone"></iconify-icon> Latency</h3>
+      <PanelSection title="Latency" icon="ph:timer-duotone">
         <div class="latency-grid">
           <div class="lat-item">
-            <span>STT</span> <b>{{ latency.stt }}</b>
+            <span class="lat-label">STT</span>
+            <span class="lat-value">{{ latency.stt }}</span>
           </div>
           <div class="lat-item">
-            <span>EOT</span> <b>{{ latency.eot }}</b>
+            <span class="lat-label">EOT</span>
+            <span class="lat-value">{{ latency.eot }}</span>
           </div>
           <div class="lat-item">
-            <span>LLM</span> <b>{{ latency.llm }}</b>
+            <span class="lat-label">LLM</span>
+            <span class="lat-value">{{ latency.llm }}</span>
           </div>
           <div class="lat-item">
-            <span>TTS</span> <b>{{ latency.tts }}</b>
+            <span class="lat-label">TTS</span>
+            <span class="lat-value">{{ latency.tts }}</span>
           </div>
           <div class="lat-item overall">
-            <span>Overall</span> <b>{{ latency.overall }}</b>
+            <span class="lat-label">Overall</span>
+            <span class="lat-value">{{ latency.overall }}</span>
           </div>
         </div>
-      </section>
+      </PanelSection>
 
       <!-- Stats -->
-      <section class="panel-section">
-        <h3><iconify-icon icon="ph:activity-duotone"></iconify-icon> Session Stats</h3>
+      <PanelSection title="Session Stats" icon="ph:activity-duotone">
         <div class="stats-grid">
-          <div class="stat-item">
-            <b>{{ stats.turns }}</b> <span>Turns</span>
+          <div class="stat-card">
+            <div class="stat-value">{{ stats.turns }}</div>
+            <div class="stat-label">Turns</div>
           </div>
-          <div class="stat-item">
-            <b>{{ stats.interruptions }}</b> <span>Interruptions</span>
+          <div class="stat-card">
+            <div class="stat-value">{{ stats.interruptions }}</div>
+            <div class="stat-label">Interruptions</div>
           </div>
-          <div class="stat-item">
-            <b>{{ stats.agentTime }}</b> <span>Agent Time</span>
+          <div class="stat-card">
+            <div class="stat-value">{{ stats.agentTime }}</div>
+            <div class="stat-label">Agent Time</div>
           </div>
-          <div class="stat-item">
-            <b>{{ stats.userTime }}</b> <span>User Time</span>
+          <div class="stat-card">
+            <div class="stat-value">{{ stats.userTime }}</div>
+            <div class="stat-label">User Time</div>
           </div>
         </div>
-      </section>
+      </PanelSection>
 
-      <!-- Chart Placeholder (Simple history bars) -->
-      <section class="panel-section">
-        <h3><iconify-icon icon="ph:chart-bar-duotone"></iconify-icon> Latency History</h3>
+      <!-- Chart (Simple history bars) -->
+      <PanelSection title="Latency History" icon="ph:chart-bar-duotone" collapsible>
         <div class="chart-container">
-          <div v-if="latencyHistory.length === 0" class="chart-empty">No data yet</div>
+          <div v-if="latencyHistory.length === 0" class="chart-empty">
+            <iconify-icon icon="ph:chart-bar-duotone"></iconify-icon>
+            No data yet
+          </div>
           <div v-else class="chart-bars">
             <div
               v-for="(val, i) in latencyHistory"
               :key="i"
               class="chart-bar"
               :style="{ height: Math.min(100, (val / 5000) * 100) + '%' }"
+              :title="`${Math.round(val)}ms`"
             ></div>
           </div>
         </div>
-      </section>
+      </PanelSection>
 
       <!-- Actions -->
-      <section class="panel-section">
+      <PanelSection title="Actions" icon="ph:wrench-duotone">
         <div class="action-buttons">
-          <button class="action-btn" @click="resetMetrics">
-            <iconify-icon icon="ph:arrow-counter-clockwise-duotone"></iconify-icon> Reset
-          </button>
-          <button class="action-btn" @click="exportMetrics">
-            <iconify-icon icon="ph:export-duotone"></iconify-icon> Export
-          </button>
+          <BaseButton 
+            variant="secondary" 
+            size="sm" 
+            icon="ph:arrow-counter-clockwise-duotone"
+            @click="resetMetrics"
+          >
+            Reset Metrics
+          </BaseButton>
+          <BaseButton 
+            variant="secondary" 
+            size="sm" 
+            icon="ph:export-duotone"
+            @click="exportMetrics"
+          >
+            Export JSON
+          </BaseButton>
         </div>
-      </section>
+      </PanelSection>
     </div>
   </div>
 </template>
 
 <style scoped>
+/* Status Pill */
 .status-pill {
+  margin-left: auto;
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 11px;
-  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 5px 12px;
   background: var(--surface-2);
-  border-radius: 12px;
-  color: var(--text-tertiary);
+  border-radius: 100px;
+  color: var(--text-muted);
+  transition: all var(--duration-normal) ease;
 }
+
 .status-pill.active {
-  color: var(--accent-success);
-  background: rgba(var(--accent-success-rgb), 0.1);
+  color: var(--success);
+  background: var(--success-glow);
 }
+
 .pulse-dot {
   width: 6px;
   height: 6px;
@@ -295,149 +321,219 @@ onUnmounted(() => {
   background: currentColor;
 }
 
-.config-summary {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 4px;
-  background: var(--surface-1);
-  padding: 8px;
-  border-radius: 6px;
+.status-pill.active .pulse-dot {
+  animation: pulse 1.5s infinite;
+  box-shadow: 0 0 8px currentColor;
 }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(0.9); }
+}
+
+/* Config Summary */
+.config-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--surface-1);
+  padding: 12px;
+  border-radius: var(--radius-md);
+}
+
 .config-row {
   display: flex;
   justify-content: space-between;
-  font-size: 11px;
   align-items: center;
+  padding: 6px 0;
+  font-size: 12px;
+  border-bottom: 1px solid var(--glass-border);
 }
+
+.config-row:last-child {
+  border-bottom: none;
+}
+
 .config-row.sub {
-  padding-left: 12px;
-  opacity: 0.8;
+  padding-left: 16px;
+  border-bottom: none;
+  padding-top: 2px;
+  padding-bottom: 2px;
 }
+
+.config-row.sub .label {
+  font-size: 11px;
+  opacity: 0.7;
+}
+
 .label {
-  color: var(--text-tertiary);
+  color: var(--text-secondary);
   font-weight: 500;
 }
+
 .val {
   color: var(--accent-secondary);
   font-weight: 600;
-  font-family: monospace;
-}
-.val.normal {
-  color: var(--text-secondary);
-  font-weight: 400;
-}
-.val.ok {
-  color: var(--accent-success);
-}
-.val.no {
-  color: var(--text-tertiary);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
 }
 
+.val.normal {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.val.ok {
+  color: var(--success);
+}
+
+.val.no {
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+
+/* Latency Grid */
 .latency-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 6px;
+  gap: 8px;
 }
+
 .lat-item {
   background: var(--surface-2);
-  padding: 8px;
-  border-radius: 6px;
+  padding: 12px;
+  border-radius: var(--radius-md);
   display: flex;
   flex-direction: column;
   align-items: center;
-}
-.lat-item span {
-  font-size: 9px;
-  color: var(--text-tertiary);
-  text-transform: uppercase;
-}
-.lat-item b {
-  font-size: 14px;
-  font-weight: 600;
-  font-family: monospace;
-  color: var(--text-primary);
-}
-.lat-item.overall {
-  grid-column: span 2;
-  background: var(--surface-3);
-  border: 1px solid var(--glass-border);
-}
-.lat-item.overall b {
-  color: var(--accent-primary);
+  gap: 4px;
+  transition: all var(--duration-fast) ease;
 }
 
+.lat-item:hover {
+  background: var(--surface-3);
+}
+
+.lat-label {
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+}
+
+.lat-value {
+  font-size: 16px;
+  font-weight: 600;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--text-primary);
+}
+
+.lat-item.overall {
+  grid-column: span 2;
+  background: linear-gradient(135deg, rgba(0, 217, 255, 0.08), rgba(168, 85, 247, 0.08));
+  border: 1px solid var(--glass-border);
+}
+
+.lat-item.overall .lat-value {
+  color: var(--accent-primary);
+  font-size: 20px;
+}
+
+/* Stats Grid */
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 6px;
-}
-.stat-item {
-  background: var(--surface-2);
-  padding: 8px;
-  border-radius: 6px;
-  text-align: center;
-}
-.stat-item b {
-  display: block;
-  font-size: 14px;
-  font-weight: 600;
-}
-.stat-item span {
-  font-size: 10px;
-  color: var(--text-tertiary);
+  gap: 8px;
 }
 
+.stat-card {
+  background: var(--surface-2);
+  border-radius: var(--radius-md);
+  padding: 14px 12px;
+  text-align: center;
+  transition: all var(--duration-fast) ease;
+}
+
+.stat-card:hover {
+  background: var(--surface-3);
+}
+
+.stat-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--accent-primary);
+  line-height: 1;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.stat-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  margin-top: 6px;
+}
+
+/* Chart Container */
 .chart-container {
-  height: 80px;
+  height: 100px;
   background: var(--surface-1);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   display: flex;
   align-items: flex-end;
-  padding: 4px;
-  gap: 2px;
+  padding: 12px;
+  gap: 4px;
 }
+
 .chart-empty {
   width: 100%;
-  text-align: center;
-  align-self: center;
-  font-size: 11px;
-  color: var(--text-tertiary);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
 }
+
+.chart-empty iconify-icon {
+  font-size: 24px;
+  opacity: 0.5;
+}
+
 .chart-bars {
   display: flex;
   width: 100%;
   height: 100%;
   align-items: flex-end;
-  gap: 2px;
-}
-.chart-bar {
-  flex: 1;
-  background: var(--accent-primary);
-  opacity: 0.6;
-  min-height: 2px;
-  transition: height 0.3s;
-  border-radius: 2px 2px 0 0;
+  gap: 4px;
 }
 
+.chart-bar {
+  flex: 1;
+  background: linear-gradient(to top, var(--accent-primary), var(--accent-secondary));
+  opacity: 0.8;
+  min-height: 4px;
+  transition: all var(--duration-normal) var(--ease-out);
+  border-radius: 3px 3px 0 0;
+  cursor: pointer;
+}
+
+.chart-bar:hover {
+  opacity: 1;
+  transform: scaleY(1.05);
+  box-shadow: 0 0 12px var(--accent-glow);
+}
+
+/* Action Buttons */
 .action-buttons {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
   gap: 8px;
 }
-.action-btn {
-  background: var(--surface-2);
-  border: 1px solid var(--glass-border);
-  color: var(--text-primary);
-  padding: 8px;
-  border-radius: 6px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  font-size: 12px;
-}
-.action-btn:hover {
-  background: var(--surface-3);
+
+.action-buttons > * {
+  flex: 1;
 }
 </style>

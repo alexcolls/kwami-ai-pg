@@ -1,6 +1,7 @@
-import { shallowRef, ref } from 'vue';
+import { shallowRef, ref, computed } from 'vue';
 import { Kwami } from 'kwami-ai';
 import { useVoiceStore } from '@/stores/voice';
+import { useAuthStore } from '@/stores/auth';
 
 declare global {
   interface Window {
@@ -14,6 +15,12 @@ const rendererType = ref<'blob' | 'crystal'>('blob');
 const isConnected = ref(false);
 
 export function useKwami() {
+  // Get auth store for user ID
+  const authStore = useAuthStore();
+  
+  // User ID from authenticated user, fallback to 'anonymous'
+  const userId = computed(() => authStore.userId || 'anonymous');
+
   function init(canvas: HTMLCanvasElement, renderer: 'blob' | 'crystal' = 'blob') {
     rendererType.value = renderer;
 
@@ -63,7 +70,7 @@ export function useKwami() {
         livekit: {
           url: import.meta.env.VITE_LIVEKIT_URL || '',
           tokenEndpoint: import.meta.env.VITE_LIVEKIT_TOKEN_ENDPOINT || '',
-          userId: 'playground_user', // Persistent user ID for memory recall
+          userId: userId.value, // Use authenticated user ID for memory recall
           voice: voiceStore.voiceConfig,
         },
       },
@@ -110,18 +117,23 @@ export function useKwami() {
     }
 
     try {
-      // Update voice config from store before connecting
+      // Get auth token and voice config before connecting
       const voiceStore = useVoiceStore();
+      const authToken = await authStore.getAccessToken();
+      
+      // Update config with current user ID, auth token, and voice settings
       kwamiInstance.value.agent.updateConfig({
         livekit: {
           ...kwamiInstance.value.agent.getConfig().livekit,
+          userId: userId.value, // Use current authenticated user ID
+          authToken: authToken || undefined, // Include auth token for API calls
           voice: voiceStore.voiceConfig,
         },
       });
 
       await kwamiInstance.value.agent.connect();
       isConnected.value = true;
-      console.log('✅ Connected to agent');
+      console.log(`✅ Connected to agent as user: ${userId.value}`);
     } catch (error) {
       console.error('Failed to connect:', error);
       isConnected.value = false;
@@ -176,11 +188,6 @@ export function useKwami() {
     kwamiInstance.value.avatar.switchRenderer(newRenderer);
     rendererType.value = newRenderer;
 
-    // Update URL without reloading (for bookmarking/sharing)
-    const url = new URL(window.location.href);
-    url.searchParams.set('renderer', newRenderer);
-    window.history.replaceState({}, '', url.toString());
-
     // Dispatch event for UI sync
     window.dispatchEvent(new CustomEvent('kwami:rendererChanged', { detail: newRenderer }));
     console.log(`🔄 Switched to ${newRenderer} renderer`);
@@ -190,6 +197,7 @@ export function useKwami() {
     kwami: kwamiInstance,
     rendererType,
     isConnected,
+    userId,
     init,
     switchRenderer,
     connect,

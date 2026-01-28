@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue';
 import { useKwami } from '@/composables/useKwami';
+import { useAuthStore } from '@/stores/auth';
 import PanelSection from '@/components/ui/PanelSection.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
-import BaseInput from '@/components/ui/BaseInput.vue';
 import MemoryGraph from '@/components/MemoryGraph.vue';
 
-const { kwami } = useKwami();
+const { userId: sharedUserId } = useKwami();
+const authStore = useAuthStore();
 
 // API base URL derived from token endpoint
 const apiBaseUrl = computed(() => {
@@ -14,16 +15,9 @@ const apiBaseUrl = computed(() => {
   return tokenEndpoint.replace(/\/token\/?$/, '') || 'http://localhost:8080';
 });
 
-// Get actual user ID from agent config (with kwami_ prefix as used by backend)
-const actualUserId = computed(() => {
-  const config = kwami.value?.agent?.getConfig();
-  const userId = config?.livekit?.userId || 'playground_user';
-  return `kwami_${userId}`;
-});
-
-// User ID state
-const graphUserId = ref('');
-const userIdInput = ref('');
+// User ID with kwami_ prefix (as used by backend)
+// This automatically updates when the connection panel's user ID changes
+const userId = computed(() => `kwami_${sharedUserId.value}`);
 
 // Loading states
 const isLoading = ref(false);
@@ -72,18 +66,6 @@ const showDeleteConfirm = ref(false);
 const isDeleting = ref(false);
 const deleteError = ref('');
 
-// Initialize user ID from agent config
-function initUserId() {
-  if (!graphUserId.value) {
-    graphUserId.value = actualUserId.value;
-    userIdInput.value = actualUserId.value;
-  }
-}
-
-function setGraphUserId() {
-  graphUserId.value = userIdInput.value;
-}
-
 // Format date for display
 function formatDate(dateStr: string | null): string {
   if (!dateStr) return '';
@@ -99,19 +81,34 @@ function formatDate(dateStr: string | null): string {
   }
 }
 
+// Get authorization headers for API calls
+async function getAuthHeaders(): Promise<HeadersInit> {
+  const token = await authStore.getAccessToken();
+  if (token) {
+    return {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    };
+  }
+  return { 'Content-Type': 'application/json' };
+}
+
 // Fetch all memory data from API
 async function loadMemoryData() {
-  if (!graphUserId.value) return;
+  if (!userId.value) return;
   
+  console.log('📊 Loading memory for user:', userId.value);
   isLoading.value = true;
   loadError.value = '';
   
   try {
+    const headers = await getAuthHeaders();
+    
     // Fetch all data in parallel
     const [edgesRes, nodesRes, messagesRes] = await Promise.all([
-      fetch(`${apiBaseUrl.value}/memory/${graphUserId.value}/edges`),
-      fetch(`${apiBaseUrl.value}/memory/${graphUserId.value}/nodes`),
-      fetch(`${apiBaseUrl.value}/memory/${graphUserId.value}/messages`),
+      fetch(`${apiBaseUrl.value}/memory/${userId.value}/edges`, { headers }),
+      fetch(`${apiBaseUrl.value}/memory/${userId.value}/nodes`, { headers }),
+      fetch(`${apiBaseUrl.value}/memory/${userId.value}/messages`, { headers }),
     ]);
     
     if (!edgesRes.ok || !nodesRes.ok || !messagesRes.ok) {
@@ -141,14 +138,16 @@ async function loadMemoryData() {
 }
 
 async function deleteUserMemory() {
-  if (!graphUserId.value) return;
+  if (!userId.value) return;
   
   isDeleting.value = true;
   deleteError.value = '';
   
   try {
-    const response = await fetch(`${apiBaseUrl.value}/memory/${graphUserId.value}`, {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${apiBaseUrl.value}/memory/${userId.value}`, {
       method: 'DELETE',
+      headers,
     });
     
     const result = await response.json();
@@ -174,16 +173,19 @@ async function deleteUserMemory() {
   }
 }
 
-// Auto-load when user ID changes
-watch(graphUserId, (newId) => {
-  if (newId) {
-    loadMemoryData();
+// Auto-load when user ID changes (from connection panel)
+watch(
+  () => sharedUserId.value,
+  (newId, oldId) => {
+    console.log('🔄 User ID changed:', oldId, '->', newId);
+    if (newId) {
+      loadMemoryData();
+    }
   }
-});
+);
 
 onMounted(() => {
-  initUserId();
-  if (graphUserId.value) {
+  if (userId.value) {
     loadMemoryData();
   }
 });
@@ -194,32 +196,11 @@ onMounted(() => {
     <div class="panel-header">
       <iconify-icon icon="ph:brain-duotone" class="panel-icon"></iconify-icon>
       <h2>Memory</h2>
-      <span class="memory-badge"><iconify-icon icon="ph:database-duotone"></iconify-icon> Zep</span>
+      <span class="memory-badge"><iconify-icon icon="ph:database-duotone"></iconify-icon> Temporal</span>
     </div>
 
     <div class="panel-body">
-      <!-- User Selection -->
-      <PanelSection title="User">
-        <div class="user-select-row">
-          <BaseInput
-            v-model="userIdInput"
-            placeholder="kwami_xxx"
-            icon="ph:user-duotone"
-          />
-          <BaseButton
-            size="sm"
-            icon="ph:arrow-right"
-            @click="setGraphUserId"
-          >
-            Load
-          </BaseButton>
-        </div>
-        <div class="current-user">
-          <iconify-icon icon="ph:identification-badge-duotone"></iconify-icon>
-          <code>{{ graphUserId }}</code>
-        </div>
-      </PanelSection>
-
+     
       <!-- Memory Stats -->
       <PanelSection title="Overview">
         <div v-if="isLoading" class="loading-state">
@@ -365,7 +346,7 @@ onMounted(() => {
             </div>
             <div class="graph-modal-body">
               <MemoryGraph 
-                :userId="graphUserId" 
+                :userId="userId" 
                 :apiBaseUrl="apiBaseUrl"
               />
             </div>
@@ -376,14 +357,14 @@ onMounted(() => {
       <!-- Danger Zone -->
       <PanelSection title="Danger Zone">
         <div class="danger-zone">
-          <p>Permanently delete all memory for this user.</p>
+          <h4><iconify-icon icon="ph:warning-duotone"></iconify-icon> Destructive Action</h4>
+          <p>Permanently delete all memory for this user. This includes all threads, facts, entities, and the knowledge graph.</p>
           <BaseButton 
             variant="danger" 
-            size="sm"
             icon="ph:trash-simple-duotone" 
             @click="showDeleteConfirm = true"
           >
-            Delete All Memory
+            Delete All User Memory
           </BaseButton>
         </div>
       </PanelSection>
@@ -398,7 +379,7 @@ onMounted(() => {
             </div>
             <div class="confirm-modal-body">
               <p>You are about to permanently delete all memory for:</p>
-              <code class="user-id-display">{{ graphUserId }}</code>
+              <code class="user-id-display">{{ userId }}</code>
               <p class="warning-text">
                 <strong>This action cannot be undone.</strong> All threads, facts, entities, 
                 and the knowledge graph will be permanently deleted.
@@ -442,31 +423,6 @@ onMounted(() => {
   background: var(--surface-2);
   border-radius: 12px;
   color: var(--text-secondary);
-}
-
-/* User Selection */
-.user-select-row {
-  display: flex;
-  gap: 8px;
-  align-items: flex-end;
-  margin-bottom: 10px;
-}
-.user-select-row :deep(.base-input) {
-  flex: 1;
-}
-.current-user {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  background: var(--surface-2);
-  border-radius: 6px;
-  font-size: 12px;
-  color: var(--text-tertiary);
-}
-.current-user code {
-  color: var(--accent-primary);
-  font-family: monospace;
 }
 
 /* Stats Grid */
@@ -763,19 +719,25 @@ onMounted(() => {
 
 /* Danger Zone */
 .danger-zone {
-  padding: 12px;
+  padding: 16px;
   background: rgba(239, 68, 68, 0.08);
   border: 1px solid rgba(239, 68, 68, 0.2);
   border-radius: 8px;
+}
+.danger-zone h4 {
+  margin: 0 0 8px 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent-error);
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  gap: 6px;
 }
 .danger-zone p {
-  margin: 0;
+  margin: 0 0 12px 0;
   font-size: 12px;
   color: var(--text-tertiary);
+  line-height: 1.4;
 }
 
 /* Delete Confirmation Modal */
