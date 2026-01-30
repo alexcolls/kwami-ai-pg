@@ -23,6 +23,7 @@ import LLMPanel from '@/components/panels/models/LLMPanel.vue';
 import STTPanel from '@/components/panels/models/STTPanel.vue';
 import TTSPanel from '@/components/panels/models/TTSPanel.vue';
 import UnifiedModelsPanel from '@/components/panels/models/unified/UnifiedModelsPanel.vue';
+import RotationDisplay from '@/components/ui/RotationDisplay.vue';
 
 const { kwami, init, switchRenderer } = useKwami();
 const uiStore = useUIStore();
@@ -267,6 +268,9 @@ onUnmounted(() => {
       <div class="control-bar-container">
         <ControlBar />
       </div>
+
+      <!-- Rotation Display (bottom-left) -->
+      <RotationDisplay />
 
       <TheSidebar>
         <AvatarPanel v-if="uiStore.activePanel === 'avatar'" />

@@ -24,6 +24,8 @@ export interface BlobState {
   amplitude: { x: number; y: number; z: number };
   time: { x: number; y: number; z: number };
   rotation: { x: number; y: number; z: number };
+  /** Starting rotation position in degrees (0-360) */
+  startRotation: { x: number; y: number; z: number };
   scale: number;
   opacity: number;
   shininess: number;
@@ -65,6 +67,7 @@ export function getDefaultBlobState(): BlobState {
     amplitude: { x: 0.8, y: 0.8, z: 0.8 },
     time: { x: 1, y: 1, z: 1 },
     rotation: { x: 0.002, y: 0.003, z: 0.001 },
+    startRotation: { x: 0, y: 0, z: 0 },
     scale: 3.2,
     opacity: 1,
     shininess: 50,

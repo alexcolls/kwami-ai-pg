@@ -66,6 +66,23 @@ watch(
   (v) => kwami.value?.avatar.setRotation(v.x, v.y, v.z),
   { deep: true }
 );
+// Apply starting rotation position (degrees to radians)
+watch(
+  () => blob.value.startRotation,
+  (v) => {
+    const b = getBlob();
+    if (b) {
+      const mesh = b.getMesh();
+      if (mesh) {
+        const degToRad = (deg: number) => (deg * Math.PI) / 180;
+        mesh.rotation.x = degToRad(v.x);
+        mesh.rotation.y = degToRad(v.y);
+        mesh.rotation.z = degToRad(v.z);
+      }
+    }
+  },
+  { deep: true }
+);
 watch(() => blob.value.scale, (v) => kwami.value?.avatar.setScale(v));
 watch(() => blob.value.opacity, (v) => kwami.value?.avatar.setOpacity(v));
 watch(() => blob.value.shininess, (v) => kwami.value?.avatar.setShininess(v));
