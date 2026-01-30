@@ -10,7 +10,7 @@ const props = defineProps<{
   step?: number;
   unit?: string;
   inline?: boolean;
-  showValue?: boolean;
+  hideValue?: boolean;
 }>();
 
 const emit = defineEmits(['update:modelValue']);
@@ -63,7 +63,7 @@ function onMouseUp() {
         <iconify-icon v-if="icon" :icon="icon"></iconify-icon>
         {{ label }}
       </label>
-      <span v-if="showValue !== false" class="slider-value">
+      <span v-if="hideValue !== true" class="slider-value">
         {{ displayValue }}<span v-if="unit" class="slider-unit">{{ unit }}</span>
       </span>
     </div>

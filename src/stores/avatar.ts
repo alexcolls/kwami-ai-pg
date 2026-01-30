@@ -1,5 +1,16 @@
 import { defineStore } from 'pinia';
 import { ref, reactive, computed } from 'vue';
+import {
+  avatarPresets,
+  avatarPresetsRef,
+  getBlobPresets,
+  getCrystalPresets,
+  getPresetById,
+  type AvatarPreset,
+} from '../templates/avatar-templates';
+
+// Re-export AvatarPreset for backwards compatibility
+export type { AvatarPreset };
 
 // Types
 export type SkinSubtype = 'poles' | 'donut' | 'vintage';
@@ -46,15 +57,6 @@ export interface CrystalState {
   thinkingDuration: number;
 }
 
-export interface AvatarPreset {
-  id: string;
-  name: string;
-  icon: string;
-  renderer: RendererType;
-  blob?: Partial<BlobState>;
-  crystal?: Partial<CrystalState>;
-}
-
 // Default states
 export function getDefaultBlobState(): BlobState {
   return {
@@ -99,201 +101,8 @@ export function getDefaultCrystalState(): CrystalState {
   };
 }
 
-// Built-in presets
-export const AVATAR_PRESETS: AvatarPreset[] = [
-  // ===== BLOB PRESETS =====
-  {
-    id: 'neon-pulse',
-    name: 'Neon Pulse',
-    icon: 'ph:lightning-duotone',
-    renderer: 'blob',
-    blob: {
-      colors: { x: '#ff0066', y: '#00ff66', z: '#6600ff' },
-      spikes: { x: 0.3, y: 0.3, z: 0.3 },
-      skin: 'poles',
-      shininess: 80,
-    },
-  },
-  {
-    id: 'ocean-wave',
-    name: 'Ocean Wave',
-    icon: 'ph:waves-duotone',
-    renderer: 'blob',
-    blob: {
-      colors: { x: '#0077be', y: '#00d4ff', z: '#001a33' },
-      spikes: { x: 0.15, y: 0.2, z: 0.15 },
-      skin: 'donut',
-      shininess: 120,
-    },
-  },
-  {
-    id: 'sunset-glow',
-    name: 'Sunset',
-    icon: 'ph:sun-horizon-duotone',
-    renderer: 'blob',
-    blob: {
-      colors: { x: '#ff6b35', y: '#f7c59f', z: '#8b1e3f' },
-      spikes: { x: 0.1, y: 0.1, z: 0.1 },
-      skin: 'vintage',
-      shininess: 40,
-    },
-  },
-  {
-    id: 'aurora-borealis',
-    name: 'Aurora',
-    icon: 'ph:star-duotone',
-    renderer: 'blob',
-    blob: {
-      colors: { x: '#00ff87', y: '#60efff', z: '#7b2cbf' },
-      spikes: { x: 0.25, y: 0.35, z: 0.2 },
-      skin: 'poles',
-      shininess: 100,
-      amplitude: { x: 1.0, y: 1.2, z: 0.9 },
-    },
-  },
-  {
-    id: 'lava-flow',
-    name: 'Lava',
-    icon: 'ph:fire-simple-duotone',
-    renderer: 'blob',
-    blob: {
-      colors: { x: '#ff4500', y: '#ff8c00', z: '#8b0000' },
-      spikes: { x: 0.5, y: 0.6, z: 0.4 },
-      skin: 'vintage',
-      shininess: 30,
-      lightIntensity: 1.5,
-    },
-  },
-  {
-    id: 'cotton-candy',
-    name: 'Cotton Candy',
-    icon: 'ph:cloud-duotone',
-    renderer: 'blob',
-    blob: {
-      colors: { x: '#ffb6c1', y: '#87ceeb', z: '#dda0dd' },
-      spikes: { x: 2.88, y: 1.11, z: 0.25 },
-      skin: 'donut',
-      shininess: 150,
-      amplitude: { x: 1.6, y: 2.6, z: 3.6 },
-      opacity: 0.5,
-    },
-  },
-  {
-    id: 'midnight-void',
-    name: 'Midnight',
-    icon: 'ph:moon-duotone',
-    renderer: 'blob',
-    blob: {
-      colors: { x: '#1a1a2e', y: '#16213e', z: '#0f3460' },
-      spikes: { x: 0.2, y: 0.2, z: 0.2 },
-      skin: 'poles',
-      shininess: 180,
-      lightIntensity: 0.5,
-    },
-  },
-  {
-    id: 'toxic-slime',
-    name: 'Toxic',
-    icon: 'ph:skull-duotone',
-    renderer: 'blob',
-    blob: {
-      colors: { x: '#39ff14', y: '#00ff00', z: '#32cd32' },
-      spikes: { x: 0.7, y: 0.5, z: 0.6 },
-      skin: 'vintage',
-      shininess: 60,
-      amplitude: { x: 1.2, y: 1.0, z: 1.1 },
-    },
-  },
-  {
-    id: 'royal-gold',
-    name: 'Royal Gold',
-    icon: 'ph:crown-duotone',
-    renderer: 'blob',
-    blob: {
-      colors: { x: '#ffd700', y: '#daa520', z: '#b8860b' },
-      spikes: { x: 0.15, y: 0.15, z: 0.15 },
-      skin: 'donut',
-      shininess: 200,
-      lightIntensity: 1.0,
-    },
-  },
-  {
-    id: 'ice-crystal',
-    name: 'Ice',
-    icon: 'ph:snowflake-duotone',
-    renderer: 'blob',
-    blob: {
-      colors: { x: '#e0ffff', y: '#add8e6', z: '#87ceeb' },
-      spikes: { x: 0.4, y: 0.45, z: 0.35 },
-      skin: 'poles',
-      shininess: 180,
-      opacity: 0.9,
-    },
-  },
-  {
-    id: 'forest-moss',
-    name: 'Forest',
-    icon: 'ph:tree-duotone',
-    renderer: 'blob',
-    blob: {
-      colors: { x: '#228b22', y: '#006400', z: '#8fbc8f' },
-      spikes: { x: 0.12, y: 0.18, z: 0.15 },
-      skin: 'vintage',
-      shininess: 40,
-      amplitude: { x: 0.7, y: 0.8, z: 0.75 },
-    },
-  },
-  {
-    id: 'galaxy-swirl',
-    name: 'Galaxy',
-    icon: 'ph:planet-duotone',
-    renderer: 'blob',
-    blob: {
-      colors: { x: '#663399', y: '#ff1493', z: '#00ced1' },
-      spikes: { x: 0.35, y: 0.4, z: 0.3 },
-      skin: 'poles',
-      shininess: 100,
-      rotation: { x: 0.003, y: 0.005, z: 0.002 },
-    },
-  },
-  // ===== CRYSTAL PRESETS =====
-  {
-    id: 'cyber-crystal',
-    name: 'Cyber',
-    icon: 'ph:diamond-duotone',
-    renderer: 'crystal',
-    crystal: {
-      formation: 'constellation',
-      colors: { primary: '#00e5ff', secondary: '#7c4dff', accent: '#ff4081' },
-      coreColors: { inner: '#ffffff', outer: '#00ffff' },
-      glowIntensity: 1.4,
-    },
-  },
-  {
-    id: 'emerald-helix',
-    name: 'Emerald',
-    icon: 'ph:dna-duotone',
-    renderer: 'crystal',
-    crystal: {
-      formation: 'helix',
-      colors: { primary: '#00ff88', secondary: '#00cc6a', accent: '#00ffaa' },
-      coreColors: { inner: '#ccffee', outer: '#00ff88' },
-      glowIntensity: 1.2,
-    },
-  },
-  {
-    id: 'fire-vortex',
-    name: 'Fire',
-    icon: 'ph:fire-duotone',
-    renderer: 'crystal',
-    crystal: {
-      formation: 'vortex',
-      colors: { primary: '#ff4500', secondary: '#ff8c00', accent: '#ffd700' },
-      coreColors: { inner: '#ffffff', outer: '#ff6347' },
-      glowIntensity: 1.6,
-    },
-  },
-];
+// Re-export for backwards compatibility
+export const AVATAR_PRESETS = avatarPresets;
 
 export const useAvatarStore = defineStore('avatar', () => {
   // State
@@ -307,15 +116,11 @@ export const useAvatarStore = defineStore('avatar', () => {
     return rendererType.value === 'blob' ? blob : crystal;
   });
 
-  const presets = computed(() => AVATAR_PRESETS);
+  const presets = computed(() => avatarPresetsRef.value);
 
-  const blobPresets = computed(() => 
-    AVATAR_PRESETS.filter(p => p.renderer === 'blob')
-  );
+  const blobPresets = computed(() => getBlobPresets());
 
-  const crystalPresets = computed(() => 
-    AVATAR_PRESETS.filter(p => p.renderer === 'crystal')
-  );
+  const crystalPresets = computed(() => getCrystalPresets());
 
   // Actions
   function setRendererType(type: RendererType) {
@@ -351,7 +156,7 @@ export const useAvatarStore = defineStore('avatar', () => {
   }
 
   function applyPreset(presetId: string) {
-    const preset = AVATAR_PRESETS.find(p => p.id === presetId);
+    const preset = getPresetById(presetId);
     if (!preset) return false;
 
     rendererType.value = preset.renderer;

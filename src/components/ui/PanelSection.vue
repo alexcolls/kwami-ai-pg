@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 
 const props = defineProps<{
   title?: string;
@@ -7,13 +7,41 @@ const props = defineProps<{
   collapsible?: boolean;
   defaultCollapsed?: boolean;
   noPadding?: boolean;
+  noPaddingX?: boolean;
+  // For controlled accordion behavior (only used when sectionId is provided)
+  collapsed?: boolean;
+  sectionId?: string;
 }>();
 
-const isCollapsed = ref(props.defaultCollapsed ?? false);
+const emit = defineEmits<{
+  (e: 'toggle', sectionId: string | undefined, isOpen: boolean): void;
+}>();
+
+// Check if we're in controlled mode (sectionId indicates controlled accordion group)
+const isControlled = computed(() => props.sectionId !== undefined);
+
+// Use internal state only if not controlled externally
+const internalCollapsed = ref(props.defaultCollapsed ?? false);
+
+// Computed to support both controlled and uncontrolled modes
+const isCollapsed = computed(() => {
+  // If in controlled mode, use the collapsed prop
+  if (isControlled.value) {
+    return props.collapsed ?? false;
+  }
+  // Otherwise use internal state (uncontrolled mode)
+  return internalCollapsed.value;
+});
 
 function toggle() {
   if (props.collapsible) {
-    isCollapsed.value = !isCollapsed.value;
+    if (isControlled.value) {
+      // Controlled mode: emit event, parent handles state
+      emit('toggle', props.sectionId, isCollapsed.value);
+    } else {
+      // Uncontrolled mode: toggle internal state
+      internalCollapsed.value = !internalCollapsed.value;
+    }
   }
 }
 </script>
@@ -24,7 +52,8 @@ function toggle() {
     :class="{ 
       collapsed: isCollapsed, 
       collapsible, 
-      'no-padding': noPadding 
+      'no-padding': noPadding,
+      'no-padding-x': noPaddingX 
     }"
   >
     <header 
@@ -73,6 +102,11 @@ function toggle() {
   padding: 0 20px 16px;
 }
 
+.panel-section.no-padding-x {
+  padding-left: 0;
+  padding-right: 0;
+}
+
 .section-header {
   display: flex;
   align-items: center;
@@ -100,6 +134,13 @@ function toggle() {
   align-items: center;
   gap: 8px;
   flex: 1;
+  padding: 0 4px 0;
+  transition: color var(--duration-fast) ease;
+  &:hover {
+    h3 {
+      color: var(--accent-primary);
+    }
+  }
 }
 
 .section-actions {
@@ -111,7 +152,6 @@ function toggle() {
 .section-icon {
   font-size: 14px;
   color: var(--text-muted);
-  transition: color var(--duration-fast) ease;
 }
 
 h3 {

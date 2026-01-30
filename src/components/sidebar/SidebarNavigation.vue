@@ -25,6 +25,12 @@ const panelIcons: Record<string, string> = {
   transcription: 'ph:chat-circle-text-duotone',
   info: 'ph:info-duotone',
   account: 'ph:user-duotone',
+  // Model Panels
+  models: 'ph:cpu-duotone',
+  llm: 'ph:brain-duotone',
+  stt: 'ph:ear-duotone',
+  tts: 'lucide:audio-lines',
+  vision: 'ph:eye-duotone',
 };
 
 function toggleTray() {
@@ -162,6 +168,15 @@ function handlePanelClick(panel: string) {
     <!-- Agent Group -->
     <div class="nav-group">
       <span class="switcher-label">Agent</span>
+      <!-- Models (unified panel) -->
+      <button
+        class="nav-btn"
+        :class="{ active: uiStore.activePanel === 'models' && uiStore.isPanelOpen }"
+        @click="handlePanelClick('models')"
+        title="Models"
+      >
+        <iconify-icon :icon="panelIcons['models']"></iconify-icon>
+      </button>
       <button
         v-for="p in ['voice', 'enhancements', 'memory', 'tools', 'persona']"
         :key="p"

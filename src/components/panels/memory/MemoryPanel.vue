@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from 'vue';
-import { useToast } from 'vue-toastification';
+import { ref, onMounted, computed, watch, h } from 'vue';
+import { useToast, TYPE } from 'vue-toastification';
 import { useKwami } from '@/composables/useKwami';
 import { useAuthStore } from '@/stores/auth';
 import PanelSection from '@/components/ui/PanelSection.vue';
@@ -69,7 +69,7 @@ const showDeleteConfirm = ref(false);
 const isDeleting = ref(false);
 const deleteError = ref('');
 
-// Format date for display
+// Format date for display (short version without time)
 function formatDate(dateStr: string | null): string {
   if (!dateStr) return '';
   try {
@@ -79,6 +79,27 @@ function formatDate(dateStr: string | null): string {
       day: 'numeric',
       year: 'numeric'
     });
+  } catch {
+    return dateStr;
+  }
+}
+
+// Format date with time (HH:mm:ss) in user's local time
+function formatDateTime(dateStr: string | null): string {
+  if (!dateStr) return '';
+  try {
+    const date = new Date(dateStr);
+    const dateFormatted = date.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric',
+    });
+    const timeFormatted = date.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    });
+    return `${dateFormatted} ${timeFormatted}`;
   } catch {
     return dateStr;
   }
@@ -176,6 +197,194 @@ async function deleteUserMemory() {
   }
 }
 
+// Pending deletions for undo functionality
+interface PendingDeletion {
+  type: 'edge' | 'node';
+  uuid: string;
+  item: Edge | Node;
+  index: number;
+  timeoutId: ReturnType<typeof setTimeout>;
+  toastId: string | number;
+}
+const pendingDeletions = ref<Map<string, PendingDeletion>>(new Map());
+
+// Create undo toast content component
+function createUndoToast(message: string, onUndo: () => void) {
+  return h('div', { class: 'toast-undo-content' }, [
+    h('span', message),
+    h('button', {
+      class: 'toast-undo-btn',
+      onClick: (e: Event) => {
+        e.stopPropagation();
+        onUndo();
+      }
+    }, 'Undo')
+  ]);
+}
+
+// Delete a single edge (fact) with undo
+const deletingEdge = ref<string | null>(null);
+
+function deleteEdge(edgeUuid: string | null) {
+  if (!edgeUuid || !userId.value) return;
+  
+  // Find the edge and its index
+  const index = edges.value.findIndex(e => e.uuid === edgeUuid);
+  if (index === -1) return;
+  
+  const edge = edges.value[index];
+  
+  // Remove from UI immediately (optimistic)
+  edges.value.splice(index, 1);
+  
+  // Create timeout for actual deletion (5 seconds)
+  const timeoutId = setTimeout(() => {
+    performEdgeDeletion(edgeUuid);
+  }, 5000);
+  
+  // Show toast with undo action
+  const toastId = toast(
+    createUndoToast('Fact removed', () => undoDeletion(edgeUuid)),
+    {
+      type: TYPE.INFO,
+      timeout: 5000,
+      closeOnClick: false,
+      pauseOnHover: true,
+      icon: false,
+    }
+  );
+  
+  // Store pending deletion
+  pendingDeletions.value.set(edgeUuid, {
+    type: 'edge',
+    uuid: edgeUuid,
+    item: edge,
+    index,
+    timeoutId,
+    toastId,
+  });
+}
+
+function undoDeletion(uuid: string) {
+  const pending = pendingDeletions.value.get(uuid);
+  if (!pending) return;
+  
+  // Cancel the timeout
+  clearTimeout(pending.timeoutId);
+  
+  // Dismiss the toast
+  toast.dismiss(pending.toastId);
+  
+  // Restore the item at original position
+  if (pending.type === 'edge') {
+    const insertIndex = Math.min(pending.index, edges.value.length);
+    edges.value.splice(insertIndex, 0, pending.item as Edge);
+  } else {
+    const insertIndex = Math.min(pending.index, nodes.value.length);
+    nodes.value.splice(insertIndex, 0, pending.item as Node);
+  }
+  
+  // Remove from pending
+  pendingDeletions.value.delete(uuid);
+  
+  toast.success('Restored!', { timeout: 2000 });
+}
+
+async function performEdgeDeletion(edgeUuid: string) {
+  const pending = pendingDeletions.value.get(edgeUuid);
+  if (!pending) return; // Already undone
+  
+  const savedPending = { ...pending };
+  pendingDeletions.value.delete(edgeUuid);
+  
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${apiBaseUrl.value}/memory/${userId.value}/edge/${edgeUuid}`, {
+      method: 'DELETE',
+      headers,
+    });
+    
+    if (!response.ok) {
+      const result = await response.json();
+      throw new Error(result.detail || 'Failed to delete fact');
+    }
+  } catch (e) {
+    // Restore on error
+    const insertIndex = Math.min(savedPending.index, edges.value.length);
+    edges.value.splice(insertIndex, 0, savedPending.item as Edge);
+    toast.error('Failed to delete: ' + (e as Error).message);
+  }
+}
+
+// Delete a single node (entity) with undo
+const deletingNode = ref<string | null>(null);
+
+function deleteNode(nodeUuid: string | null) {
+  if (!nodeUuid || !userId.value) return;
+  
+  // Find the node and its index
+  const index = nodes.value.findIndex(n => n.uuid === nodeUuid);
+  if (index === -1) return;
+  
+  const node = nodes.value[index];
+  
+  // Remove from UI immediately (optimistic)
+  nodes.value.splice(index, 1);
+  
+  // Create timeout for actual deletion (5 seconds)
+  const timeoutId = setTimeout(() => {
+    performNodeDeletion(nodeUuid);
+  }, 5000);
+  
+  // Show toast with undo action
+  const toastId = toast(
+    createUndoToast('Entity removed', () => undoDeletion(nodeUuid)),
+    {
+      type: TYPE.INFO,
+      timeout: 5000,
+      closeOnClick: false,
+      pauseOnHover: true,
+      icon: false,
+    }
+  );
+  
+  // Store pending deletion
+  pendingDeletions.value.set(nodeUuid, {
+    type: 'node',
+    uuid: nodeUuid,
+    item: node,
+    index,
+    timeoutId,
+    toastId,
+  });
+}
+
+async function performNodeDeletion(nodeUuid: string) {
+  const pending = pendingDeletions.value.get(nodeUuid);
+  if (!pending) return; // Already undone
+  
+  const savedPending = { ...pending };
+  pendingDeletions.value.delete(nodeUuid);
+  
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${apiBaseUrl.value}/memory/${userId.value}/node/${nodeUuid}`, {
+      method: 'DELETE',
+      headers,
+    });
+    
+    if (!response.ok) {
+      const result = await response.json();
+      throw new Error(result.detail || 'Failed to delete entity');
+    }
+  } catch (e) {
+    // Restore on error
+    const insertIndex = Math.min(savedPending.index, nodes.value.length);
+    nodes.value.splice(insertIndex, 0, savedPending.item as Node);
+    toast.error('Failed to delete: ' + (e as Error).message);
+  }
+}
+
 // Auto-load when user ID changes (from connection panel)
 watch(
   () => sharedUserId.value,
@@ -243,24 +452,35 @@ onMounted(() => {
         </div>
         <div v-else class="facts-list">
           <div v-for="(edge, i) in edges" :key="i" class="fact-item">
-            <div class="fact-content">
-              <iconify-icon 
-                :icon="edge.invalid_at ? 'ph:x-circle-duotone' : 'ph:check-circle-duotone'" 
-                :class="edge.invalid_at ? 'invalid' : 'valid'"
-              ></iconify-icon>
-              <span :class="{ 'strikethrough': edge.invalid_at }">{{ edge.fact }}</span>
+            <div class="fact-row">
+              <div class="fact-content">
+                <iconify-icon 
+                  :icon="edge.invalid_at ? 'ph:x-circle-duotone' : 'ph:check-circle-duotone'" 
+                  :class="edge.invalid_at ? 'invalid' : 'valid'"
+                ></iconify-icon>
+                <span :class="{ 'strikethrough': edge.invalid_at }">{{ edge.fact }}</span>
+              </div>
+              <button 
+                class="delete-btn" 
+                @click="deleteEdge(edge.uuid)"
+                :disabled="deletingEdge === edge.uuid"
+                title="Delete this fact"
+              >
+                <iconify-icon :icon="deletingEdge === edge.uuid ? 'ph:spinner-gap-duotone' : 'ph:trash-simple-duotone'" :class="{ spin: deletingEdge === edge.uuid }"></iconify-icon>
+              </button>
             </div>
             <div class="fact-meta">
               <span v-if="edge.valid_at" class="date valid">
                 <iconify-icon icon="ph:calendar-check-duotone"></iconify-icon>
-                {{ formatDate(edge.valid_at) }}
+                {{ formatDateTime(edge.valid_at) }}
               </span>
               <span v-if="edge.invalid_at" class="date invalid">
                 <iconify-icon icon="ph:calendar-x-duotone"></iconify-icon>
-                {{ formatDate(edge.invalid_at) }}
+                {{ formatDateTime(edge.invalid_at) }}
               </span>
               <span v-if="!edge.valid_at && !edge.invalid_at && edge.created_at" class="date">
-                {{ formatDate(edge.created_at) }}
+                <iconify-icon icon="ph:clock-duotone"></iconify-icon>
+                {{ formatDateTime(edge.created_at) }}
               </span>
             </div>
           </div>
@@ -278,14 +498,24 @@ onMounted(() => {
         </div>
         <div v-else class="entities-list">
           <div v-for="(node, i) in nodes" :key="i" class="entity-item">
-            <div class="entity-header">
-              <span class="entity-name">{{ node.name }}</span>
-              <span v-for="label in node.labels" :key="label" class="entity-label">{{ label }}</span>
+            <div class="entity-row">
+              <div class="entity-header">
+                <span class="entity-name">{{ node.name }}</span>
+                <span v-for="label in node.labels" :key="label" class="entity-label">{{ label }}</span>
+              </div>
+              <button 
+                class="delete-btn" 
+                @click="deleteNode(node.uuid)"
+                :disabled="deletingNode === node.uuid"
+                title="Delete this entity"
+              >
+                <iconify-icon :icon="deletingNode === node.uuid ? 'ph:spinner-gap-duotone' : 'ph:trash-simple-duotone'" :class="{ spin: deletingNode === node.uuid }"></iconify-icon>
+              </button>
             </div>
             <p v-if="node.summary" class="entity-summary">{{ node.summary }}</p>
             <span v-if="node.created_at" class="entity-date">
               <iconify-icon icon="ph:clock-duotone"></iconify-icon>
-              {{ formatDate(node.created_at) }}
+              {{ formatDateTime(node.created_at) }}
             </span>
           </div>
         </div>
@@ -307,7 +537,7 @@ onMounted(() => {
                 <iconify-icon :icon="msg.role_type === 'assistant' || msg.role === 'assistant' ? 'ph:robot-duotone' : 'ph:user-duotone'"></iconify-icon>
                 {{ msg.role || msg.role_type || 'unknown' }}
               </span>
-              <span v-if="msg.created_at" class="message-date">{{ formatDate(msg.created_at) }}</span>
+              <span v-if="msg.created_at" class="message-date">{{ formatDateTime(msg.created_at) }}</span>
             </div>
             <p class="message-content">{{ msg.content }}</p>
           </div>
@@ -508,6 +738,30 @@ onMounted(() => {
   100% { transform: rotate(360deg); }
 }
 
+/* Delete Button */
+.delete-btn {
+  background: transparent;
+  border: none;
+  padding: 4px 6px;
+  border-radius: 4px;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  opacity: 0;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+.delete-btn:hover {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--accent-error);
+}
+.delete-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.delete-btn iconify-icon {
+  font-size: 14px;
+}
+
 /* Facts List */
 .facts-list {
   max-height: 300px;
@@ -520,6 +774,15 @@ onMounted(() => {
 .fact-item:last-child {
   border-bottom: none;
 }
+.fact-item:hover .delete-btn {
+  opacity: 1;
+}
+.fact-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
 .fact-content {
   display: flex;
   align-items: flex-start;
@@ -527,6 +790,7 @@ onMounted(() => {
   font-size: 12px;
   color: var(--text-secondary);
   line-height: 1.4;
+  flex: 1;
 }
 .fact-content iconify-icon {
   font-size: 14px;
@@ -577,11 +841,21 @@ onMounted(() => {
 .entity-item:last-child {
   margin-bottom: 0;
 }
+.entity-item:hover .delete-btn {
+  opacity: 1;
+}
+.entity-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
 .entity-header {
   display: flex;
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
+  flex: 1;
 }
 .entity-name {
   font-weight: 600;

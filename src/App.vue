@@ -19,6 +19,10 @@ import ToolsPanel from '@/components/panels/tools/ToolsPanel.vue';
 import InfoPanel from '@/components/panels/info/InfoPanel.vue';
 import MetricsPanel from '@/components/panels/metrics/MetricsPanel.vue';
 import AccountPanel from '@/components/panels/account/AccountPanel.vue';
+import LLMPanel from '@/components/panels/models/LLMPanel.vue';
+import STTPanel from '@/components/panels/models/STTPanel.vue';
+import TTSPanel from '@/components/panels/models/TTSPanel.vue';
+import UnifiedModelsPanel from '@/components/panels/models/unified/UnifiedModelsPanel.vue';
 
 const { kwami, init, switchRenderer } = useKwami();
 const uiStore = useUIStore();
@@ -278,6 +282,10 @@ onUnmounted(() => {
         <InfoPanel v-if="uiStore.activePanel === 'info'" />
         <MetricsPanel v-if="uiStore.activePanel === 'metrics'" />
         <AccountPanel v-if="uiStore.activePanel === 'account'" />
+        <LLMPanel v-if="uiStore.activePanel === 'llm'" />
+        <STTPanel v-if="uiStore.activePanel === 'stt'" />
+        <TTSPanel v-if="uiStore.activePanel === 'tts'" />
+        <UnifiedModelsPanel v-if="uiStore.activePanel === 'models'" />
       </TheSidebar>
     </div>
   </AuthGuard>
