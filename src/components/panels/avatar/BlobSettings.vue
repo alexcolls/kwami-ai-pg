@@ -106,30 +106,8 @@ function randomizeTouch() {
 }
 
 // Color harmony helpers
-function hexToHsl(hex: string): [number, number, number] {
-  const r = parseInt(hex.slice(1, 3), 16) / 255;
-  const g = parseInt(hex.slice(3, 5), 16) / 255;
-  const b = parseInt(hex.slice(5, 7), 16) / 255;
-  
-  const max = Math.max(r, g, b);
-  const min = Math.min(r, g, b);
-  let h = 0, s = 0;
-  const l = (max + min) / 2;
-
-  if (max !== min) {
-    const d = max - min;
-    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-    switch (max) {
-      case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
-      case g: h = ((b - r) / d + 2) / 6; break;
-      case b: h = ((r - g) / d + 4) / 6; break;
-    }
-  }
-
-  return [h * 360, s * 100, l * 100];
-}
-
 function hslToHex(h: number, s: number, l: number): string {
+  h = ((h % 360) + 360) % 360; // Normalize hue
   h /= 360; s /= 100; l /= 100;
   let r, g, b;
 
@@ -159,27 +137,182 @@ function hslToHex(h: number, s: number, l: number): string {
   return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
 }
 
-function applyColorHarmony(type: 'complementary' | 'analogous' | 'triadic' | 'split') {
-  const [h, s, l] = hexToHsl(state.value.colors.x);
-  
-  switch (type) {
-    case 'complementary':
-      state.value.colors.y = hslToHex((h + 180) % 360, s, l);
-      state.value.colors.z = hslToHex((h + 90) % 360, s, l * 0.8);
-      break;
-    case 'analogous':
-      state.value.colors.y = hslToHex((h + 30) % 360, s, l);
-      state.value.colors.z = hslToHex((h - 30 + 360) % 360, s, l);
-      break;
-    case 'triadic':
-      state.value.colors.y = hslToHex((h + 120) % 360, s, l);
-      state.value.colors.z = hslToHex((h + 240) % 360, s, l);
-      break;
-    case 'split':
-      state.value.colors.y = hslToHex((h + 150) % 360, s, l);
-      state.value.colors.z = hslToHex((h + 210) % 360, s, l);
-      break;
-  }
+// Color palette types with their harmonic formulas
+type PaletteType = 'complementary' | 'analogous' | 'triadic' | 'split' | 'monochrome' | 'warm' | 'cool' | 'pastel' | 'vibrant' | 'sunset' | 'ocean' | 'forest';
+
+const palettes: Record<PaletteType, { 
+  label: string; 
+  icon: string; 
+  generate: () => [string, string, string];
+}> = {
+  complementary: {
+    label: 'Complementary',
+    icon: 'ph:circle-half-duotone',
+    generate: () => {
+      const h = Math.random() * 360;
+      const s = 60 + Math.random() * 30;
+      const l = 45 + Math.random() * 20;
+      return [
+        hslToHex(h, s, l),
+        hslToHex(h + 180, s, l),
+        hslToHex(h + 180, s * 0.7, l + 15),
+      ];
+    }
+  },
+  analogous: {
+    label: 'Analogous',
+    icon: 'ph:gradient-duotone',
+    generate: () => {
+      const h = Math.random() * 360;
+      const s = 55 + Math.random() * 35;
+      const l = 45 + Math.random() * 20;
+      return [
+        hslToHex(h, s, l),
+        hslToHex(h + 30, s, l + 5),
+        hslToHex(h - 30, s, l - 5),
+      ];
+    }
+  },
+  triadic: {
+    label: 'Triadic',
+    icon: 'ph:triangle-duotone',
+    generate: () => {
+      const h = Math.random() * 360;
+      const s = 60 + Math.random() * 30;
+      const l = 50 + Math.random() * 15;
+      return [
+        hslToHex(h, s, l),
+        hslToHex(h + 120, s, l),
+        hslToHex(h + 240, s, l),
+      ];
+    }
+  },
+  split: {
+    label: 'Split',
+    icon: 'ph:arrows-split-duotone',
+    generate: () => {
+      const h = Math.random() * 360;
+      const s = 60 + Math.random() * 30;
+      const l = 50 + Math.random() * 15;
+      return [
+        hslToHex(h, s, l),
+        hslToHex(h + 150, s, l),
+        hslToHex(h + 210, s, l),
+      ];
+    }
+  },
+  monochrome: {
+    label: 'Mono',
+    icon: 'ph:circle-duotone',
+    generate: () => {
+      const h = Math.random() * 360;
+      const s = 50 + Math.random() * 40;
+      return [
+        hslToHex(h, s, 30 + Math.random() * 15),
+        hslToHex(h, s * 0.8, 50 + Math.random() * 10),
+        hslToHex(h, s * 0.6, 70 + Math.random() * 10),
+      ];
+    }
+  },
+  warm: {
+    label: 'Warm',
+    icon: 'ph:sun-duotone',
+    generate: () => {
+      const baseH = Math.random() * 60; // 0-60 (red to yellow)
+      const s = 65 + Math.random() * 30;
+      const l = 50 + Math.random() * 15;
+      return [
+        hslToHex(baseH, s, l),
+        hslToHex(baseH + 20 + Math.random() * 20, s, l + 5),
+        hslToHex(baseH - 10 + Math.random() * 10, s * 0.9, l - 5),
+      ];
+    }
+  },
+  cool: {
+    label: 'Cool',
+    icon: 'ph:snowflake-duotone',
+    generate: () => {
+      const baseH = 180 + Math.random() * 80; // 180-260 (cyan to blue-purple)
+      const s = 55 + Math.random() * 35;
+      const l = 45 + Math.random() * 20;
+      return [
+        hslToHex(baseH, s, l),
+        hslToHex(baseH + 25 + Math.random() * 20, s, l + 5),
+        hslToHex(baseH - 20 + Math.random() * 15, s * 0.85, l - 5),
+      ];
+    }
+  },
+  pastel: {
+    label: 'Pastel',
+    icon: 'ph:flower-duotone',
+    generate: () => {
+      const h1 = Math.random() * 360;
+      const h2 = (h1 + 60 + Math.random() * 60) % 360;
+      const h3 = (h2 + 60 + Math.random() * 60) % 360;
+      return [
+        hslToHex(h1, 40 + Math.random() * 20, 80 + Math.random() * 10),
+        hslToHex(h2, 35 + Math.random() * 25, 78 + Math.random() * 12),
+        hslToHex(h3, 38 + Math.random() * 22, 82 + Math.random() * 8),
+      ];
+    }
+  },
+  vibrant: {
+    label: 'Vibrant',
+    icon: 'ph:lightning-duotone',
+    generate: () => {
+      const h1 = Math.random() * 360;
+      const h2 = (h1 + 90 + Math.random() * 60) % 360;
+      const h3 = (h2 + 90 + Math.random() * 60) % 360;
+      return [
+        hslToHex(h1, 85 + Math.random() * 15, 50 + Math.random() * 10),
+        hslToHex(h2, 80 + Math.random() * 20, 52 + Math.random() * 10),
+        hslToHex(h3, 82 + Math.random() * 18, 48 + Math.random() * 12),
+      ];
+    }
+  },
+  sunset: {
+    label: 'Sunset',
+    icon: 'ph:sun-horizon-duotone',
+    generate: () => {
+      // Oranges, pinks, purples
+      return [
+        hslToHex(15 + Math.random() * 20, 80 + Math.random() * 20, 55 + Math.random() * 15),
+        hslToHex(330 + Math.random() * 30, 70 + Math.random() * 25, 60 + Math.random() * 15),
+        hslToHex(270 + Math.random() * 40, 50 + Math.random() * 30, 45 + Math.random() * 20),
+      ];
+    }
+  },
+  ocean: {
+    label: 'Ocean',
+    icon: 'ph:waves-duotone',
+    generate: () => {
+      // Blues, teals, aquas
+      return [
+        hslToHex(200 + Math.random() * 20, 70 + Math.random() * 25, 45 + Math.random() * 15),
+        hslToHex(175 + Math.random() * 25, 60 + Math.random() * 30, 50 + Math.random() * 15),
+        hslToHex(210 + Math.random() * 30, 55 + Math.random() * 35, 55 + Math.random() * 20),
+      ];
+    }
+  },
+  forest: {
+    label: 'Forest',
+    icon: 'ph:tree-duotone',
+    generate: () => {
+      // Greens, browns, earth tones
+      return [
+        hslToHex(90 + Math.random() * 40, 40 + Math.random() * 35, 35 + Math.random() * 20),
+        hslToHex(30 + Math.random() * 20, 35 + Math.random() * 30, 30 + Math.random() * 20),
+        hslToHex(70 + Math.random() * 50, 45 + Math.random() * 30, 45 + Math.random() * 20),
+      ];
+    }
+  },
+};
+
+function applyPalette(type: PaletteType) {
+  const [x, y, z] = palettes[type].generate();
+  state.value.colors.x = x;
+  state.value.colors.y = y;
+  state.value.colors.z = z;
 }
 
 // Linked value watchers
@@ -255,20 +388,19 @@ const skinGradient = computed(() => {
         <BaseColorPicker label="Y Axis" v-model="state.colors.y" />
         <BaseColorPicker label="Z Axis" v-model="state.colors.z" />
       </div>
-      <div class="color-harmony">
-        <span class="harmony-label">Harmony:</span>
-        <button class="harmony-btn" @click="applyColorHarmony('complementary')" title="Complementary colors">
-          <iconify-icon icon="ph:circle-half-duotone"></iconify-icon>
-        </button>
-        <button class="harmony-btn" @click="applyColorHarmony('analogous')" title="Analogous colors">
-          <iconify-icon icon="ph:gradient-duotone"></iconify-icon>
-        </button>
-        <button class="harmony-btn" @click="applyColorHarmony('triadic')" title="Triadic colors">
-          <iconify-icon icon="ph:triangle-duotone"></iconify-icon>
-        </button>
-        <button class="harmony-btn" @click="applyColorHarmony('split')" title="Split-complementary">
-          <iconify-icon icon="ph:arrows-split-duotone"></iconify-icon>
-        </button>
+      <div class="color-palettes">
+        <span class="palette-label">Palettes:</span>
+        <div class="palette-grid">
+          <button 
+            v-for="(palette, key) in palettes" 
+            :key="key"
+            class="palette-btn" 
+            @click="applyPalette(key as PaletteType)" 
+            :title="palette.label"
+          >
+            <iconify-icon :icon="palette.icon"></iconify-icon>
+          </button>
+        </div>
       </div>
     </PanelSection>
 
@@ -536,25 +668,28 @@ const skinGradient = computed(() => {
   transform: rotate(180deg) scale(0.95);
 }
 
-/* Color Harmony */
-.color-harmony {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+/* Color Palettes */
+.color-palettes {
   margin-top: 12px;
   padding-top: 12px;
   border-top: 1px solid var(--glass-border);
 }
 
-.harmony-label {
+.palette-label {
+  display: block;
   font-size: 10px;
   color: var(--text-muted);
-  margin-right: 4px;
+  margin-bottom: 8px;
 }
 
-.harmony-btn {
-  width: 28px;
-  height: 28px;
+.palette-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+}
+
+.palette-btn {
+  aspect-ratio: 1;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -567,11 +702,15 @@ const skinGradient = computed(() => {
   font-size: 14px;
 }
 
-.harmony-btn:hover {
+.palette-btn:hover {
   background: var(--surface-2);
   border-color: var(--accent-primary);
   color: var(--accent-primary);
   transform: scale(1.1);
+}
+
+.palette-btn:active {
+  transform: scale(0.95);
 }
 
 /* Linked Sliders */
