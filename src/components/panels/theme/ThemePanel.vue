@@ -1,6 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
-import { useThemeStore, accentPresets, type ThemeMode, type SidebarPosition } from '@/stores/theme';
+import {
+  useThemeStore,
+  accentPresets,
+  themePresets,
+  type ThemeMode,
+  type SidebarPosition
+} from '@/stores/theme';
 import PanelSection from '@/components/ui/PanelSection.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
 import BaseSlider from '@/components/ui/BaseSlider.vue';
@@ -43,18 +49,93 @@ onUnmounted(() => {
 function selectAccent(preset: typeof accentPresets[0]) {
   themeStore.setAccentPreset(preset);
 }
+
+// Export/Import
+const showImportDialog = ref(false);
+const importJson = ref('');
+const importError = ref('');
+
+function handleExport() {
+  const json = themeStore.exportTheme();
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'kwami-theme.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function handleImport() {
+  importError.value = '';
+  const success = themeStore.importTheme(importJson.value);
+  if (success) {
+    showImportDialog.value = false;
+    importJson.value = '';
+  } else {
+    importError.value = 'Invalid theme format';
+  }
+}
+
+function handleFileImport(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    importJson.value = e.target?.result as string;
+  };
+  reader.readAsText(file);
+}
 </script>
 
 <template>
   <div class="panel-inner">
     <div class="panel-header">
-      <iconify-icon icon="ph:palette-duotone" class="panel-icon"></iconify-icon>
-      <h2>Theme</h2>
+      <div class="header-left">
+        <iconify-icon icon="ph:palette-duotone" class="panel-icon"></iconify-icon>
+        <h2>Theme</h2>
+      </div>
+      <div class="header-actions">
+        <button
+          class="icon-btn"
+          :disabled="!themeStore.canUndo"
+          title="Undo (Ctrl+Z)"
+          @click="themeStore.undo"
+        >
+          <iconify-icon icon="ph:arrow-counter-clockwise-duotone"></iconify-icon>
+        </button>
+        <button
+          class="icon-btn"
+          :disabled="!themeStore.canRedo"
+          title="Redo (Ctrl+Y)"
+          @click="themeStore.redo"
+        >
+          <iconify-icon icon="ph:arrow-clockwise-duotone"></iconify-icon>
+        </button>
+      </div>
     </div>
 
     <div class="panel-body">
+      <!-- Theme Presets -->
+      <PanelSection title="Presets" icon="ph:stack-duotone" collapsible>
+        <div class="preset-grid">
+          <button
+            v-for="preset in themePresets"
+            :key="preset.name"
+            class="preset-card"
+            @click="themeStore.applyPreset(preset)"
+          >
+            <iconify-icon :icon="preset.icon" class="preset-icon"></iconify-icon>
+            <span class="preset-name">{{ preset.name }}</span>
+            <span class="preset-desc">{{ preset.description }}</span>
+          </button>
+        </div>
+      </PanelSection>
+
       <!-- Theme Mode -->
-      <PanelSection title="Mode" icon="ph:sun-moon-duotone">
+      <PanelSection title="Mode" icon="ph:circles-four-duotone" collapsible>
         <div class="theme-modes">
           <button
             v-for="mode in themeModes"
@@ -70,7 +151,7 @@ function selectAccent(preset: typeof accentPresets[0]) {
       </PanelSection>
 
       <!-- Auto Mode Schedule -->
-      <PanelSection v-if="themeStore.mode === 'auto'" title="Auto Schedule" icon="ph:timer-duotone">
+      <PanelSection v-if="themeStore.mode === 'auto'" title="Auto Schedule" icon="ph:timer-duotone" collapsible>
         <div class="time-row">
           <div class="time-input">
             <label class="time-label">
@@ -103,7 +184,7 @@ function selectAccent(preset: typeof accentPresets[0]) {
       </PanelSection>
 
       <!-- Accent Color Presets -->
-      <PanelSection title="Accent Presets" icon="ph:paint-brush-duotone">
+      <PanelSection title="Accent Presets" icon="ph:paint-brush-duotone" collapsible>
         <div class="accent-grid">
           <button
             v-for="preset in accentPresets"
@@ -122,7 +203,7 @@ function selectAccent(preset: typeof accentPresets[0]) {
       </PanelSection>
 
       <!-- Custom Accent Color -->
-      <PanelSection title="Custom Colors" icon="ph:eyedropper-duotone">
+      <PanelSection title="Custom Colors" icon="ph:eyedropper-duotone" collapsible>
         <div class="color-pickers">
           <div class="color-picker-item">
             <label class="color-label">Primary</label>
@@ -168,7 +249,7 @@ function selectAccent(preset: typeof accentPresets[0]) {
       </PanelSection>
 
       <!-- Glass Settings -->
-      <PanelSection title="Glass Effect" icon="ph:drop-duotone">
+      <PanelSection title="Glass Effect" icon="ph:drop-duotone" collapsible>
         <div class="settings-group">
           <BaseSlider
             label="Blur"
@@ -219,7 +300,19 @@ function selectAccent(preset: typeof accentPresets[0]) {
       </PanelSection>
 
       <!-- Layout -->
-      <PanelSection title="Layout" icon="ph:layout-duotone">
+      <PanelSection title="Layout" icon="ph:layout-duotone" collapsible>
+        <div class="layout-preview">
+          <div class="layout-preview-screen">
+            <div 
+              class="layout-preview-sidebar" 
+              :class="{ right: themeStore.sidebarPosition === 'right' }"
+            >
+              <div class="layout-preview-nav"></div>
+              <div class="layout-preview-panel"></div>
+            </div>
+            <div class="layout-preview-canvas"></div>
+          </div>
+        </div>
         <div class="option-group">
           <span class="option-label">Sidebar Position</span>
           <div class="option-buttons">
@@ -242,7 +335,7 @@ function selectAccent(preset: typeof accentPresets[0]) {
       </PanelSection>
 
       <!-- UI Settings -->
-      <PanelSection title="Interface" icon="ph:sliders-horizontal-duotone">
+      <PanelSection title="Interface" icon="ph:sliders-horizontal-duotone" collapsible>
         <div class="settings-group">
           <BaseSlider
             label="Roundness"
@@ -275,7 +368,7 @@ function selectAccent(preset: typeof accentPresets[0]) {
       </PanelSection>
 
       <!-- Toggles -->
-      <PanelSection title="Effects" icon="ph:sparkle-duotone">
+      <PanelSection title="Effects" icon="ph:sparkle-duotone" collapsible>
         <div class="toggle-group">
           <BaseToggle
             label="Panel Borders"
@@ -296,7 +389,7 @@ function selectAccent(preset: typeof accentPresets[0]) {
       </PanelSection>
 
       <!-- Accessibility -->
-      <PanelSection title="Accessibility" icon="ph:eye-duotone">
+      <PanelSection title="Accessibility" icon="ph:eye-duotone" collapsible>
         <div class="toggle-group">
           <BaseToggle
             label="High Contrast"
@@ -312,7 +405,7 @@ function selectAccent(preset: typeof accentPresets[0]) {
       </PanelSection>
 
       <!-- Cursor Flashlight -->
-      <PanelSection title="Cursor Flashlight" icon="ph:flashlight-duotone">
+      <PanelSection title="Cursor Flashlight" icon="ph:flashlight-duotone" collapsible>
         <div class="toggle-group">
           <BaseToggle
             label="Enable Flashlight"
@@ -355,22 +448,168 @@ function selectAccent(preset: typeof accentPresets[0]) {
         </template>
       </PanelSection>
 
-      <!-- Reset -->
-      <PanelSection title="Actions">
+      <!-- Actions -->
+      <PanelSection title="Actions" icon="ph:gear-six-duotone" collapsible>
+        <div class="action-buttons">
+          <BaseButton
+            variant="secondary"
+            icon="ph:download-duotone"
+            @click="handleExport"
+          >
+            Export
+          </BaseButton>
+          <BaseButton
+            variant="secondary"
+            icon="ph:upload-duotone"
+            @click="showImportDialog = true"
+          >
+            Import
+          </BaseButton>
+        </div>
         <BaseButton
           variant="secondary"
           icon="ph:arrow-counter-clockwise-duotone"
           block
+          style="margin-top: 10px;"
           @click="themeStore.resetToDefaults"
         >
-          Reset Theme
+          Reset to Default
         </BaseButton>
       </PanelSection>
     </div>
+
+    <!-- Import Dialog -->
+    <Teleport to="body">
+      <Transition name="fade">
+        <div v-if="showImportDialog" class="modal-overlay" @click.self="showImportDialog = false">
+          <div class="modal-container">
+            <div class="modal-header">
+              <h3>Import Theme</h3>
+              <button class="close-btn" @click="showImportDialog = false">
+                <iconify-icon icon="ph:x-bold"></iconify-icon>
+              </button>
+            </div>
+            <div class="modal-body">
+              <div class="import-option">
+                <label class="file-input-label">
+                  <iconify-icon icon="ph:file-duotone"></iconify-icon>
+                  Choose File
+                  <input
+                    type="file"
+                    accept=".json"
+                    @change="handleFileImport"
+                  />
+                </label>
+              </div>
+              <div class="or-divider">or paste JSON</div>
+              <textarea
+                v-model="importJson"
+                placeholder='{"mode": "dark", ...}'
+                class="import-textarea"
+              ></textarea>
+              <p v-if="importError" class="import-error">{{ importError }}</p>
+            </div>
+            <div class="modal-footer">
+              <BaseButton variant="ghost" @click="showImportDialog = false">Cancel</BaseButton>
+              <BaseButton variant="primary" @click="handleImport">Import</BaseButton>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
 <style scoped>
+/* Header with undo/redo */
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.header-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: var(--surface-1);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--duration-fast) ease;
+}
+
+.icon-btn:hover:not(:disabled) {
+  background: var(--surface-2);
+  color: var(--accent-primary);
+}
+
+.icon-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.icon-btn iconify-icon {
+  font-size: 16px;
+}
+
+/* Theme Presets */
+.preset-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.preset-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 10px;
+  background: var(--surface-1);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--duration-fast) ease;
+}
+
+.preset-card:hover {
+  background: var(--surface-2);
+  border-color: var(--accent-primary);
+  color: var(--text-primary);
+}
+
+.preset-icon {
+  font-size: 24px;
+  color: var(--accent-primary);
+}
+
+.preset-name {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.preset-desc {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
 /* Theme Mode Buttons */
 .theme-modes {
   display: grid;
@@ -644,6 +883,67 @@ function selectAccent(preset: typeof accentPresets[0]) {
   margin-left: auto;
 }
 
+/* Layout Preview */
+.layout-preview {
+  margin-bottom: 14px;
+}
+
+.layout-preview-screen {
+  position: relative;
+  width: 100%;
+  height: 64px;
+  background: var(--surface-1);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--glass-border);
+  overflow: hidden;
+}
+
+.layout-preview-sidebar {
+  position: absolute;
+  left: 6px;
+  top: 6px;
+  bottom: 6px;
+  display: flex;
+  gap: 4px;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.layout-preview-sidebar.right {
+  left: auto;
+  right: 6px;
+  flex-direction: row-reverse;
+}
+
+.layout-preview-nav {
+  width: 8px;
+  height: 100%;
+  background: var(--accent-primary);
+  border-radius: 4px;
+  opacity: 0.8;
+}
+
+.layout-preview-panel {
+  width: 32px;
+  height: 100%;
+  background: var(--surface-3);
+  border-radius: 4px;
+}
+
+.layout-preview-canvas {
+  position: absolute;
+  inset: 6px;
+  left: 52px;
+  right: 6px;
+  background: radial-gradient(circle at center, var(--accent-glow), transparent 70%);
+  border-radius: 4px;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.layout-preview-sidebar.right ~ .layout-preview-canvas {
+  left: 6px;
+  right: 52px;
+}
+
 /* Layout hint */
 .layout-hint {
   display: flex;
@@ -660,5 +960,163 @@ function selectAccent(preset: typeof accentPresets[0]) {
 .layout-hint iconify-icon {
   font-size: 14px;
   color: var(--accent-primary);
+}
+
+/* Action Buttons */
+.action-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-container {
+  width: 100%;
+  max-width: 400px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--glass-shadow);
+  backdrop-filter: blur(var(--glass-blur));
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--duration-fast) ease;
+}
+
+.close-btn:hover {
+  background: var(--surface-2);
+  color: var(--text-primary);
+}
+
+.modal-body {
+  padding: 20px;
+}
+
+.import-option {
+  display: flex;
+  justify-content: center;
+}
+
+.file-input-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background: var(--surface-1);
+  border: 1px dashed var(--glass-border);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all var(--duration-fast) ease;
+}
+
+.file-input-label:hover {
+  background: var(--surface-2);
+  border-color: var(--accent-primary);
+  color: var(--text-primary);
+}
+
+.file-input-label input {
+  display: none;
+}
+
+.or-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 16px 0;
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.or-divider::before,
+.or-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--glass-border);
+}
+
+.import-textarea {
+  width: 100%;
+  height: 120px;
+  padding: 12px;
+  background: var(--surface-1);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-family: 'JetBrains Mono', monospace;
+  resize: vertical;
+}
+
+.import-textarea:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+}
+
+.import-error {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #ef4444;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 16px 20px;
+  border-top: 1px solid var(--glass-border);
+}
+
+/* Fade transition */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity var(--duration-normal) ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>

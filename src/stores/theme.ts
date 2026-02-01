@@ -1,5 +1,10 @@
 import { defineStore } from 'pinia';
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
+import { hexToRgb, adjustBrightness, debounce } from '@/utils/color';
+
+// ============================================================================
+// Types & Interfaces
+// ============================================================================
 
 export type ThemeMode = 'dark' | 'light' | 'system' | 'auto';
 export type SidebarPosition = 'left' | 'right';
@@ -9,6 +14,65 @@ export interface AccentColor {
   primary: string;
   secondary: string;
 }
+
+export interface GlassSettings {
+  blur: number;
+  opacity: number;
+  tint: number;
+  noise: number;
+  shadow: number;
+}
+
+export interface UISettings {
+  borderRadius: number;
+  animationSpeed: number;
+  surfaceContrast: number;
+  saturation: number;
+  gradientDirection: number;
+}
+
+export interface AccessibilitySettings {
+  highContrast: boolean;
+  focusIndicators: boolean;
+}
+
+export interface FlashlightSettings {
+  enabled: boolean;
+  size: number;
+  intensity: number;
+  color: string;
+}
+
+export interface EffectSettings {
+  panelBorder: boolean;
+  glowEffects: boolean;
+  compactMode: boolean;
+}
+
+export interface ThemeSettings {
+  mode: ThemeMode;
+  autoStartTime: string;
+  autoEndTime: string;
+  accentPrimary: string;
+  accentSecondary: string;
+  sidebarPosition: SidebarPosition;
+  glass: GlassSettings;
+  ui: UISettings;
+  accessibility: AccessibilitySettings;
+  flashlight: FlashlightSettings;
+  effects: EffectSettings;
+}
+
+export interface ThemePreset {
+  name: string;
+  icon: string;
+  description: string;
+  settings: Partial<ThemeSettings>;
+}
+
+// ============================================================================
+// Presets
+// ============================================================================
 
 export const accentPresets: AccentColor[] = [
   // Cool tones
@@ -36,183 +100,401 @@ export const accentPresets: AccentColor[] = [
   { name: 'Zinc', primary: '#71717a', secondary: '#a1a1aa' },
 ];
 
+export const themePresets: ThemePreset[] = [
+  {
+    name: 'Minimal',
+    icon: 'ph:minus-circle-duotone',
+    description: 'Clean and subtle',
+    settings: {
+      accentPrimary: '#64748b',
+      accentSecondary: '#94a3b8',
+      glass: { blur: 16, opacity: 95, tint: 0, noise: 0, shadow: 20 },
+      ui: { borderRadius: 6, animationSpeed: 1.2, surfaceContrast: 30, saturation: 80, gradientDirection: 135 },
+      effects: { panelBorder: false, glowEffects: false, compactMode: false },
+    },
+  },
+  {
+    name: 'Vibrant',
+    icon: 'ph:rainbow-duotone',
+    description: 'Bold and colorful',
+    settings: {
+      accentPrimary: '#d946ef',
+      accentSecondary: '#f43f5e',
+      glass: { blur: 24, opacity: 85, tint: 30, noise: 15, shadow: 70 },
+      ui: { borderRadius: 14, animationSpeed: 0.8, surfaceContrast: 60, saturation: 140, gradientDirection: 135 },
+      effects: { panelBorder: true, glowEffects: true, compactMode: false },
+    },
+  },
+  {
+    name: 'Professional',
+    icon: 'ph:briefcase-duotone',
+    description: 'Focused and efficient',
+    settings: {
+      accentPrimary: '#3b82f6',
+      accentSecondary: '#06b6d4',
+      glass: { blur: 20, opacity: 92, tint: 5, noise: 0, shadow: 40 },
+      ui: { borderRadius: 8, animationSpeed: 1, surfaceContrast: 45, saturation: 100, gradientDirection: 180 },
+      effects: { panelBorder: true, glowEffects: false, compactMode: true },
+    },
+  },
+  {
+    name: 'Neon',
+    icon: 'ph:lightning-duotone',
+    description: 'Electric and dynamic',
+    settings: {
+      accentPrimary: '#00d9ff',
+      accentSecondary: '#a855f7',
+      glass: { blur: 32, opacity: 80, tint: 40, noise: 25, shadow: 80 },
+      ui: { borderRadius: 16, animationSpeed: 0.7, surfaceContrast: 70, saturation: 160, gradientDirection: 45 },
+      effects: { panelBorder: true, glowEffects: true, compactMode: false },
+    },
+  },
+];
+
+// ============================================================================
+// Default Values
+// ============================================================================
+
+const defaultSettings: ThemeSettings = {
+  mode: 'dark',
+  autoStartTime: '06:00',
+  autoEndTime: '18:00',
+  accentPrimary: '#00d9ff',
+  accentSecondary: '#a855f7',
+  sidebarPosition: 'left',
+  glass: { blur: 24, opacity: 88, tint: 0, noise: 0, shadow: 50 },
+  ui: { borderRadius: 10, animationSpeed: 1, surfaceContrast: 50, saturation: 100, gradientDirection: 135 },
+  accessibility: { highContrast: false, focusIndicators: true },
+  flashlight: { enabled: false, size: 200, intensity: 30, color: '#ffffff' },
+  effects: { panelBorder: true, glowEffects: true, compactMode: false },
+};
+
+// ============================================================================
+// Store
+// ============================================================================
+
+const MAX_HISTORY = 50;
+
 export const useThemeStore = defineStore('theme', () => {
-  // Theme mode
-  const mode = ref<ThemeMode>('dark');
-  const autoStartTime = ref('06:00');
-  const autoEndTime = ref('18:00');
-  
-  // Accent color
-  const accentPrimary = ref('#00d9ff');
-  const accentSecondary = ref('#a855f7');
-  
+  // State - Grouped settings
+  const mode = ref<ThemeMode>(defaultSettings.mode);
+  const autoStartTime = ref(defaultSettings.autoStartTime);
+  const autoEndTime = ref(defaultSettings.autoEndTime);
+  const accentPrimary = ref(defaultSettings.accentPrimary);
+  const accentSecondary = ref(defaultSettings.accentSecondary);
+  const sidebarPosition = ref<SidebarPosition>(defaultSettings.sidebarPosition);
+
   // Glass settings
-  const glassBlur = ref(24);
-  const glassOpacity = ref(88);
-  const glassTint = ref(0); // 0-100, tint with accent color
-  const noiseTexture = ref(0); // 0-100, grain intensity
-  
+  const glassBlur = ref(defaultSettings.glass.blur);
+  const glassOpacity = ref(defaultSettings.glass.opacity);
+  const glassTint = ref(defaultSettings.glass.tint);
+  const noiseTexture = ref(defaultSettings.glass.noise);
+  const shadowIntensity = ref(defaultSettings.glass.shadow);
+
   // UI settings
-  const borderRadius = ref(10);
-  const animationSpeed = ref(1);
-  const surfaceContrast = ref(50);
-  const panelBorder = ref(true);
-  const glowEffects = ref(true);
-  const compactMode = ref(false);
-  const saturation = ref(100); // 0-200, color saturation
-  const sidebarPosition = ref<SidebarPosition>('left');
-  const gradientDirection = ref(135); // 0-360 degrees
-  const shadowIntensity = ref(50); // 0-100
-  
+  const borderRadius = ref(defaultSettings.ui.borderRadius);
+  const animationSpeed = ref(defaultSettings.ui.animationSpeed);
+  const surfaceContrast = ref(defaultSettings.ui.surfaceContrast);
+  const saturation = ref(defaultSettings.ui.saturation);
+  const gradientDirection = ref(defaultSettings.ui.gradientDirection);
+
+  // Effect settings
+  const panelBorder = ref(defaultSettings.effects.panelBorder);
+  const glowEffects = ref(defaultSettings.effects.glowEffects);
+  const compactMode = ref(defaultSettings.effects.compactMode);
+
   // Accessibility
-  const highContrast = ref(false);
-  const focusIndicators = ref(true);
-  
-  // Cursor flashlight
-  const cursorFlashlight = ref(false);
-  const flashlightSize = ref(200); // pixels
-  const flashlightIntensity = ref(30); // 0-100
-  const flashlightColor = ref('#ffffff');
-  
-  // Load from localStorage
+  const highContrast = ref(defaultSettings.accessibility.highContrast);
+  const focusIndicators = ref(defaultSettings.accessibility.focusIndicators);
+
+  // Flashlight
+  const cursorFlashlight = ref(defaultSettings.flashlight.enabled);
+  const flashlightSize = ref(defaultSettings.flashlight.size);
+  const flashlightIntensity = ref(defaultSettings.flashlight.intensity);
+  const flashlightColor = ref(defaultSettings.flashlight.color);
+
+  // Undo/Redo history
+  const history = ref<ThemeSettings[]>([]);
+  const historyIndex = ref(-1);
+  const isUndoRedoAction = ref(false);
+
+  // Computed
+  const canUndo = computed(() => historyIndex.value > 0);
+  const canRedo = computed(() => historyIndex.value < history.value.length - 1);
+
+  // ============================================================================
+  // Snapshot & History
+  // ============================================================================
+
+  function getCurrentSnapshot(): ThemeSettings {
+    return {
+      mode: mode.value,
+      autoStartTime: autoStartTime.value,
+      autoEndTime: autoEndTime.value,
+      accentPrimary: accentPrimary.value,
+      accentSecondary: accentSecondary.value,
+      sidebarPosition: sidebarPosition.value,
+      glass: {
+        blur: glassBlur.value,
+        opacity: glassOpacity.value,
+        tint: glassTint.value,
+        noise: noiseTexture.value,
+        shadow: shadowIntensity.value,
+      },
+      ui: {
+        borderRadius: borderRadius.value,
+        animationSpeed: animationSpeed.value,
+        surfaceContrast: surfaceContrast.value,
+        saturation: saturation.value,
+        gradientDirection: gradientDirection.value,
+      },
+      accessibility: {
+        highContrast: highContrast.value,
+        focusIndicators: focusIndicators.value,
+      },
+      flashlight: {
+        enabled: cursorFlashlight.value,
+        size: flashlightSize.value,
+        intensity: flashlightIntensity.value,
+        color: flashlightColor.value,
+      },
+      effects: {
+        panelBorder: panelBorder.value,
+        glowEffects: glowEffects.value,
+        compactMode: compactMode.value,
+      },
+    };
+  }
+
+  function applySnapshot(snapshot: ThemeSettings) {
+    mode.value = snapshot.mode;
+    autoStartTime.value = snapshot.autoStartTime;
+    autoEndTime.value = snapshot.autoEndTime;
+    accentPrimary.value = snapshot.accentPrimary;
+    accentSecondary.value = snapshot.accentSecondary;
+    sidebarPosition.value = snapshot.sidebarPosition;
+
+    glassBlur.value = snapshot.glass.blur;
+    glassOpacity.value = snapshot.glass.opacity;
+    glassTint.value = snapshot.glass.tint;
+    noiseTexture.value = snapshot.glass.noise;
+    shadowIntensity.value = snapshot.glass.shadow;
+
+    borderRadius.value = snapshot.ui.borderRadius;
+    animationSpeed.value = snapshot.ui.animationSpeed;
+    surfaceContrast.value = snapshot.ui.surfaceContrast;
+    saturation.value = snapshot.ui.saturation;
+    gradientDirection.value = snapshot.ui.gradientDirection;
+
+    panelBorder.value = snapshot.effects.panelBorder;
+    glowEffects.value = snapshot.effects.glowEffects;
+    compactMode.value = snapshot.effects.compactMode;
+
+    highContrast.value = snapshot.accessibility.highContrast;
+    focusIndicators.value = snapshot.accessibility.focusIndicators;
+
+    cursorFlashlight.value = snapshot.flashlight.enabled;
+    flashlightSize.value = snapshot.flashlight.size;
+    flashlightIntensity.value = snapshot.flashlight.intensity;
+    flashlightColor.value = snapshot.flashlight.color;
+  }
+
+  function pushToHistory() {
+    if (isUndoRedoAction.value) return;
+
+    // Trim future history if we're not at the end
+    if (historyIndex.value < history.value.length - 1) {
+      history.value = history.value.slice(0, historyIndex.value + 1);
+    }
+
+    // Add current state
+    history.value.push(getCurrentSnapshot());
+
+    // Limit history size
+    if (history.value.length > MAX_HISTORY) {
+      history.value.shift();
+    }
+
+    historyIndex.value = history.value.length - 1;
+  }
+
+  // Debounced version for slider updates
+  const pushToHistoryDebounced = debounce(pushToHistory, 500);
+
+  function undo() {
+    if (!canUndo.value) return;
+    isUndoRedoAction.value = true;
+    historyIndex.value--;
+    applySnapshot(history.value[historyIndex.value]!);
+    applyTheme();
+    isUndoRedoAction.value = false;
+  }
+
+  function redo() {
+    if (!canRedo.value) return;
+    isUndoRedoAction.value = true;
+    historyIndex.value++;
+    applySnapshot(history.value[historyIndex.value]!);
+    applyTheme();
+    isUndoRedoAction.value = false;
+  }
+
+  // ============================================================================
+  // Export / Import
+  // ============================================================================
+
+  function exportTheme(): string {
+    return JSON.stringify(getCurrentSnapshot(), null, 2);
+  }
+
+  function importTheme(json: string): boolean {
+    try {
+      const parsed = JSON.parse(json) as ThemeSettings;
+      // Validate required fields
+      if (!parsed.mode || !parsed.glass || !parsed.ui) {
+        console.warn('Invalid theme format');
+        return false;
+      }
+      pushToHistory();
+      applySnapshot(parsed);
+      applyTheme();
+      setupFlashlight();
+      return true;
+    } catch (e) {
+      console.error('Failed to import theme:', e);
+      return false;
+    }
+  }
+
+  // ============================================================================
+  // Load / Save
+  // ============================================================================
+
   function loadSettings() {
     const saved = localStorage.getItem('kwami-theme');
     if (saved) {
       try {
         const settings = JSON.parse(saved);
+        // Legacy flat format
         mode.value = settings.mode || 'dark';
         autoStartTime.value = settings.autoStartTime || '06:00';
         autoEndTime.value = settings.autoEndTime || '18:00';
         accentPrimary.value = settings.accentPrimary || '#00d9ff';
         accentSecondary.value = settings.accentSecondary || '#a855f7';
-        glassBlur.value = settings.glassBlur ?? 24;
-        glassOpacity.value = settings.glassOpacity ?? 88;
-        glassTint.value = settings.glassTint ?? 0;
-        noiseTexture.value = settings.noiseTexture ?? 0;
-        borderRadius.value = settings.borderRadius ?? 10;
-        animationSpeed.value = settings.animationSpeed ?? 1;
-        surfaceContrast.value = settings.surfaceContrast ?? 50;
-        panelBorder.value = settings.panelBorder ?? true;
-        glowEffects.value = settings.glowEffects ?? true;
-        compactMode.value = settings.compactMode ?? false;
-        saturation.value = settings.saturation ?? 100;
         sidebarPosition.value = settings.sidebarPosition || 'left';
-        gradientDirection.value = settings.gradientDirection ?? 135;
-        shadowIntensity.value = settings.shadowIntensity ?? 50;
-        highContrast.value = settings.highContrast ?? false;
-        focusIndicators.value = settings.focusIndicators ?? true;
-        cursorFlashlight.value = settings.cursorFlashlight ?? false;
-        flashlightSize.value = settings.flashlightSize ?? 200;
-        flashlightIntensity.value = settings.flashlightIntensity ?? 30;
-        flashlightColor.value = settings.flashlightColor || '#ffffff';
+
+        // Support both old flat and new grouped format
+        glassBlur.value = settings.glass?.blur ?? settings.glassBlur ?? 24;
+        glassOpacity.value = settings.glass?.opacity ?? settings.glassOpacity ?? 88;
+        glassTint.value = settings.glass?.tint ?? settings.glassTint ?? 0;
+        noiseTexture.value = settings.glass?.noise ?? settings.noiseTexture ?? 0;
+        shadowIntensity.value = settings.glass?.shadow ?? settings.shadowIntensity ?? 50;
+
+        borderRadius.value = settings.ui?.borderRadius ?? settings.borderRadius ?? 10;
+        animationSpeed.value = settings.ui?.animationSpeed ?? settings.animationSpeed ?? 1;
+        surfaceContrast.value = settings.ui?.surfaceContrast ?? settings.surfaceContrast ?? 50;
+        saturation.value = settings.ui?.saturation ?? settings.saturation ?? 100;
+        gradientDirection.value = settings.ui?.gradientDirection ?? settings.gradientDirection ?? 135;
+
+        panelBorder.value = settings.effects?.panelBorder ?? settings.panelBorder ?? true;
+        glowEffects.value = settings.effects?.glowEffects ?? settings.glowEffects ?? true;
+        compactMode.value = settings.effects?.compactMode ?? settings.compactMode ?? false;
+
+        highContrast.value = settings.accessibility?.highContrast ?? settings.highContrast ?? false;
+        focusIndicators.value = settings.accessibility?.focusIndicators ?? settings.focusIndicators ?? true;
+
+        cursorFlashlight.value = settings.flashlight?.enabled ?? settings.cursorFlashlight ?? false;
+        flashlightSize.value = settings.flashlight?.size ?? settings.flashlightSize ?? 200;
+        flashlightIntensity.value = settings.flashlight?.intensity ?? settings.flashlightIntensity ?? 30;
+        flashlightColor.value = settings.flashlight?.color ?? settings.flashlightColor ?? '#ffffff';
       } catch (e) {
         console.warn('Failed to load theme settings:', e);
       }
     }
     applyTheme();
     setupFlashlight();
+
+    // Initialize history with current state
+    history.value = [getCurrentSnapshot()];
+    historyIndex.value = 0;
   }
-  
-  // Save to localStorage
+
   function saveSettings() {
-    localStorage.setItem('kwami-theme', JSON.stringify({
-      mode: mode.value,
-      autoStartTime: autoStartTime.value,
-      autoEndTime: autoEndTime.value,
-      accentPrimary: accentPrimary.value,
-      accentSecondary: accentSecondary.value,
-      glassBlur: glassBlur.value,
-      glassOpacity: glassOpacity.value,
-      glassTint: glassTint.value,
-      noiseTexture: noiseTexture.value,
-      borderRadius: borderRadius.value,
-      animationSpeed: animationSpeed.value,
-      surfaceContrast: surfaceContrast.value,
-      panelBorder: panelBorder.value,
-      glowEffects: glowEffects.value,
-      compactMode: compactMode.value,
-      saturation: saturation.value,
-      sidebarPosition: sidebarPosition.value,
-      gradientDirection: gradientDirection.value,
-      shadowIntensity: shadowIntensity.value,
-      highContrast: highContrast.value,
-      focusIndicators: focusIndicators.value,
-      cursorFlashlight: cursorFlashlight.value,
-      flashlightSize: flashlightSize.value,
-      flashlightIntensity: flashlightIntensity.value,
-      flashlightColor: flashlightColor.value,
-    }));
+    localStorage.setItem('kwami-theme', JSON.stringify(getCurrentSnapshot()));
   }
-  
-  // Apply theme to CSS variables
+
+  // ============================================================================
+  // Apply Theme to DOM
+  // ============================================================================
+
   function applyTheme() {
     const root = document.documentElement;
-    
+
     // Apply saturation filter
     root.style.setProperty('--saturation', `${saturation.value}%`);
-    
+
     // Apply accent colors
     root.style.setProperty('--accent-primary', accentPrimary.value);
     root.style.setProperty('--accent-secondary', accentSecondary.value);
     root.style.setProperty('--accent-glow', glowEffects.value ? `${accentPrimary.value}26` : 'transparent');
     root.style.setProperty('--accent-hover', adjustBrightness(accentPrimary.value, 20));
-    
+
     // Gradient direction
     root.style.setProperty('--gradient-direction', `${gradientDirection.value}deg`);
-    
+
     // Apply glass settings
     root.style.setProperty('--glass-blur', `${glassBlur.value}px`);
-    
+
     // Noise texture
     root.style.setProperty('--noise-opacity', `${noiseTexture.value / 100}`);
-    
+
     // Shadow intensity
     const shadowBase = shadowIntensity.value / 100;
     root.style.setProperty('--shadow-intensity', `${shadowBase}`);
-    
+
     // Apply UI settings
     root.style.setProperty('--radius-sm', `${Math.max(2, borderRadius.value - 4)}px`);
     root.style.setProperty('--radius-md', `${borderRadius.value}px`);
     root.style.setProperty('--radius-lg', `${borderRadius.value + 4}px`);
     root.style.setProperty('--radius-xl', `${borderRadius.value + 10}px`);
-    
+
     root.style.setProperty('--duration-fast', `${0.15 * animationSpeed.value}s`);
     root.style.setProperty('--duration-normal', `${0.25 * animationSpeed.value}s`);
     root.style.setProperty('--duration-slow', `${0.4 * animationSpeed.value}s`);
-    
+
     root.style.setProperty('--glass-border', panelBorder.value ? 'rgba(255, 255, 255, 0.06)' : 'transparent');
-    
+
     // Compact mode
     if (compactMode.value) {
       document.body.classList.add('compact-mode');
     } else {
       document.body.classList.remove('compact-mode');
     }
-    
+
     // High contrast mode
     if (highContrast.value) {
       document.body.classList.add('high-contrast');
     } else {
       document.body.classList.remove('high-contrast');
     }
-    
+
     // Focus indicators
     if (focusIndicators.value) {
       document.body.classList.add('focus-visible');
     } else {
       document.body.classList.remove('focus-visible');
     }
-    
+
     // Sidebar position
     if (sidebarPosition.value === 'right') {
       document.body.classList.add('sidebar-right');
     } else {
       document.body.classList.remove('sidebar-right');
     }
-    
+
     // Surface contrast
     const contrast = surfaceContrast.value / 100;
-    
+
     // Apply glow effects with shadow intensity
     const shadowMult = shadowIntensity.value / 50;
     if (glowEffects.value) {
@@ -220,38 +502,38 @@ export const useThemeStore = defineStore('theme', () => {
     } else {
       root.style.setProperty('--glass-shadow', `0 ${4 * shadowMult}px ${16 * shadowMult}px rgba(0, 0, 0, ${0.3 * shadowMult})`);
     }
-    
+
     // Apply theme mode
-    let effectiveMode = mode.value;
+    let effectiveMode = mode.value as string;
 
     if (mode.value === 'system') {
       effectiveMode = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
     } else if (mode.value === 'auto') {
       const now = new Date();
       const currentMinutes = now.getHours() * 60 + now.getMinutes();
-      
-      const [startHour, startMinute] = autoStartTime.value.split(':').map(Number);
+
+      const [startHour = 0, startMinute = 0] = autoStartTime.value.split(':').map(Number);
       const startMinutes = startHour * 60 + startMinute;
-      
-      const [endHour, endMinute] = autoEndTime.value.split(':').map(Number);
+
+      const [endHour = 0, endMinute = 0] = autoEndTime.value.split(':').map(Number);
       const endMinutes = endHour * 60 + endMinute;
-      
+
       let isLight = false;
       if (endMinutes > startMinutes) {
         isLight = currentMinutes >= startMinutes && currentMinutes < endMinutes;
       } else {
         isLight = currentMinutes >= startMinutes || currentMinutes < endMinutes;
       }
-      
+
       effectiveMode = isLight ? 'light' : 'dark';
     }
-    
+
     root.setAttribute('data-theme', effectiveMode);
-    
+
     // Glass tint calculation
     const tintAmount = glassTint.value / 100;
     const accentRgb = hexToRgb(accentPrimary.value);
-    
+
     if (effectiveMode === 'light') {
       const baseBg = `rgba(255, 255, 255, ${glassOpacity.value / 100})`;
       const tintedBg = tintAmount > 0 && accentRgb
@@ -260,7 +542,7 @@ export const useThemeStore = defineStore('theme', () => {
       root.style.setProperty('--glass-bg', tintedBg);
       root.style.setProperty('--glass-border', panelBorder.value ? 'rgba(0, 0, 0, 0.08)' : 'transparent');
       root.style.setProperty('--glass-highlight', 'rgba(0, 0, 0, 0.02)');
-      
+
       // High contrast adjustments
       if (highContrast.value) {
         root.style.setProperty('--text-primary', '#000000');
@@ -271,12 +553,12 @@ export const useThemeStore = defineStore('theme', () => {
         root.style.setProperty('--text-secondary', '#4a4a6a');
         root.style.setProperty('--text-muted', '#8a8aa0');
       }
-      
+
       root.style.setProperty('--surface-1', `rgba(0, 0, 0, ${0.03 * contrast * 2})`);
       root.style.setProperty('--surface-2', `rgba(0, 0, 0, ${0.05 * contrast * 2})`);
       root.style.setProperty('--surface-3', `rgba(0, 0, 0, ${0.08 * contrast * 2})`);
       root.style.setProperty('--surface-4', `rgba(0, 0, 0, ${0.12 * contrast * 2})`);
-      
+
       if (glowEffects.value) {
         root.style.setProperty('--glass-shadow', `0 ${8 * shadowMult}px ${32 * shadowMult}px rgba(0, 0, 0, ${0.1 * shadowMult}), 0 0 0 1px rgba(0, 0, 0, 0.03) inset`);
       } else {
@@ -290,7 +572,7 @@ export const useThemeStore = defineStore('theme', () => {
       root.style.setProperty('--glass-bg', tintedBg);
       root.style.setProperty('--glass-border', panelBorder.value ? 'rgba(255, 255, 255, 0.06)' : 'transparent');
       root.style.setProperty('--glass-highlight', 'rgba(255, 255, 255, 0.03)');
-      
+
       // High contrast adjustments
       if (highContrast.value) {
         root.style.setProperty('--text-primary', '#ffffff');
@@ -301,35 +583,44 @@ export const useThemeStore = defineStore('theme', () => {
         root.style.setProperty('--text-secondary', '#a0a4b8');
         root.style.setProperty('--text-muted', '#5c6178');
       }
-      
+
       root.style.setProperty('--surface-1', `rgba(255, 255, 255, ${0.025 * contrast * 2})`);
       root.style.setProperty('--surface-2', `rgba(255, 255, 255, ${0.05 * contrast * 2})`);
       root.style.setProperty('--surface-3', `rgba(255, 255, 255, ${0.08 * contrast * 2})`);
       root.style.setProperty('--surface-4', `rgba(255, 255, 255, ${0.12 * contrast * 2})`);
     }
-    
+
     // Flashlight settings
     root.style.setProperty('--flashlight-size', `${flashlightSize.value}px`);
     root.style.setProperty('--flashlight-intensity', `${flashlightIntensity.value / 100}`);
     root.style.setProperty('--flashlight-color', flashlightColor.value);
-    
+
     saveSettings();
   }
-  
-  // Flashlight effect
+
+  // Debounced version for slider updates
+  const applyThemeDebounced = debounce(() => {
+    applyTheme();
+    pushToHistoryDebounced();
+  }, 50);
+
+  // ============================================================================
+  // Flashlight
+  // ============================================================================
+
   let flashlightElement: HTMLDivElement | null = null;
-  
+
   function setupFlashlight() {
     if (typeof window === 'undefined') return;
-    
+
     // Remove existing flashlight
     if (flashlightElement) {
       flashlightElement.remove();
       flashlightElement = null;
     }
-    
+
     if (!cursorFlashlight.value) return;
-    
+
     // Create flashlight element
     flashlightElement = document.createElement('div');
     flashlightElement.id = 'cursor-flashlight';
@@ -347,218 +638,242 @@ export const useThemeStore = defineStore('theme', () => {
       transition: opacity 0.15s ease;
     `;
     document.body.appendChild(flashlightElement);
-    
+
     document.addEventListener('mousemove', updateFlashlightPosition);
     document.addEventListener('mouseleave', hideFlashlight);
     document.addEventListener('mouseenter', showFlashlight);
   }
-  
+
   function updateFlashlightPosition(e: MouseEvent) {
     if (flashlightElement) {
       flashlightElement.style.left = `${e.clientX}px`;
       flashlightElement.style.top = `${e.clientY}px`;
     }
   }
-  
+
   function hideFlashlight() {
     if (flashlightElement) {
       flashlightElement.style.opacity = '0';
     }
   }
-  
+
   function showFlashlight() {
     if (flashlightElement) {
       flashlightElement.style.opacity = `var(--flashlight-intensity)`;
     }
   }
-  
-  // Helper functions
-  function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
-    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-    return result ? {
-      r: parseInt(result[1], 16),
-      g: parseInt(result[2], 16),
-      b: parseInt(result[3], 16)
-    } : null;
+
+  // ============================================================================
+  // Generic Setter
+  // ============================================================================
+
+  type SettingKey = 'mode' | 'autoStartTime' | 'autoEndTime' | 'accentPrimary' | 'accentSecondary'
+    | 'sidebarPosition' | 'glassBlur' | 'glassOpacity' | 'glassTint' | 'noiseTexture' | 'shadowIntensity'
+    | 'borderRadius' | 'animationSpeed' | 'surfaceContrast' | 'saturation' | 'gradientDirection'
+    | 'panelBorder' | 'glowEffects' | 'compactMode' | 'highContrast' | 'focusIndicators'
+    | 'cursorFlashlight' | 'flashlightSize' | 'flashlightIntensity' | 'flashlightColor';
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const settingRefs: Record<SettingKey, { value: any }> = {
+    mode, autoStartTime, autoEndTime, accentPrimary, accentSecondary, sidebarPosition,
+    glassBlur, glassOpacity, glassTint, noiseTexture, shadowIntensity,
+    borderRadius, animationSpeed, surfaceContrast, saturation, gradientDirection,
+    panelBorder, glowEffects, compactMode, highContrast, focusIndicators,
+    cursorFlashlight, flashlightSize, flashlightIntensity, flashlightColor,
+  };
+
+  function setSetting(
+    key: SettingKey,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    value: any,
+    options: { debounce?: boolean; pushHistory?: boolean } = {}
+  ) {
+    const { debounce: useDebounce = false, pushHistory = true } = options;
+    settingRefs[key].value = value;
+
+    if (useDebounce) {
+      applyThemeDebounced();
+    } else {
+      applyTheme();
+      if (pushHistory) pushToHistory();
+    }
   }
-  
-  function adjustBrightness(hex: string, percent: number): string {
-    const num = parseInt(hex.replace('#', ''), 16);
-    const amt = Math.round(2.55 * percent);
-    const R = Math.min(255, Math.max(0, (num >> 16) + amt));
-    const G = Math.min(255, Math.max(0, ((num >> 8) & 0x00FF) + amt));
-    const B = Math.min(255, Math.max(0, (num & 0x0000FF) + amt));
-    return `#${(0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1)}`;
-  }
-  
-  // Actions
+
+
+  // ============================================================================
+  // Individual Setters (for backwards compatibility)
+  // ============================================================================
+
   function setMode(newMode: ThemeMode) {
-    mode.value = newMode;
-    applyTheme();
+    setSetting('mode', newMode);
   }
 
   function setAutoStartTime(time: string) {
-    autoStartTime.value = time;
-    if (mode.value === 'auto') applyTheme();
+    setSetting('autoStartTime', time);
   }
 
   function setAutoEndTime(time: string) {
-    autoEndTime.value = time;
-    if (mode.value === 'auto') applyTheme();
+    setSetting('autoEndTime', time);
   }
-  
+
   function setAccent(primary: string, secondary: string) {
     accentPrimary.value = primary;
     accentSecondary.value = secondary;
     applyTheme();
+    pushToHistory();
   }
-  
+
   function setAccentPrimary(color: string) {
-    accentPrimary.value = color;
-    applyTheme();
+    setSetting('accentPrimary', color);
   }
-  
+
   function setAccentSecondary(color: string) {
-    accentSecondary.value = color;
-    applyTheme();
+    setSetting('accentSecondary', color);
   }
-  
+
   function setAccentPreset(preset: AccentColor) {
     setAccent(preset.primary, preset.secondary);
   }
-  
+
+  function applyPreset(preset: ThemePreset) {
+    pushToHistory();
+    const s = preset.settings;
+    if (s.accentPrimary) accentPrimary.value = s.accentPrimary;
+    if (s.accentSecondary) accentSecondary.value = s.accentSecondary;
+    if (s.mode) mode.value = s.mode;
+    if (s.sidebarPosition) sidebarPosition.value = s.sidebarPosition;
+
+    if (s.glass) {
+      glassBlur.value = s.glass.blur;
+      glassOpacity.value = s.glass.opacity;
+      glassTint.value = s.glass.tint;
+      noiseTexture.value = s.glass.noise;
+      shadowIntensity.value = s.glass.shadow;
+    }
+
+    if (s.ui) {
+      borderRadius.value = s.ui.borderRadius;
+      animationSpeed.value = s.ui.animationSpeed;
+      surfaceContrast.value = s.ui.surfaceContrast;
+      saturation.value = s.ui.saturation;
+      gradientDirection.value = s.ui.gradientDirection;
+    }
+
+    if (s.effects) {
+      panelBorder.value = s.effects.panelBorder;
+      glowEffects.value = s.effects.glowEffects;
+      compactMode.value = s.effects.compactMode;
+    }
+
+    if (s.accessibility) {
+      highContrast.value = s.accessibility.highContrast;
+      focusIndicators.value = s.accessibility.focusIndicators;
+    }
+
+    if (s.flashlight) {
+      cursorFlashlight.value = s.flashlight.enabled;
+      flashlightSize.value = s.flashlight.size;
+      flashlightIntensity.value = s.flashlight.intensity;
+      flashlightColor.value = s.flashlight.color;
+    }
+
+    applyTheme();
+    setupFlashlight();
+  }
+
+  // Debounced setters for sliders
   function setGlassBlur(value: number) {
-    glassBlur.value = value;
-    applyTheme();
+    setSetting('glassBlur', value, { debounce: true });
   }
-  
+
   function setGlassOpacity(value: number) {
-    glassOpacity.value = value;
-    applyTheme();
+    setSetting('glassOpacity', value, { debounce: true });
   }
-  
+
   function setGlassTint(value: number) {
-    glassTint.value = value;
-    applyTheme();
+    setSetting('glassTint', value, { debounce: true });
   }
-  
+
   function setNoiseTexture(value: number) {
-    noiseTexture.value = value;
-    applyTheme();
+    setSetting('noiseTexture', value, { debounce: true });
   }
-  
-  function setBorderRadius(value: number) {
-    borderRadius.value = value;
-    applyTheme();
-  }
-  
-  function setAnimationSpeed(value: number) {
-    animationSpeed.value = value;
-    applyTheme();
-  }
-  
-  function setSurfaceContrast(value: number) {
-    surfaceContrast.value = value;
-    applyTheme();
-  }
-  
-  function setCompactMode(value: boolean) {
-    compactMode.value = value;
-    applyTheme();
-  }
-  
-  function setPanelBorder(value: boolean) {
-    panelBorder.value = value;
-    applyTheme();
-  }
-  
-  function setGlowEffects(value: boolean) {
-    glowEffects.value = value;
-    applyTheme();
-  }
-  
-  function setSaturation(value: number) {
-    saturation.value = value;
-    applyTheme();
-  }
-  
-  function setSidebarPosition(value: SidebarPosition) {
-    sidebarPosition.value = value;
-    applyTheme();
-  }
-  
-  function setGradientDirection(value: number) {
-    gradientDirection.value = value;
-    applyTheme();
-  }
-  
+
   function setShadowIntensity(value: number) {
-    shadowIntensity.value = value;
-    applyTheme();
+    setSetting('shadowIntensity', value, { debounce: true });
   }
-  
+
+  function setBorderRadius(value: number) {
+    setSetting('borderRadius', value, { debounce: true });
+  }
+
+  function setAnimationSpeed(value: number) {
+    setSetting('animationSpeed', value, { debounce: true });
+  }
+
+  function setSurfaceContrast(value: number) {
+    setSetting('surfaceContrast', value, { debounce: true });
+  }
+
+  function setSaturation(value: number) {
+    setSetting('saturation', value, { debounce: true });
+  }
+
+  function setGradientDirection(value: number) {
+    setSetting('gradientDirection', value, { debounce: true });
+  }
+
+  function setCompactMode(value: boolean) {
+    setSetting('compactMode', value);
+  }
+
+  function setPanelBorder(value: boolean) {
+    setSetting('panelBorder', value);
+  }
+
+  function setGlowEffects(value: boolean) {
+    setSetting('glowEffects', value);
+  }
+
+  function setSidebarPosition(value: SidebarPosition) {
+    setSetting('sidebarPosition', value);
+  }
+
   function setHighContrast(value: boolean) {
-    highContrast.value = value;
-    applyTheme();
+    setSetting('highContrast', value);
   }
-  
+
   function setFocusIndicators(value: boolean) {
-    focusIndicators.value = value;
-    applyTheme();
+    setSetting('focusIndicators', value);
   }
-  
+
   function setCursorFlashlight(value: boolean) {
-    cursorFlashlight.value = value;
-    applyTheme();
+    setSetting('cursorFlashlight', value);
     setupFlashlight();
   }
-  
+
   function setFlashlightSize(value: number) {
-    flashlightSize.value = value;
-    applyTheme();
+    setSetting('flashlightSize', value, { debounce: true });
   }
-  
+
   function setFlashlightIntensity(value: number) {
-    flashlightIntensity.value = value;
-    applyTheme();
+    setSetting('flashlightIntensity', value, { debounce: true });
   }
-  
+
   function setFlashlightColor(value: string) {
-    flashlightColor.value = value;
-    applyTheme();
+    setSetting('flashlightColor', value);
   }
-  
+
   function resetToDefaults() {
-    mode.value = 'dark';
-    autoStartTime.value = '06:00';
-    autoEndTime.value = '18:00';
-    accentPrimary.value = '#00d9ff';
-    accentSecondary.value = '#a855f7';
-    glassBlur.value = 24;
-    glassOpacity.value = 88;
-    glassTint.value = 0;
-    noiseTexture.value = 0;
-    borderRadius.value = 10;
-    animationSpeed.value = 1;
-    surfaceContrast.value = 50;
-    panelBorder.value = true;
-    glowEffects.value = true;
-    compactMode.value = false;
-    saturation.value = 100;
-    sidebarPosition.value = 'left';
-    gradientDirection.value = 135;
-    shadowIntensity.value = 50;
-    highContrast.value = false;
-    focusIndicators.value = true;
-    cursorFlashlight.value = false;
-    flashlightSize.value = 200;
-    flashlightIntensity.value = 30;
-    flashlightColor.value = '#ffffff';
+    pushToHistory();
+    applySnapshot(defaultSettings);
     applyTheme();
     setupFlashlight();
   }
-  
-  // Listen for system theme changes
+
+  // ============================================================================
+  // System Listeners
+  // ============================================================================
+
   if (typeof window !== 'undefined') {
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
       if (mode.value === 'system') {
@@ -573,7 +888,11 @@ export const useThemeStore = defineStore('theme', () => {
       }
     }, 60000);
   }
-  
+
+  // ============================================================================
+  // Return
+  // ============================================================================
+
   return {
     // State
     mode,
@@ -601,6 +920,23 @@ export const useThemeStore = defineStore('theme', () => {
     flashlightSize,
     flashlightIntensity,
     flashlightColor,
+
+    // Undo/Redo
+    canUndo,
+    canRedo,
+    undo,
+    redo,
+
+    // Export/Import
+    exportTheme,
+    importTheme,
+
+    // Presets
+    applyPreset,
+
+    // Generic setter
+    setSetting,
+
     // Actions
     loadSettings,
     setMode,
@@ -632,5 +968,6 @@ export const useThemeStore = defineStore('theme', () => {
     setFlashlightColor,
     resetToDefaults,
     applyTheme,
+    applyThemeDebounced,
   };
 });
