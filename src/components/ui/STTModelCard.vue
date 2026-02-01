@@ -70,7 +70,7 @@ const isMultilingual = computed(() => {
 
 const languageDisplay = computed(() => {
   if (isMultilingual.value) return 'Multi';
-  if (props.model.languages.length === 1) return props.model.languages[0].toUpperCase();
+  if (props.model.languages.length === 1) return props.model.languages[0]!.toUpperCase();
   return `${props.model.languages.length}`;
 });
 

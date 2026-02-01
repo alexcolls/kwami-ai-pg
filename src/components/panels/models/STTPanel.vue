@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
-import { useModelsApi, type InferenceSTTModel, type PluginSTTModel } from '@/composables/useModelsApi';
+import { useModelsApi, type InferenceSTTModel } from '@/composables/useModelsApi';
 import { useVoiceStore } from '@/stores/voice';
 import { useKwami } from '@/composables/useKwami';
 import { storeToRefs } from 'pinia';
@@ -90,7 +90,7 @@ function selectModel(modelId: string, provider: string) {
   
   // If connected, update live
   if (isConnected.value && kwami.value) {
-    kwami.value.agent.updateSttLive({
+    (kwami.value.agent as any).updateSttLive({
       provider,
       model: modelId,
     });
@@ -100,8 +100,8 @@ function selectModel(modelId: string, provider: string) {
 
 // Watch for external changes to stt store
 watch(() => [stt.value.provider, stt.value.model], ([newProvider, newModel]) => {
-  selectedProvider.value = newProvider;
-  selectedModel.value = newModel;
+  selectedProvider.value = newProvider || '';
+  selectedModel.value = newModel || '';
 });
 </script>
 

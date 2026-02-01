@@ -137,8 +137,8 @@ function selectModel(modelId: string, provider: string) {
 }
 
 watch(() => [llm.value.provider, llm.value.model], ([newProvider, newModel]) => {
-  selectedProvider.value = newProvider;
-  selectedModel.value = newModel;
+  selectedProvider.value = newProvider || '';
+  selectedModel.value = newModel || '';
 });
 
 function updateTemperature(value: number) {

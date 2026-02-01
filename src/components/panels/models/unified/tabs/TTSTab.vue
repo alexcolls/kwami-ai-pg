@@ -29,17 +29,17 @@ onMounted(async () => {
   await fetchTTSInferenceModels();
 });
 
-const inferenceModelsByProvider = computed(() => {
-  if (!ttsInferenceModels.value?.models) return {};
+// const inferenceModelsByProvider = computed(() => {
+//   if (!ttsInferenceModels.value?.models) return {};
   
-  const grouped: Record<string, InferenceTTSModel[]> = {};
-  for (const model of ttsInferenceModels.value.models) {
-    const provider = model.provider;
-    if (!grouped[provider]) grouped[provider] = [];
-    grouped[provider].push(model);
-  }
-  return grouped;
-});
+//   const grouped: Record<string, InferenceTTSModel[]> = {};
+//   for (const model of ttsInferenceModels.value.models) {
+//     const provider = model.provider;
+//     if (!grouped[provider]) grouped[provider] = [];
+//     grouped[provider].push(model);
+//   }
+//   return grouped;
+// });
 
 const hasInferenceModels = computed(() => {
   return ttsInferenceModels.value?.models && ttsInferenceModels.value.models.length > 0;
@@ -122,16 +122,16 @@ function selectModel(modelId: string, provider: string) {
   });
   
   if (isConnected.value && kwami.value) {
-    kwami.value.agent.updateTtsLive({
+    (kwami.value.agent as any).updateTtsLive({
       provider,
       model: modelId,
     });
   }
 }
 
-watch(() => [tts.value.provider, tts.value.model], ([newProvider, newModel]) => {
-  selectedProvider.value = newProvider;
-  selectedModel.value = newModel;
+watch(() => [tts.value.provider, tts.value.model], ([/* newProvider */, newModel]) => {
+  selectedModel.value = newModel || '';
+  // selectedProvider.value = newProvider || '';
 });
 </script>
 

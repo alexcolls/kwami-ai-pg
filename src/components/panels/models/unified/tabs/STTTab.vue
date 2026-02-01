@@ -29,17 +29,17 @@ onMounted(async () => {
   await fetchSTTInferenceModels();
 });
 
-const inferenceModelsByProvider = computed(() => {
-  if (!sttInferenceModels.value?.models) return {};
+// const inferenceModelsByProvider = computed(() => {
+//   if (!sttInferenceModels.value?.models) return {};
   
-  const grouped: Record<string, InferenceSTTModel[]> = {};
-  for (const model of sttInferenceModels.value.models) {
-    const provider = model.provider;
-    if (!grouped[provider]) grouped[provider] = [];
-    grouped[provider].push(model);
-  }
-  return grouped;
-});
+//   const grouped: Record<string, InferenceSTTModel[]> = {};
+//   for (const model of sttInferenceModels.value.models) {
+//     const provider = model.provider;
+//     if (!grouped[provider]) grouped[provider] = [];
+//     grouped[provider].push(model);
+//   }
+//   return grouped;
+// });
 
 const hasInferenceModels = computed(() => {
   return sttInferenceModels.value?.models && sttInferenceModels.value.models.length > 0;
@@ -119,7 +119,7 @@ function selectModel(modelId: string, provider: string) {
   });
   
   if (isConnected.value && kwami.value) {
-    kwami.value.agent.updateSttLive({
+    (kwami.value.agent as any).updateSttLive({
       provider,
       model: modelId,
     });
@@ -127,8 +127,8 @@ function selectModel(modelId: string, provider: string) {
 }
 
 watch(() => [stt.value.provider, stt.value.model], ([newProvider, newModel]) => {
-  selectedProvider.value = newProvider;
-  selectedModel.value = newModel;
+  selectedProvider.value = newProvider || '';
+  selectedModel.value = newModel || '';
 });
 </script>
 

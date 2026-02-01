@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
-import { useModelsApi, type InferenceModel, type PluginModel } from '@/composables/useModelsApi';
+import { useModelsApi, type InferenceModel } from '@/composables/useModelsApi';
 import { useVoiceStore } from '@/stores/voice';
 import { useKwami } from '@/composables/useKwami';
 import { storeToRefs } from 'pinia';
+import BasePanel from '@/components/ui/BasePanel.vue';
 import PanelSection from '@/components/ui/PanelSection.vue';
 import ModelCard from '@/components/ui/ModelCard.vue';
 import BaseSlider from '@/components/ui/BaseSlider.vue';
@@ -78,7 +79,7 @@ function selectModel(modelId: string, provider: string) {
   
   // If connected, update live
   if (isConnected.value && kwami.value) {
-    kwami.value.agent.updateLlmLive({
+    (kwami.value.agent as any).updateLlmLive({
       provider,
       model: modelId,
       temperature: llm.value.temperature,
@@ -89,8 +90,8 @@ function selectModel(modelId: string, provider: string) {
 
 // Watch for external changes to llm store
 watch(() => [llm.value.provider, llm.value.model], ([newProvider, newModel]) => {
-  selectedProvider.value = newProvider;
-  selectedModel.value = newModel;
+  selectedProvider.value = newProvider || '';
+  selectedModel.value = newModel || '';
 });
 
 // Update temperature live
@@ -98,7 +99,7 @@ function updateTemperature(value: number) {
   voiceStore.updateLLM({ temperature: value });
   
   if (isConnected.value && kwami.value) {
-    kwami.value.agent.updateLlmLive({
+    (kwami.value.agent as any).updateLlmLive({
       provider: llm.value.provider,
       model: llm.value.model,
       temperature: value,
@@ -113,179 +114,172 @@ function updateMaxTokens(value: number) {
 </script>
 
 <template>
-  <div class="panel-inner">
-    <div class="panel-header">
-      <iconify-icon icon="ph:cpu-duotone" class="panel-icon"></iconify-icon>
-      <h2>Language Model</h2>
-    </div>
+  <BasePanel icon="ph:cpu-duotone" title="Language Model">
+    <!-- Current Selection (at top) -->
+    <PanelSection>
+      <div class="current-selection">
+        <div class="selection-label">Selected</div>
+        <div class="selection-value">
+          <iconify-icon :icon="selectedProvider === 'openai' ? 'simple-icons:openai' : selectedProvider === 'anthropic' ? 'simple-icons:anthropic' : selectedProvider === 'google' ? 'simple-icons:googlegemini' : 'ph:cube-duotone'"></iconify-icon>
+          <span>{{ selectedModel }}</span>
+        </div>
+      </div>
+    </PanelSection>
 
-    <div class="panel-body">
-      <!-- Current Selection (at top) -->
-      <PanelSection>
-        <div class="current-selection">
-          <div class="selection-label">Selected</div>
-          <div class="selection-value">
-            <iconify-icon :icon="selectedProvider === 'openai' ? 'simple-icons:openai' : selectedProvider === 'anthropic' ? 'simple-icons:anthropic' : selectedProvider === 'google' ? 'simple-icons:googlegemini' : 'ph:cube-duotone'"></iconify-icon>
-            <span>{{ selectedModel }}</span>
+    <!-- Loading State -->
+    <PanelSection v-if="isLoading">
+      <div class="loading-state">
+        <iconify-icon icon="ph:spinner-duotone" class="spinner"></iconify-icon>
+        <span>Loading models...</span>
+      </div>
+    </PanelSection>
+
+    <!-- Model Selection -->
+    <PanelSection v-if="!isLoading" title="Models" icon="ph:list-bullets-duotone">
+      <p class="section-description">
+        Choose between hosted models (no API key needed) or use your own provider keys.
+      </p>
+      
+      <div class="legend">
+        <div class="legend-group">
+          <span class="legend-label">Speed</span>
+          <div class="legend-items">
+            <span class="legend-item"><iconify-icon icon="ph:lightning-duotone"></iconify-icon> Fast</span>
+            <span class="legend-item"><iconify-icon icon="ph:gauge-duotone"></iconify-icon> Standard</span>
+            <span class="legend-item"><iconify-icon icon="ph:hourglass-duotone"></iconify-icon> Slow</span>
           </div>
         </div>
-      </PanelSection>
+        <div class="legend-group">
+          <span class="legend-label">Tier</span>
+          <div class="legend-items">
+            <span class="legend-item tier-flagship">Flagship</span>
+            <span class="legend-item tier-budget">Budget</span>
+          </div>
+        </div>
+        <div class="legend-group">
+          <span class="legend-label">Capabilities</span>
+          <div class="legend-items">
+            <span class="legend-item cap-vision"><iconify-icon icon="ph:eye-duotone"></iconify-icon> Vision</span>
+            <span class="legend-item cap-tools"><iconify-icon icon="ph:wrench-duotone"></iconify-icon> Tools</span>
+          </div>
+        </div>
+      </div>
 
-      <!-- Loading State -->
-      <PanelSection v-if="isLoading">
-        <div class="loading-state">
-          <iconify-icon icon="ph:spinner-duotone" class="spinner"></iconify-icon>
-          <span>Loading models...</span>
+      <div class="tab-selector">
+        <button
+          class="tab-btn"
+          :class="{ active: activeTab === 'inference' }"
+          @click="activeTab = 'inference'"
+          :disabled="!hasInferenceModels"
+        >
+          <iconify-icon icon="ph:cloud-duotone"></iconify-icon>
+          <span>Standard</span>
+        </button>
+        <button
+          class="tab-btn"
+          :class="{ active: activeTab === 'plugins' }"
+          @click="activeTab = 'plugins'"
+          :disabled="!hasPluginModels"
+        >
+          <iconify-icon icon="ph:plug-duotone"></iconify-icon>
+          <span>Premium</span>
+        </button>
+      </div>
+    </PanelSection>
+
+    <!-- Inference Models (Standard/Hosted) -->
+    <template v-if="activeTab === 'inference' && !isLoading">
+      <PanelSection
+        v-for="(models, provider) in inferenceModelsByProvider"
+        :key="provider"
+        :title="String(provider).charAt(0).toUpperCase() + String(provider).slice(1)"
+        :icon="provider === 'openai' ? 'simple-icons:openai' : provider === 'google' ? 'simple-icons:googlegemini' : provider === 'deepseek' ? 'ph:brain-duotone' : provider === 'moonshot' ? 'ph:moon-duotone' : 'ph:cube-duotone'"
+        collapsible
+        :sectionId="'inference-' + String(provider)"
+        :collapsed="expandedProvider !== 'inference-' + String(provider)"
+        @toggle="handleAccordionToggle"
+      >
+        <div class="models-grid">
+          <ModelCard
+            v-for="model in models"
+            :key="model.model_id"
+            :model="model"
+            :selected="selectedModel === model.model_id"
+            @select="selectModel"
+          />
         </div>
       </PanelSection>
+      
+      <PanelSection v-if="!hasInferenceModels">
+        <div class="empty-state">
+          <iconify-icon icon="ph:cloud-slash-duotone"></iconify-icon>
+          <span>No hosted models available</span>
+        </div>
+      </PanelSection>
+    </template>
 
-      <!-- Model Selection -->
-      <PanelSection v-if="!isLoading" title="Models" icon="ph:list-bullets-duotone">
-        <p class="section-description">
-          Choose between hosted models (no API key needed) or use your own provider keys.
+    <!-- Plugin Models (Premium/Your API) -->
+    <template v-if="activeTab === 'plugins' && !isLoading">
+      <PanelSection
+        v-for="(models, provider) in pluginModelsByProvider"
+        :key="provider"
+        :title="String(provider).charAt(0).toUpperCase() + String(provider).slice(1)"
+        :icon="provider === 'openai' ? 'simple-icons:openai' : provider === 'anthropic' ? 'simple-icons:anthropic' : provider === 'google' ? 'simple-icons:googlegemini' : provider === 'groq' ? 'ph:lightning-duotone' : provider === 'mistralai' ? 'ph:wind-duotone' : 'ph:cube-duotone'"
+        collapsible
+        :sectionId="'plugins-' + String(provider)"
+        :collapsed="expandedProvider !== 'plugins-' + String(provider)"
+        @toggle="handleAccordionToggle"
+      >
+        <div class="models-grid">
+          <ModelCard
+            v-for="model in models"
+            :key="model.model_id"
+            :model="model"
+            :selected="selectedModel === model.model_id"
+            @select="selectModel"
+          />
+        </div>
+      </PanelSection>
+      
+      <PanelSection v-if="!hasPluginModels">
+        <div class="empty-state">
+          <iconify-icon icon="ph:plug-duotone"></iconify-icon>
+          <span>No plugin models available</span>
+        </div>
+      </PanelSection>
+    </template>
+
+    <!-- Model Parameters -->
+    <PanelSection title="Parameters" icon="ph:sliders-horizontal-duotone">
+      <div class="params-form">
+        <BaseSlider
+          label="Temperature"
+          :min="0"
+          :max="1"
+          :step="0.05"
+          :modelValue="llm.temperature"
+          @update:modelValue="updateTemperature"
+          :showValue="true"
+        />
+        <p class="param-hint">
+          Lower = more focused, Higher = more creative
         </p>
         
-        <div class="legend">
-          <div class="legend-group">
-            <span class="legend-label">Speed</span>
-            <div class="legend-items">
-              <span class="legend-item"><iconify-icon icon="ph:lightning-duotone"></iconify-icon> Fast</span>
-              <span class="legend-item"><iconify-icon icon="ph:gauge-duotone"></iconify-icon> Standard</span>
-              <span class="legend-item"><iconify-icon icon="ph:hourglass-duotone"></iconify-icon> Slow</span>
-            </div>
-          </div>
-          <div class="legend-group">
-            <span class="legend-label">Tier</span>
-            <div class="legend-items">
-              <span class="legend-item tier-flagship">Flagship</span>
-              <span class="legend-item tier-budget">Budget</span>
-            </div>
-          </div>
-          <div class="legend-group">
-            <span class="legend-label">Capabilities</span>
-            <div class="legend-items">
-              <span class="legend-item cap-vision"><iconify-icon icon="ph:eye-duotone"></iconify-icon> Vision</span>
-              <span class="legend-item cap-tools"><iconify-icon icon="ph:wrench-duotone"></iconify-icon> Tools</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="tab-selector">
-          <button
-            class="tab-btn"
-            :class="{ active: activeTab === 'inference' }"
-            @click="activeTab = 'inference'"
-            :disabled="!hasInferenceModels"
-          >
-            <iconify-icon icon="ph:cloud-duotone"></iconify-icon>
-            <span>Standard</span>
-          </button>
-          <button
-            class="tab-btn"
-            :class="{ active: activeTab === 'plugins' }"
-            @click="activeTab = 'plugins'"
-            :disabled="!hasPluginModels"
-          >
-            <iconify-icon icon="ph:plug-duotone"></iconify-icon>
-            <span>Premium</span>
-          </button>
-        </div>
-      </PanelSection>
-
-      <!-- Inference Models (Standard/Hosted) -->
-      <template v-if="activeTab === 'inference' && !isLoading">
-        <PanelSection
-          v-for="(models, provider) in inferenceModelsByProvider"
-          :key="provider"
-          :title="String(provider).charAt(0).toUpperCase() + String(provider).slice(1)"
-          :icon="provider === 'openai' ? 'simple-icons:openai' : provider === 'google' ? 'simple-icons:googlegemini' : provider === 'deepseek' ? 'ph:brain-duotone' : provider === 'moonshot' ? 'ph:moon-duotone' : 'ph:cube-duotone'"
-          collapsible
-          :sectionId="'inference-' + String(provider)"
-          :collapsed="expandedProvider !== 'inference-' + String(provider)"
-          @toggle="handleAccordionToggle"
-        >
-          <div class="models-grid">
-            <ModelCard
-              v-for="model in models"
-              :key="model.model_id"
-              :model="model"
-              :selected="selectedModel === model.model_id"
-              @select="selectModel"
-            />
-          </div>
-        </PanelSection>
-        
-        <PanelSection v-if="!hasInferenceModels">
-          <div class="empty-state">
-            <iconify-icon icon="ph:cloud-slash-duotone"></iconify-icon>
-            <span>No hosted models available</span>
-          </div>
-        </PanelSection>
-      </template>
-
-      <!-- Plugin Models (Premium/Your API) -->
-      <template v-if="activeTab === 'plugins' && !isLoading">
-        <PanelSection
-          v-for="(models, provider) in pluginModelsByProvider"
-          :key="provider"
-          :title="String(provider).charAt(0).toUpperCase() + String(provider).slice(1)"
-          :icon="provider === 'openai' ? 'simple-icons:openai' : provider === 'anthropic' ? 'simple-icons:anthropic' : provider === 'google' ? 'simple-icons:googlegemini' : provider === 'groq' ? 'ph:lightning-duotone' : provider === 'mistralai' ? 'ph:wind-duotone' : 'ph:cube-duotone'"
-          collapsible
-          :sectionId="'plugins-' + String(provider)"
-          :collapsed="expandedProvider !== 'plugins-' + String(provider)"
-          @toggle="handleAccordionToggle"
-        >
-          <div class="models-grid">
-            <ModelCard
-              v-for="model in models"
-              :key="model.model_id"
-              :model="model"
-              :selected="selectedModel === model.model_id"
-              @select="selectModel"
-            />
-          </div>
-        </PanelSection>
-        
-        <PanelSection v-if="!hasPluginModels">
-          <div class="empty-state">
-            <iconify-icon icon="ph:plug-duotone"></iconify-icon>
-            <span>No plugin models available</span>
-          </div>
-        </PanelSection>
-      </template>
-
-      <!-- Model Parameters -->
-      <PanelSection title="Parameters" icon="ph:sliders-horizontal-duotone">
-        <div class="params-form">
-          <BaseSlider
-            label="Temperature"
-            :min="0"
-            :max="1"
-            :step="0.05"
-            :modelValue="llm.temperature"
-            @update:modelValue="updateTemperature"
-            :showValue="true"
-          />
-          <p class="param-hint">
-            Lower = more focused, Higher = more creative
-          </p>
-          
-          <BaseSlider
-            label="Max Tokens"
-            :min="64"
-            :max="4096"
-            :step="64"
-            :modelValue="llm.maxTokens"
-            @update:modelValue="updateMaxTokens"
-            :showValue="true"
-          />
-          <p class="param-hint">
-            Maximum length of the response
-          </p>
-        </div>
-      </PanelSection>
-    </div>
-  </div>
+        <BaseSlider
+          label="Max Tokens"
+          :min="64"
+          :max="4096"
+          :step="64"
+          :modelValue="llm.maxTokens"
+          @update:modelValue="updateMaxTokens"
+          :showValue="true"
+        />
+        <p class="param-hint">
+          Maximum length of the response
+        </p>
+      </div>
+    </PanelSection>
+  </BasePanel>
 </template>
 
 <style scoped>
