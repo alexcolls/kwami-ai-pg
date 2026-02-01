@@ -1,20 +1,27 @@
 <script setup lang="ts">
+import { ref, watch } from 'vue';
+import { storeToRefs } from 'pinia';
 import { useKwami } from '@/composables/useKwami';
+import { useCrystalStore, type InteractionAction, type CrystalFormation } from '@/stores/avatar.crystal';
 import PanelSection from '@/components/ui/PanelSection.vue';
 import BaseSlider from '@/components/ui/BaseSlider.vue';
-import BaseColorPicker from '@/components/ui/BaseColorPicker.vue';
 import BaseToggle from '@/components/ui/BaseToggle.vue';
 import BaseSelect from '@/components/ui/BaseSelect.vue';
-import type { CrystalState, InteractionAction } from '@/stores/avatar';
+import BaseColorPicker from '@/components/ui/BaseColorPicker.vue';
 import AudioVisualizer from '../audio/AudioVisualizer.vue';
 import MicrophoneControl from '../audio/MicrophoneControl.vue';
-import { watch, onMounted } from 'vue';
 
-// Use defineModel for proper two-way binding (Vue 3.3+)
-const state = defineModel<CrystalState>('state', { required: true });
 const { kwami, switchRenderer } = useKwami();
+const crystalStore = useCrystalStore();
+const { appearance, colors, glow, animation, clickEvents, cursorTouch, audio } = storeToRefs(crystalStore);
 
-// Interaction Logic
+// Link toggle for rotation
+const linkRotation = ref(false);
+
+// =====================================================
+// INTERACTION OPTIONS
+// =====================================================
+
 const actionOptions = [
   { label: 'None', value: 'none' },
   { label: 'Toggle Listening', value: 'toggleListening' },
@@ -33,18 +40,36 @@ const cursorOptions = [
   { label: 'Default', value: 'default' },
 ];
 
+// =====================================================
+// HELPERS
+// =====================================================
+
+function getCrystal() {
+  return kwami.value?.avatar.getCrystal();
+}
+
+function randomHex(): string {
+  return '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0');
+}
+
+function randomInRange(min: number, max: number, step: number = 0.01): number {
+  const range = (max - min) / step;
+  return min + Math.round(Math.random() * range) * step;
+}
+
+// =====================================================
+// INTERACTION ACTIONS
+// =====================================================
+
 function executeAction(action: InteractionAction) {
   if (!kwami.value) return;
 
   switch (action) {
-    case 'toggleListening':
+    case 'toggleListening': {
       const currentState = kwami.value.getState() || 'idle';
-      if (currentState === 'listening') {
-        kwami.value.setState('idle');
-      } else {
-        kwami.value.setState('listening');
-      }
+      kwami.value.setState(currentState === 'listening' ? 'idle' : 'listening');
       break;
+    }
     case 'startListening':
       kwami.value.setState('listening');
       break;
@@ -60,10 +85,10 @@ function executeAction(action: InteractionAction) {
       const renderers = ['blob', 'crystal', 'particles'] as const;
       const currentIdx = renderers.indexOf(renderer as typeof renderers[number]);
       const nextIdx = (currentIdx + 1) % renderers.length;
-      switchRenderer(renderers[nextIdx]);
+      switchRenderer(renderers[nextIdx] ?? 'blob');
       break;
     }
-    case 'cycleState':
+    case 'cycleState': {
       const states = ['idle', 'listening', 'thinking'] as const;
       const current = kwami.value.getState() || 'idle';
       const currentIndex = states.indexOf(current as typeof states[number]);
@@ -72,13 +97,12 @@ function executeAction(action: InteractionAction) {
       kwami.value.setState(nextState);
       window.dispatchEvent(new CustomEvent('kwami:stateChanged', { detail: nextState }));
       break;
-    case 'pulse':
-      const crystal = kwami.value.avatar.getCrystal();
+    }
+    case 'pulse': {
+      const crystal = getCrystal();
       if (crystal) crystal.triggerPulse();
       break;
-    case 'moveToClick':
-      // Not implemented for Crystal
-      break;
+    }
   }
 }
 
@@ -86,25 +110,96 @@ function testAction(action: InteractionAction) {
   executeAction(action);
 }
 
-// Watchers for Interaction
-watch(() => state.value.interaction, (config) => {
-  const crystal = kwami.value?.avatar.getCrystal();
+// =====================================================
+// SECTION-SPECIFIC RANDOMIZERS
+// =====================================================
+
+// Formation
+function randomizeFormation() {
+  const formations: CrystalFormation[] = ['constellation', 'helix', 'vortex'];
+  appearance.value.formation = formations[Math.floor(Math.random() * formations.length)] ?? 'constellation';
+  appearance.value.shardCount = Math.floor(randomInRange(8, 60, 1));
+}
+
+// Size
+function randomizeSize() {
+  appearance.value.scale = randomInRange(0.5, 2, 0.05);
+}
+
+// Colors
+function randomizeColors() {
+  colors.value.primary = randomHex();
+  colors.value.secondary = randomHex();
+  colors.value.accent = randomHex();
+}
+
+// Core Colors
+function randomizeCoreColors() {
+  colors.value.core.inner = randomHex();
+  colors.value.core.outer = randomHex();
+}
+
+// Glow
+function randomizeGlow() {
+  glow.value.intensity = randomInRange(0.1, 3, 0.1);
+}
+
+// Rotation
+function randomizeRotation() {
+  if (linkRotation.value) {
+    const rot = randomInRange(-0.01, 0.01, 0.001);
+    animation.value.rotation = { x: rot, y: rot, z: rot };
+  } else {
+    animation.value.rotation = {
+      x: randomInRange(-0.01, 0.01, 0.001),
+      y: randomInRange(-0.01, 0.01, 0.001),
+      z: randomInRange(-0.01, 0.01, 0.001),
+    };
+  }
+}
+
+// Audio
+function randomizeAudio() {
+  audio.value.reactivity = randomInRange(0.5, 3, 0.1);
+  audio.value.smoothing = randomInRange(0.02, 0.3, 0.01);
+}
+
+// Frequency Boosts
+function randomizeFrequencyBoosts() {
+  audio.value.frequencyBoosts = {
+    bass: randomInRange(0, 1, 0.05),
+    mid: randomInRange(0, 1, 0.05),
+    high: randomInRange(0, 1.5, 0.05),
+  };
+}
+
+// =====================================================
+// LINKED WATCHERS
+// =====================================================
+
+watch(() => animation.value.rotation.x, (val) => {
+  if (linkRotation.value) {
+    animation.value.rotation.y = val;
+    animation.value.rotation.z = val;
+  }
+});
+
+// =====================================================
+// INTERACTION WATCHERS
+// =====================================================
+
+watch(clickEvents, (config) => {
+  const crystal = getCrystal();
   if (!crystal) return;
 
-  // Apply click handlers
-  if (config.click.enabled && config.click.action !== 'none') {
-    crystal.onClick = () => executeAction(config.click.action);
-  } else {
-    crystal.onClick = () => {};
-  }
+  crystal.onClick = config.click.enabled && config.click.action !== 'none'
+    ? () => executeAction(config.click.action)
+    : () => {};
 
-  if (config.doubleClick.enabled && config.doubleClick.action !== 'none') {
-    crystal.onDoubleClick = () => executeAction(config.doubleClick.action);
-  } else {
-    crystal.onDoubleClick = () => {};
-  }
+  crystal.onDoubleClick = config.doubleClick.enabled && config.doubleClick.action !== 'none'
+    ? () => executeAction(config.doubleClick.action)
+    : () => {};
 
-  // Right clicks
   if (config.rightClick.enabled && config.rightClick.action !== 'none') {
     crystal.setRightClickCallback(() => executeAction(config.rightClick.action));
   } else {
@@ -117,412 +212,297 @@ watch(() => state.value.interaction, (config) => {
     crystal.setDoubleRightClickCallback(() => {});
   }
 }, { deep: true, immediate: true });
-
-// Audio Helpers
-function getCrystal() {
-  return kwami.value?.avatar.getCrystal();
-}
-
-function getScene() {
-  return kwami.value?.avatar.getScene();
-}
-
-// Watchers for Audio Effects
-watch(() => state.value.audioEffects, (s) => {
-  const crystal = getCrystal();
-  if (crystal) {
-    crystal.audioEffects.enabled = s.enabled;
-    crystal.audioEffects.reactivity = s.reactivity;
-    crystal.audioEffects.smoothing = s.smoothing;
-    crystal.audioEffects.bassOrbitBoost = s.bassOrbitBoost;
-    crystal.audioEffects.midRotationBoost = s.midRotationBoost;
-    crystal.audioEffects.highGlowBoost = s.highGlowBoost;
-  }
-}, { deep: true, immediate: true });
-
-// Watchers for Scene (Camera & Lighting)
-watch(
-  () => state.value.scene.camera.fov,
-  (v) => {
-    const s = getScene();
-    if (s) {
-      s.camera.fov = v;
-      s.camera.updateProjectionMatrix();
-    }
-  }
-);
-
-watch(
-  () => state.value.scene.camera.distance,
-  (v) => {
-    const s = getScene();
-    if (s) {
-      s.camera.position.z = v;
-      s.camera.lookAt(0, 0, 0);
-    }
-  }
-);
-
-function updateAvatarLighting() {
-  const crystal = getCrystal();
-  if (!crystal) return;
-  
-  const { top, bottom } = state.value.scene.lighting;
-  
-  if (typeof crystal.setLightPosition === 'function') {
-    const topWeight = top;
-    const bottomWeight = bottom;
-    const totalWeight = topWeight + bottomWeight + 0.01;
-    
-    const y = ((topWeight * 500) - (bottomWeight * 500)) / totalWeight;
-    const z = ((topWeight * 2000) + (bottomWeight * 400)) / totalWeight;
-    
-    crystal.setLightPosition(0, y, z);
-  }
-}
-
-function updateAvatarGlow() {
-  const crystal = getCrystal();
-  if (!crystal) return;
-  
-  if (typeof crystal.setLightIntensity === 'function') {
-    const ambient = state.value.scene.lighting.ambient;
-    // Map ambient (0-2) directly to glow intensity (0-2.5) for crystal
-    const glowIntensity = ambient * 1.25;
-    crystal.setLightIntensity(glowIntensity);
-  }
-}
-
-watch(
-  () => state.value.scene.lighting.top,
-  (v) => {
-    const s = getScene();
-    if (s) s.lights.top.intensity = v;
-    updateAvatarLighting();
-  }
-);
-
-watch(
-  () => state.value.scene.lighting.bottom,
-  (v) => {
-    const s = getScene();
-    if (s) s.lights.bottom.intensity = v;
-    updateAvatarLighting();
-  }
-);
-
-watch(
-  () => state.value.scene.lighting.ambient,
-  (v) => {
-    const s = getScene();
-    if (s) s.lights.ambient.intensity = v;
-    updateAvatarGlow();
-  }
-);
-
-// Initial sync on mount
-onMounted(() => {
-  const s = getScene();
-  if (s) {
-    updateAvatarLighting();
-    updateAvatarGlow();
-  }
-});
 </script>
 
 <template>
-    <!-- Appearance Section -->
-    <PanelSection title="Appearance" collapsible>
-      <!-- Formation -->
-      <div class="subsection">
-        <div class="subsection-header">
-          <span class="subsection-title">Formation</span>
-        </div>
-        <div class="formation-selector">
-          <label
-            v-for="form in ['constellation', 'helix', 'vortex']"
-            :key="form"
-            class="formation-option"
-            :class="{ active: state.formation === form }"
-          >
-            <input type="radio" :value="form" v-model="state.formation" />
-            <iconify-icon
-              :icon="
-                form === 'constellation'
-                  ? 'ph:shooting-star-duotone'
-                  : form === 'helix'
-                    ? 'ph:dna-duotone'
-                    : 'ph:spiral-duotone'
-              "
-              class="formation-icon"
-            ></iconify-icon>
-            <span class="formation-label">{{ form.charAt(0).toUpperCase() + form.slice(1) }}</span>
-          </label>
-        </div>
-      </div>
+  <!-- ==================== FORMATION ==================== -->
+  <PanelSection title="Formation" icon="ph:polygon-duotone" collapsible>
+    <template #actions>
+      <button class="dice-btn" @click="randomizeFormation" title="Randomize formation">
+        <iconify-icon icon="ph:dice-three-duotone"></iconify-icon>
+      </button>
+    </template>
+    <p class="section-desc">Crystal structure and shard arrangement</p>
+    <div class="formation-selector">
+      <label
+        v-for="form in (['constellation', 'helix', 'vortex'] as const)"
+        :key="form"
+        class="formation-option"
+        :class="{ active: appearance.formation === form }"
+      >
+        <input type="radio" :value="form" v-model="appearance.formation" />
+        <iconify-icon
+          :icon="
+            form === 'constellation'
+              ? 'ph:shooting-star-duotone'
+              : form === 'helix'
+                ? 'ph:dna-duotone'
+                : 'ph:spiral-duotone'
+          "
+          class="formation-icon"
+        ></iconify-icon>
+        <span class="formation-label">{{ form.charAt(0).toUpperCase() + form.slice(1) }}</span>
+      </label>
+    </div>
+    <div class="slider-group" style="margin-top: 12px">
+      <BaseSlider label="Shard Count" :min="8" :max="60" :step="1" v-model="appearance.shardCount" />
+    </div>
+  </PanelSection>
 
-      <!-- Colors -->
-      <div class="subsection">
-        <div class="subsection-header">
-          <span class="subsection-title">Colors</span>
-        </div>
-        <div class="row-3">
-          <BaseColorPicker label="Primary" v-model="state.colors.primary" />
-          <BaseColorPicker label="Secondary" v-model="state.colors.secondary" />
-          <BaseColorPicker label="Accent" v-model="state.colors.accent" />
-        </div>
-      </div>
+  <!-- ==================== SIZE ==================== -->
+  <PanelSection title="Size" icon="ph:arrows-out-duotone" collapsible>
+    <template #actions>
+      <button class="dice-btn" @click="randomizeSize" title="Randomize size">
+        <iconify-icon icon="ph:dice-three-duotone"></iconify-icon>
+      </button>
+    </template>
+    <p class="section-desc">Overall crystal scale in the scene</p>
+    <BaseSlider label="Scale" :min="0.5" :max="2" :step="0.05" v-model="appearance.scale" />
+  </PanelSection>
 
-      <!-- Core & Shards -->
-      <div class="subsection">
-        <div class="subsection-header">
-          <span class="subsection-title">Core & Shards</span>
-        </div>
-        <div class="row-2" style="margin-bottom: 12px">
-          <BaseColorPicker label="Inner Core" v-model="state.coreColors.inner" />
-          <BaseColorPicker label="Outer Core" v-model="state.coreColors.outer" />
-        </div>
-        <div class="slider-group">
-          <BaseSlider label="Glow" :min="0.1" :max="3" :step="0.1" v-model="state.glowIntensity" />
-          <BaseSlider label="Count" :min="8" :max="60" :step="1" v-model="state.shardCount" />
-        </div>
-      </div>
+  <!-- ==================== CRYSTAL COLORS ==================== -->
+  <PanelSection title="Crystal Colors" icon="ph:palette-duotone" collapsible>
+    <template #actions>
+      <button class="dice-btn" @click="randomizeColors" title="Randomize colors">
+        <iconify-icon icon="ph:dice-three-duotone"></iconify-icon>
+      </button>
+    </template>
+    <p class="section-desc">Main color scheme for the crystal shards</p>
+    <div class="row-3">
+      <BaseColorPicker label="Primary" v-model="colors.primary" />
+      <BaseColorPicker label="Secondary" v-model="colors.secondary" />
+      <BaseColorPicker label="Accent" v-model="colors.accent" />
+    </div>
+  </PanelSection>
 
-      <!-- Properties -->
-      <div class="subsection">
-        <div class="subsection-header">
-          <span class="subsection-title">Properties</span>
-        </div>
-        <div class="slider-group">
-          <BaseSlider label="Scale" :min="0.5" :max="2" :step="0.05" v-model="state.scale" />
-        </div>
-      </div>
-    </PanelSection>
+  <!-- ==================== CORE COLORS ==================== -->
+  <PanelSection title="Core Colors" icon="ph:circle-duotone" collapsible>
+    <template #actions>
+      <button class="dice-btn" @click="randomizeCoreColors" title="Randomize core colors">
+        <iconify-icon icon="ph:dice-three-duotone"></iconify-icon>
+      </button>
+    </template>
+    <p class="section-desc">Inner and outer core glow colors</p>
+    <div class="row-2">
+      <BaseColorPicker label="Inner Core" v-model="colors.core.inner" />
+      <BaseColorPicker label="Outer Core" v-model="colors.core.outer" />
+    </div>
+  </PanelSection>
 
-    <!-- Camera & Lighting Section -->
-    <PanelSection title="Scene" collapsible>
-      <div class="subsection">
-        <span class="subsection-title">Camera</span>
-        <div class="slider-group">
-          <BaseSlider label="FOV" :min="30" :max="150" :step="1" v-model="state.scene.camera.fov" />
-          <BaseSlider label="Distance" :min="2" :max="20" :step="0.5" v-model="state.scene.camera.distance" />
-        </div>
-      </div>
-      
-      <div class="subsection">
-        <span class="subsection-title">Lighting</span>
-        <div class="slider-group">
-          <BaseSlider label="Top" :min="0" :max="2" :step="0.1" v-model="state.scene.lighting.top" />
-          <BaseSlider label="Bottom" :min="0" :max="2" :step="0.1" v-model="state.scene.lighting.bottom" />
-          <BaseSlider label="Ambient" :min="0" :max="2" :step="0.1" v-model="state.scene.lighting.ambient" />
-        </div>
-      </div>
-    </PanelSection>
+  <!-- ==================== GLOW ==================== -->
+  <PanelSection title="Glow" icon="ph:sun-duotone" collapsible>
+    <template #actions>
+      <button class="dice-btn" @click="randomizeGlow" title="Randomize glow">
+        <iconify-icon icon="ph:dice-three-duotone"></iconify-icon>
+      </button>
+    </template>
+    <p class="section-desc">Light emission intensity around crystals</p>
+    <BaseSlider label="Intensity" :min="0.1" :max="3" :step="0.1" v-model="glow.intensity" />
+  </PanelSection>
 
-    <!-- Animation Section -->
-    <PanelSection title="Animation" collapsible>
-      <div class="subsection">
-        <span class="subsection-title">Rotation Speed</span>
-        <div class="slider-group">
-          <BaseSlider
-            label="Rot X"
-            :min="-0.01"
-            :max="0.01"
-            :step="0.001"
-            v-model="state.rotation.x"
-          />
-          <BaseSlider
-            label="Rot Y"
-            :min="-0.01"
-            :max="0.01"
-            :step="0.001"
-            v-model="state.rotation.y"
-          />
-          <BaseSlider
-            label="Rot Z"
-            :min="-0.01"
-            :max="0.01"
-            :step="0.001"
-            v-model="state.rotation.z"
-          />
-        </div>
-      </div>
+  <!-- ==================== ROTATION ==================== -->
+  <PanelSection title="Rotation" icon="ph:arrows-clockwise-duotone" collapsible>
+    <template #actions>
+      <button 
+        class="link-btn" 
+        :class="{ active: linkRotation }" 
+        @click="linkRotation = !linkRotation"
+        title="Link XYZ values"
+      >
+        <iconify-icon :icon="linkRotation ? 'ph:link-duotone' : 'ph:link-break-duotone'"></iconify-icon>
+      </button>
+      <button class="dice-btn" @click="randomizeRotation" title="Randomize rotation">
+        <iconify-icon icon="ph:dice-three-duotone"></iconify-icon>
+      </button>
+    </template>
+    <p class="section-desc">Auto rotation speed on each axis</p>
+    <div class="slider-group" :class="{ linked: linkRotation }">
+      <BaseSlider label="X" :min="-0.01" :max="0.01" :step="0.001" v-model="animation.rotation.x" />
+      <BaseSlider v-if="!linkRotation" label="Y" :min="-0.01" :max="0.01" :step="0.001" v-model="animation.rotation.y" />
+      <BaseSlider v-if="!linkRotation" label="Z" :min="-0.01" :max="0.01" :step="0.001" v-model="animation.rotation.z" />
+    </div>
+  </PanelSection>
 
-      <div class="subsection">
-        <span class="subsection-title">Transitions</span>
-        <div class="slider-group">
-          <BaseSlider 
-            label="Speed" 
-            :min="0.01" 
-            :max="0.2" 
-            :step="0.01" 
-            v-model="state.transitionSpeed"
-          />
-          <BaseSlider 
-            label="Thinking Duration" 
-            :min="1000" 
-            :max="30000" 
-            :step="500" 
-            v-model="state.thinkingDuration"
-          />
-        </div>
+  <!-- ==================== CLICK EVENTS ==================== -->
+  <PanelSection title="Click Events" icon="ph:cursor-click-duotone" collapsible>
+    <p class="section-desc">Actions triggered by mouse clicks</p>
+    
+    <div class="interaction-row">
+      <div class="interaction-header">
+        <iconify-icon icon="ph:hand-tap-duotone"></iconify-icon>
+        <span>Single Click</span>
+        <BaseToggle v-model="clickEvents.click.enabled" size="sm" />
       </div>
-    </PanelSection>
-
-    <!-- Interaction Section -->
-    <PanelSection title="Interaction" collapsible>
-      <!-- Click Actions -->
-      <div class="interaction-row">
-        <div class="interaction-header">
-          <iconify-icon icon="ph:hand-tap-duotone"></iconify-icon>
-          <span>Single Click</span>
-          <BaseToggle v-model="state.interaction.click.enabled" size="sm" />
-        </div>
-        <div class="interaction-config" v-if="state.interaction.click.enabled">
-          <BaseSelect
-            label="Action"
-            v-model="state.interaction.click.action"
-            :options="actionOptions"
-          />
-          <button class="test-btn" @click="testAction(state.interaction.click.action)" title="Test Action">
-            <iconify-icon icon="ph:play-fill"></iconify-icon>
-          </button>
-        </div>
-      </div>
-
-      <div class="interaction-row">
-        <div class="interaction-header">
-          <iconify-icon icon="ph:hand-duotone"></iconify-icon>
-          <span>Double Click</span>
-          <BaseToggle v-model="state.interaction.doubleClick.enabled" size="sm" />
-        </div>
-        <div class="interaction-config" v-if="state.interaction.doubleClick.enabled">
-          <BaseSelect
-            label="Action"
-            v-model="state.interaction.doubleClick.action"
-            :options="actionOptions"
-          />
-          <button class="test-btn" @click="testAction(state.interaction.doubleClick.action)" title="Test Action">
-            <iconify-icon icon="ph:play-fill"></iconify-icon>
-          </button>
-        </div>
-      </div>
-
-      <div class="interaction-row">
-        <div class="interaction-header">
-          <iconify-icon icon="ph:mouse-right-click-duotone"></iconify-icon>
-          <span>Right Click</span>
-          <BaseToggle v-model="state.interaction.rightClick.enabled" size="sm" />
-        </div>
-        <div class="interaction-config" v-if="state.interaction.rightClick.enabled">
-          <BaseSelect
-            label="Action"
-            v-model="state.interaction.rightClick.action"
-            :options="actionOptions"
-          />
-          <button class="test-btn" @click="testAction(state.interaction.rightClick.action)" title="Test Action">
-            <iconify-icon icon="ph:play-fill"></iconify-icon>
-          </button>
-        </div>
-      </div>
-
-      <!-- Hover Settings -->
-      <div class="hover-settings">
-        <div class="interaction-header">
-            <iconify-icon icon="ph:cursor-duotone"></iconify-icon>
-            <span>Hover Effects</span>
-            <BaseToggle v-model="state.interaction.hover.enabled" size="sm" />
-        </div>
-        <div class="interaction-config" v-if="state.interaction.hover.enabled">
-            <BaseToggle label="Highlight" v-model="state.interaction.hover.highlightOnHover" />
-            <BaseSelect
-                label="Cursor"
-                v-model="state.interaction.hover.cursorStyle"
-                :options="cursorOptions"
-            />
-        </div>
-      </div>
-    </PanelSection>
-
-    <!-- Audio Reactivity Section -->
-    <PanelSection title="Audio Reactivity" collapsible>
-      <div class="toggle-row">
-        <BaseToggle label="Enable Audio Effects" v-model="state.audioEffects.enabled" />
-      </div>
-      
-      <MicrophoneControl />
-      <AudioVisualizer />
-
-      <div v-if="state.audioEffects.enabled" class="slider-group" style="margin-top: 12px">
-        <BaseSlider 
-          label="Reactivity" 
-          :min="0" 
-          :max="3" 
-          :step="0.1" 
-          v-model="state.audioEffects.reactivity"
+      <div class="interaction-config" v-if="clickEvents.click.enabled">
+        <BaseSelect
+          label="Action"
+          v-model="clickEvents.click.action"
+          :options="actionOptions"
         />
-        <BaseSlider
-          label="Smoothing"
-          :min="0"
-          :max="0.3"
-          :step="0.005"
-          v-model="state.audioEffects.smoothing"
-        />
-        
-        <div class="subsection-title">Frequency Response</div>
-        <BaseSlider 
-          label="Bass Orbit Boost" 
-          :min="0" 
-          :max="1" 
-          :step="0.05" 
-          v-model="state.audioEffects.bassOrbitBoost"
-        />
-        <BaseSlider 
-          label="Mid Rotation Boost" 
-          :min="0" 
-          :max="1" 
-          :step="0.05" 
-          v-model="state.audioEffects.midRotationBoost"
-        />
-        <BaseSlider 
-          label="High Glow Boost" 
-          :min="0" 
-          :max="1" 
-          :step="0.05" 
-          v-model="state.audioEffects.highGlowBoost"
-        />
+        <button class="test-btn" @click="testAction(clickEvents.click.action)" title="Test Action">
+          <iconify-icon icon="ph:play-fill"></iconify-icon>
+        </button>
       </div>
-      <p v-if="!state.audioEffects.enabled" class="hint">
-        Enable to make crystals react to audio input
-      </p>
-    </PanelSection>
+    </div>
+
+    <div class="interaction-row">
+      <div class="interaction-header">
+        <iconify-icon icon="ph:hand-duotone"></iconify-icon>
+        <span>Double Click</span>
+        <BaseToggle v-model="clickEvents.doubleClick.enabled" size="sm" />
+      </div>
+      <div class="interaction-config" v-if="clickEvents.doubleClick.enabled">
+        <BaseSelect
+          label="Action"
+          v-model="clickEvents.doubleClick.action"
+          :options="actionOptions"
+        />
+        <button class="test-btn" @click="testAction(clickEvents.doubleClick.action)" title="Test Action">
+          <iconify-icon icon="ph:play-fill"></iconify-icon>
+        </button>
+      </div>
+    </div>
+
+    <div class="interaction-row">
+      <div class="interaction-header">
+        <iconify-icon icon="ph:mouse-right-click-duotone"></iconify-icon>
+        <span>Right Click</span>
+        <BaseToggle v-model="clickEvents.rightClick.enabled" size="sm" />
+      </div>
+      <div class="interaction-config" v-if="clickEvents.rightClick.enabled">
+        <BaseSelect
+          label="Action"
+          v-model="clickEvents.rightClick.action"
+          :options="actionOptions"
+        />
+        <button class="test-btn" @click="testAction(clickEvents.rightClick.action)" title="Test Action">
+          <iconify-icon icon="ph:play-fill"></iconify-icon>
+        </button>
+      </div>
+    </div>
+
+    <div class="interaction-row">
+      <div class="interaction-header">
+        <iconify-icon icon="ph:mouse-right-click-duotone"></iconify-icon>
+        <span>Double Right Click</span>
+        <BaseToggle v-model="clickEvents.doubleRightClick.enabled" size="sm" />
+      </div>
+      <div class="interaction-config" v-if="clickEvents.doubleRightClick.enabled">
+        <BaseSelect
+          label="Action"
+          v-model="clickEvents.doubleRightClick.action"
+          :options="actionOptions"
+        />
+        <button class="test-btn" @click="testAction(clickEvents.doubleRightClick.action)" title="Test Action">
+          <iconify-icon icon="ph:play-fill"></iconify-icon>
+        </button>
+      </div>
+    </div>
+  </PanelSection>
+
+  <!-- ==================== HOVER & DRAG ==================== -->
+  <PanelSection title="Hover & Drag" icon="ph:hand-duotone" collapsible>
+    <p class="section-desc">Cursor behavior when interacting</p>
+    
+    <div class="toggle-row">
+      <BaseToggle label="Enable Hover" v-model="cursorTouch.hover.enabled" />
+    </div>
+    <div v-if="cursorTouch.hover.enabled" class="hover-config">
+      <BaseToggle label="Highlight on Hover" v-model="cursorTouch.hover.highlightOnHover" />
+      <BaseSelect
+        label="Cursor Style"
+        v-model="cursorTouch.hover.cursorStyle"
+        :options="cursorOptions"
+      />
+    </div>
+
+    <div class="toggle-row" style="margin-top: 12px">
+      <BaseToggle label="Enable Drag" v-model="cursorTouch.drag.enabled" />
+    </div>
+    <div v-if="cursorTouch.drag.enabled" class="slider-group">
+      <BaseSlider label="Sensitivity" :min="0.1" :max="3" :step="0.1" v-model="cursorTouch.drag.sensitivity" />
+    </div>
+  </PanelSection>
+
+  <!-- ==================== AUDIO REACTIVITY ==================== -->
+  <PanelSection title="Audio Reactivity" icon="ph:waveform-duotone" collapsible>
+    <template #actions>
+      <button class="dice-btn" @click="randomizeAudio" title="Randomize audio settings">
+        <iconify-icon icon="ph:dice-three-duotone"></iconify-icon>
+      </button>
+    </template>
+    <p class="section-desc">How the crystal responds to sound</p>
+    
+    <div class="toggle-row">
+      <BaseToggle label="Enable Audio Effects" v-model="audio.enabled" />
+    </div>
+    
+    <MicrophoneControl />
+    <AudioVisualizer />
+
+    <div v-if="audio.enabled" class="slider-group" style="margin-top: 12px">
+      <BaseSlider 
+        label="Reactivity" 
+        :min="0" 
+        :max="3" 
+        :step="0.1" 
+        v-model="audio.reactivity"
+      />
+      <BaseSlider
+        label="Smoothing"
+        :min="0"
+        :max="0.3"
+        :step="0.005"
+        v-model="audio.smoothing"
+      />
+    </div>
+  </PanelSection>
+
+  <!-- ==================== FREQUENCY RESPONSE ==================== -->
+  <PanelSection title="Frequency Response" icon="ph:equalizer-duotone" collapsible>
+    <template #actions>
+      <button class="dice-btn" @click="randomizeFrequencyBoosts" title="Randomize frequency">
+        <iconify-icon icon="ph:dice-three-duotone"></iconify-icon>
+      </button>
+    </template>
+    <p class="section-desc">How different frequencies affect the crystal</p>
+    
+    <div class="slider-group">
+      <BaseSlider 
+        label="Bass (Orbit)" 
+        :min="0" 
+        :max="1" 
+        :step="0.05" 
+        v-model="audio.frequencyBoosts.bass"
+      />
+      <BaseSlider 
+        label="Mid (Rotation)" 
+        :min="0" 
+        :max="1" 
+        :step="0.05" 
+        v-model="audio.frequencyBoosts.mid"
+      />
+      <BaseSlider 
+        label="High (Glow)" 
+        :min="0" 
+        :max="1.5" 
+        :step="0.05" 
+        v-model="audio.frequencyBoosts.high"
+      />
+    </div>
+  </PanelSection>
 </template>
 
 <style scoped>
-/* Subsection styling */
-.subsection {
-  margin-bottom: 16px;
-}
-
-.subsection:last-child {
-  margin-bottom: 0;
-}
-
-.subsection-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 8px;
-}
-
-.subsection-title {
+/* Section Description */
+.section-desc {
   font-size: 11px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  margin: 0 0 12px 0;
+  line-height: 1.4;
 }
 
+/* Formation Selector */
 .formation-selector {
   display: flex;
   gap: 8px;
@@ -530,6 +510,7 @@ onMounted(() => {
   padding: 4px;
   border-radius: 10px;
 }
+
 .formation-option {
   flex: 1;
   display: flex;
@@ -544,31 +525,43 @@ onMounted(() => {
   font-size: 12px;
   font-weight: 500;
 }
+
 .formation-option input {
   display: none;
 }
+
 .formation-option:hover {
   background: var(--surface-2);
   color: var(--text-primary);
 }
+
 .formation-option.active {
   background: var(--surface-3);
   color: var(--text-primary);
   border: 1px solid var(--accent-primary);
 }
+
 .formation-icon {
   font-size: 18px;
 }
+
+/* Layout helpers */
 .slider-group {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
+
+.slider-group.linked {
+  opacity: 0.9;
+}
+
 .row-3 {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 8px;
 }
+
 .row-2 {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -579,11 +572,44 @@ onMounted(() => {
   margin-bottom: 12px;
 }
 
-.hint {
-  margin-top: 8px;
-  font-size: 10px;
-  color: var(--text-muted);
-  font-style: italic;
+.toggle-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Dice and Link buttons */
+.dice-btn,
+.link-btn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-2);
+  border: 1px solid var(--glass-border);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.dice-btn:hover,
+.link-btn:hover {
+  background: var(--surface-3);
+  color: var(--accent-primary);
+  border-color: var(--accent-primary);
+}
+
+.link-btn.active {
+  background: var(--accent-glow);
+  color: var(--accent-primary);
+  border-color: var(--accent-primary);
+}
+
+.dice-btn iconify-icon,
+.link-btn iconify-icon {
+  font-size: 16px;
 }
 
 /* Interaction Styles */
@@ -602,7 +628,6 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 8px;
 }
 
 .interaction-header iconify-icon {
@@ -621,7 +646,8 @@ onMounted(() => {
   display: flex;
   align-items: flex-end;
   gap: 8px;
-  padding-top: 8px;
+  padding-top: 12px;
+  margin-top: 8px;
   border-top: 1px solid var(--glass-border);
 }
 
@@ -649,7 +675,8 @@ onMounted(() => {
   transform: scale(1.05);
 }
 
-.hover-settings {
+/* Hover config */
+.hover-config {
   display: flex;
   flex-direction: column;
   gap: 12px;

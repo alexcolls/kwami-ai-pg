@@ -2,8 +2,10 @@
 import { onMounted, onUnmounted, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useKwami } from '@/composables/useKwami';
-import { useAvatarStore, type CrystalFormation, type AvatarState } from '@/stores/avatar';
+import { useAvatarStore, type AvatarState } from '@/stores/avatar';
 import { useBlobStore, type SkinType } from '@/stores/avatar.blob';
+import { useCrystalStore, type CrystalFormation } from '@/stores/avatar.crystal';
+import { useParticlesStore } from '@/stores/avatar.particles';
 import BasePanel from '@/components/ui/BasePanel.vue';
 import PanelSection from '@/components/ui/PanelSection.vue';
 import BlobSettings from './BlobSettings.vue';
@@ -13,10 +15,27 @@ import ParticlesSettings from './ParticlesSettings.vue';
 const { kwami, rendererType: kwamiRendererType, switchRenderer } = useKwami();
 const avatarStore = useAvatarStore();
 const blobStore = useBlobStore();
+const crystalStore = useCrystalStore();
+const particlesStore = useParticlesStore();
 
 // Use store state
-const { crystal, particles, rendererType, blobPresets, crystalPresets, particlesPresets } = storeToRefs(avatarStore);
+const { rendererType, blobPresets, crystalPresets, particlesPresets } = storeToRefs(avatarStore);
 const { skin, shape, animation, cursorTouch, audio } = storeToRefs(blobStore);
+const { 
+  appearance: crystalAppearance, 
+  colors: crystalColors, 
+  glow: crystalGlow, 
+  animation: crystalAnimation, 
+  audio: crystalAudio 
+} = storeToRefs(crystalStore);
+const { 
+  formation: particlesFormation, 
+  visual: particlesVisual, 
+  transform: particlesTransform, 
+  physics: particlesPhysics, 
+  animation: particlesAnimation, 
+  audio: particlesAudio 
+} = storeToRefs(particlesStore);
 
 // Helpers
 function getBlob() {
@@ -40,12 +59,12 @@ function syncFromKwami() {
 
   const crystalInstance = getCrystal();
   if (crystalInstance) {
-    avatarStore.syncCrystalFromExternal(crystalInstance);
+    crystalStore.syncFromKwami(crystalInstance);
   }
 
   const particlesInstance = getParticles();
   if (particlesInstance) {
-    avatarStore.syncParticlesFromExternal(particlesInstance);
+    particlesStore.syncFromKwami(particlesInstance);
   }
   
   // Sync renderer type from kwami
@@ -124,54 +143,60 @@ watch(
   { deep: true }
 );
 
-// Sync Store to Kwami - Crystal watchers
+// Sync Store to Kwami - Crystal watchers (new structure)
+
+// APPEARANCE watchers
+watch(() => crystalAppearance.value.formation, (v) => getCrystal()?.setFormation({ formation: v as CrystalFormation }));
+watch(() => crystalAppearance.value.shardCount, (v) => getCrystal()?.setShardCount(v));
+watch(() => crystalAppearance.value.scale, (v) => getCrystal()?.setScale(v));
+
+// COLORS watchers
 watch(
-  () => crystal.value.formation,
-  (v) => getCrystal()?.setFormation({ formation: v as CrystalFormation })
-);
-watch(
-  () => crystal.value.colors,
+  () => ({ primary: crystalColors.value.primary, secondary: crystalColors.value.secondary, accent: crystalColors.value.accent }),
   (v) => getCrystal()?.setColors(v.primary, v.secondary, v.accent),
   { deep: true }
 );
 watch(
-  () => crystal.value.coreColors,
+  () => crystalColors.value.core,
   (v) => getCrystal()?.setCoreColors(v.inner, v.outer),
   { deep: true }
 );
-watch(() => crystal.value.glowIntensity, (v) => getCrystal()?.setGlowIntensity(v));
-watch(() => crystal.value.shardCount, (v) => getCrystal()?.setShardCount(v));
-watch(() => crystal.value.scale, (v) => getCrystal()?.setScale(v));
+
+// GLOW watchers
+watch(() => crystalGlow.value.intensity, (v) => getCrystal()?.setGlowIntensity(v));
+
+// ANIMATION watchers
 watch(
-  () => crystal.value.rotation,
+  () => crystalAnimation.value.rotation,
   (v) => getCrystal()?.setRotation(v.x, v.y, v.z),
   { deep: true }
 );
-// Crystal audio effects watchers
+
+// AUDIO watchers
 watch(
-  () => crystal.value.audioEffects,
+  () => crystalAudio.value,
   (v) => {
     const c = getCrystal();
-    if (c) {
-      // Crystal audio effects are set directly on properties
-      Object.assign(c.audioEffects, v);
+    if (c && c.audioEffects) {
+      c.audioEffects.enabled = v.enabled;
+      c.audioEffects.reactivity = v.reactivity;
+      c.audioEffects.smoothing = v.smoothing;
+      c.audioEffects.bassOrbitBoost = v.frequencyBoosts.bass;
+      c.audioEffects.midRotationBoost = v.frequencyBoosts.mid;
+      c.audioEffects.highGlowBoost = v.frequencyBoosts.high;
     }
   },
   { deep: true }
 );
-// Crystal transition watchers
-watch(() => crystal.value.transitionSpeed, (v) => {
-  const c = getCrystal();
-  if (c) c.transitionSpeed = v;
-});
-watch(() => crystal.value.thinkingDuration, (v) => {
-  const c = getCrystal();
-  if (c) c.thinkingDuration = v;
-});
 
-// Sync Store to Kwami - Particles watchers
+// Sync Store to Kwami - Particles watchers (new structure)
+
+// FORMATION watchers
+watch(() => particlesFormation.value.type, (v) => getParticles()?.setFormation(v, true));
+
+// VISUAL watchers
 watch(
-  () => particles.value.visual,
+  () => particlesVisual.value,
   (v) => {
     const p = getParticles();
     if (p) {
@@ -184,24 +209,42 @@ watch(
   },
   { deep: true }
 );
+
+// TRANSFORM watchers
+watch(() => particlesTransform.value.scale, (v) => getParticles()?.setScale(v));
+
+// PHYSICS watchers
 watch(
-  () => particles.value.formation.type,
-  (v) => getParticles()?.setFormation(v, true) // true = smooth transition
-);
-watch(() => particles.value.scale, (v) => getParticles()?.setScale(v));
-watch(
-  () => particles.value.physics,
+  () => particlesPhysics.value,
   (v) => getParticles()?.setPhysics(v),
   { deep: true }
 );
+
+// ANIMATION watchers
 watch(
-  () => particles.value.animation,
+  () => particlesAnimation.value,
   (v) => getParticles()?.setAnimation(v),
   { deep: true }
 );
+
+// AUDIO watchers
 watch(
-  () => particles.value.audioEffects,
-  (v) => getParticles()?.setAudioEffects(v),
+  () => particlesAudio.value,
+  (v) => {
+    const p = getParticles();
+    if (p) {
+      p.setAudioEffects({
+        enabled: v.enabled,
+        reactivity: v.reactivity,
+        smoothing: v.smoothing,
+        scalePulse: v.scalePulse,
+        movementIntensity: v.movementIntensity,
+        bassInfluence: v.frequencyInfluence.bass,
+        midInfluence: v.frequencyInfluence.mid,
+        highInfluence: v.frequencyInfluence.high,
+      });
+    }
+  },
   { deep: true }
 );
 
@@ -227,6 +270,8 @@ function handleReset() {
   // Reset store state
   avatarStore.reset();
   blobStore.resetAll();
+  crystalStore.resetAll();
+  particlesStore.resetAll();
   
   // Apply defaults to kwami instance
   if (rendererType.value === 'blob') {
@@ -250,27 +295,36 @@ function handleReset() {
   } else if (rendererType.value === 'crystal') {
     const c = getCrystal();
     if (c) {
-      c.setFormation({ formation: crystal.value.formation as CrystalFormation });
-      c.setColors(crystal.value.colors.primary, crystal.value.colors.secondary, crystal.value.colors.accent);
-      c.setCoreColors(crystal.value.coreColors.inner, crystal.value.coreColors.outer);
-      c.setGlowIntensity(crystal.value.glowIntensity);
-      c.setShardCount(crystal.value.shardCount);
-      c.setScale(crystal.value.scale);
-      c.setRotation(crystal.value.rotation.x, crystal.value.rotation.y, crystal.value.rotation.z);
+      c.setFormation({ formation: crystalAppearance.value.formation as CrystalFormation });
+      c.setColors(crystalColors.value.primary, crystalColors.value.secondary, crystalColors.value.accent);
+      c.setCoreColors(crystalColors.value.core.inner, crystalColors.value.core.outer);
+      c.setGlowIntensity(crystalGlow.value.intensity);
+      c.setShardCount(crystalAppearance.value.shardCount);
+      c.setScale(crystalAppearance.value.scale);
+      c.setRotation(crystalAnimation.value.rotation.x, crystalAnimation.value.rotation.y, crystalAnimation.value.rotation.z);
     }
   } else if (rendererType.value === 'particles') {
     const p = getParticles();
     if (p) {
-      p.setColors(particles.value.visual.color, particles.value.visual.glowColor);
-      p.setOpacity(particles.value.visual.opacity);
-      p.setParticleSize(particles.value.visual.particleSize);
-      p.setGlowIntensity(particles.value.visual.glowIntensity);
-      p.setSharpness(particles.value.visual.sharpness);
-      p.setScale(particles.value.scale);
-      p.setFormation(particles.value.formation.type, false);
-      p.setPhysics(particles.value.physics);
-      p.setAnimation(particles.value.animation);
-      p.setAudioEffects(particles.value.audioEffects);
+      p.setColors(particlesVisual.value.color, particlesVisual.value.glowColor);
+      p.setOpacity(particlesVisual.value.opacity);
+      p.setParticleSize(particlesVisual.value.particleSize);
+      p.setGlowIntensity(particlesVisual.value.glowIntensity);
+      p.setSharpness(particlesVisual.value.sharpness);
+      p.setScale(particlesTransform.value.scale);
+      p.setFormation(particlesFormation.value.type, false);
+      p.setPhysics(particlesPhysics.value);
+      p.setAnimation(particlesAnimation.value);
+      p.setAudioEffects({
+        enabled: particlesAudio.value.enabled,
+        reactivity: particlesAudio.value.reactivity,
+        smoothing: particlesAudio.value.smoothing,
+        scalePulse: particlesAudio.value.scalePulse,
+        movementIntensity: particlesAudio.value.movementIntensity,
+        bassInfluence: particlesAudio.value.frequencyInfluence.bass,
+        midInfluence: particlesAudio.value.frequencyInfluence.mid,
+        highInfluence: particlesAudio.value.frequencyInfluence.high,
+      });
     }
   }
 }
@@ -283,7 +337,7 @@ function handleApplyPreset(presetId: string) {
       switchRenderer(rendererType.value);
     }
     
-    // Manually sync blob preset to kwami instance (watchers may not fire for all nested changes)
+    // Manually sync preset to kwami instance (watchers may not fire for all nested changes)
     if (rendererType.value === 'blob') {
       const b = getBlob();
       if (b && kwami.value) {
@@ -336,6 +390,50 @@ function handleApplyPreset(presetId: string) {
           b.audioEffects.highTime = audio.value.timeModulation.high;
           b.audioEffects.ultraTime = audio.value.timeModulation.ultra;
         }
+      }
+    } else if (rendererType.value === 'crystal') {
+      const c = getCrystal();
+      if (c) {
+        c.setFormation({ formation: crystalAppearance.value.formation as CrystalFormation });
+        c.setColors(crystalColors.value.primary, crystalColors.value.secondary, crystalColors.value.accent);
+        c.setCoreColors(crystalColors.value.core.inner, crystalColors.value.core.outer);
+        c.setGlowIntensity(crystalGlow.value.intensity);
+        c.setShardCount(crystalAppearance.value.shardCount);
+        c.setScale(crystalAppearance.value.scale);
+        c.setRotation(crystalAnimation.value.rotation.x, crystalAnimation.value.rotation.y, crystalAnimation.value.rotation.z);
+        
+        // Audio
+        if (c.audioEffects) {
+          c.audioEffects.enabled = crystalAudio.value.enabled;
+          c.audioEffects.reactivity = crystalAudio.value.reactivity;
+          c.audioEffects.smoothing = crystalAudio.value.smoothing;
+          c.audioEffects.bassOrbitBoost = crystalAudio.value.frequencyBoosts.bass;
+          c.audioEffects.midRotationBoost = crystalAudio.value.frequencyBoosts.mid;
+          c.audioEffects.highGlowBoost = crystalAudio.value.frequencyBoosts.high;
+        }
+      }
+    } else if (rendererType.value === 'particles') {
+      const p = getParticles();
+      if (p) {
+        p.setFormation(particlesFormation.value.type, false);
+        p.setColors(particlesVisual.value.color, particlesVisual.value.glowColor);
+        p.setOpacity(particlesVisual.value.opacity);
+        p.setParticleSize(particlesVisual.value.particleSize);
+        p.setGlowIntensity(particlesVisual.value.glowIntensity);
+        p.setSharpness(particlesVisual.value.sharpness);
+        p.setScale(particlesTransform.value.scale);
+        p.setPhysics(particlesPhysics.value);
+        p.setAnimation(particlesAnimation.value);
+        p.setAudioEffects({
+          enabled: particlesAudio.value.enabled,
+          reactivity: particlesAudio.value.reactivity,
+          smoothing: particlesAudio.value.smoothing,
+          scalePulse: particlesAudio.value.scalePulse,
+          movementIntensity: particlesAudio.value.movementIntensity,
+          bassInfluence: particlesAudio.value.frequencyInfluence.bass,
+          midInfluence: particlesAudio.value.frequencyInfluence.mid,
+          highInfluence: particlesAudio.value.frequencyInfluence.high,
+        });
       }
     }
   }
@@ -437,8 +535,8 @@ onUnmounted(() => {
 
     <!-- Sub-components -->
     <BlobSettings v-if="rendererType === 'blob'" />
-    <CrystalSettings v-if="rendererType === 'crystal'" v-model:state="crystal" />
-    <ParticlesSettings v-if="rendererType === 'particles'" v-model:state="particles" />
+    <CrystalSettings v-if="rendererType === 'crystal'" />
+    <ParticlesSettings v-if="rendererType === 'particles'" />
   </BasePanel>
 </template>
 
