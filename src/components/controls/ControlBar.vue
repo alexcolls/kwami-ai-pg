@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onUnmounted, watch } from 'vue';
 import { useKwami } from '@/composables/useKwami';
+import RecordControl from './RecordControl.vue';
 
 const { isConnected, connect, disconnect } = useKwami();
 
@@ -74,6 +75,9 @@ onUnmounted(() => {
 
 <template>
   <div class="control-bar">
+    <!-- Record control -->
+    <RecordControl />
+
     <!-- Duration badge (only when connected) -->
     <transition name="fade">
       <span v-if="isConnected" class="duration-badge">
