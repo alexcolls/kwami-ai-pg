@@ -10,6 +10,8 @@ import {
   type AvatarPreset,
 } from '../templates/avatar-templates';
 import { useBlobStore } from './avatar.blob';
+import { useCrystalStore } from './avatar.crystal';
+import { useParticlesStore } from './avatar.particles';
 
 // Re-export AvatarPreset for backwards compatibility
 export type { AvatarPreset };
@@ -400,16 +402,15 @@ export const useAvatarStore = defineStore('avatar', () => {
     if (preset.renderer === 'blob' && preset.blob) {
       // Use the new blob store for presets
       const blobStore = useBlobStore();
-      // Cast to the new BlobState type since presets now use the new structure
       blobStore.importState(preset.blob as Parameters<typeof blobStore.importState>[0]);
     } else if (preset.renderer === 'crystal' && preset.crystal) {
-      // Deep merge crystal state with defaults
-      const defaultState = getDefaultCrystalState();
-      Object.assign(crystal, defaultState, preset.crystal);
+      // Use the new crystal store for presets
+      const crystalStore = useCrystalStore();
+      crystalStore.importState(preset.crystal as Parameters<typeof crystalStore.importState>[0]);
     } else if (preset.renderer === 'particles' && preset.particles) {
-      // Deep merge particles state with defaults
-      const defaultState = getDefaultParticlesState();
-      Object.assign(particles, defaultState, preset.particles);
+      // Use the new particles store for presets
+      const particlesStore = useParticlesStore();
+      particlesStore.importState(preset.particles as Parameters<typeof particlesStore.importState>[0]);
     }
 
     return true;
