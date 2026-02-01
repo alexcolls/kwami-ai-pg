@@ -11,7 +11,6 @@ import type {
   TTSProvider,
   RealtimeProvider,
   RealtimeModality,
-  VoicePipelineType,
   VoicePipelineConfig,
 } from 'kwami-ai';
 

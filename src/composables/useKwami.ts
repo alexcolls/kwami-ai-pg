@@ -17,7 +17,7 @@ const isConnected = ref(false);
 export function useKwami() {
   // Get auth store for user ID
   const authStore = useAuthStore();
-  
+
   // User ID from authenticated user, fallback to 'anonymous'
   const userId = computed(() => authStore.userId || 'anonymous');
 
@@ -43,7 +43,7 @@ export function useKwami() {
           rotation: { x: 0.002, y: 0.003, z: 0.001 },
         },
         crystal: {
-          formation: { formation: 'constellation' },
+          formation: { formation: 'constellation' as 'constellation' | 'helix' | 'vortex' },
           colors: {
             primary: '#00e5ff',
             secondary: '#7c4dff',
@@ -69,7 +69,7 @@ export function useKwami() {
             sharpness: 0.7,
           },
           formation: {
-            type: 'sphere',
+            type: 'sphere' as 'sphere' | 'disc' | 'ring' | 'cube',
             radius: 2,
           },
           animation: {
@@ -89,16 +89,16 @@ export function useKwami() {
         scene: {
           enableControls: true,
           background: {
-            type: 'gradient',
+            type: 'gradient' as 'gradient' | 'transparent' | 'solid' | 'image' | 'video',
             gradient: {
               colors: getBackgroundColors(),
-              direction: 'radial',
+              direction: 'radial' as 'radial' | 'vertical' | 'horizontal' | 'diagonal',
             },
           },
         },
       },
       agent: {
-        adapter: 'livekit',
+        adapter: 'livekit' as 'livekit' | 'custom',
         livekit: {
           url: import.meta.env.VITE_LIVEKIT_URL || '',
           tokenEndpoint: import.meta.env.VITE_LIVEKIT_TOKEN_ENDPOINT || '',
@@ -111,11 +111,11 @@ export function useKwami() {
         personality: 'A friendly and helpful AI companion',
         traits: ['friendly', 'helpful', 'curious'],
         conversationStyle: 'friendly',
-        responseLength: 'medium',
-        emotionalTone: 'warm',
+        responseLength: 'medium' as 'medium' | 'short' | 'long',
+        emotionalTone: 'warm' as 'warm' | 'neutral' | 'enthusiastic' | 'calm',
       },
       memory: {
-        adapter: 'zep',
+        adapter: 'zep' as 'zep' | 'local',
         zep: {
           apiKey: import.meta.env.VITE_ZEP_API_KEY || '',
           baseUrl: import.meta.env.VITE_ZEP_BASE_URL || '',
@@ -152,7 +152,7 @@ export function useKwami() {
       // Get auth token and voice config before connecting
       const voiceStore = useVoiceStore();
       const authToken = await authStore.getAccessToken();
-      
+
       // Update config with current user ID, auth token, and voice settings
       kwamiInstance.value.agent.updateConfig({
         livekit: {
