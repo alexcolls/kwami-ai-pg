@@ -2,9 +2,10 @@
  * Particles Presets for the Kwami AI Playground
  *
  * Visual presets for the particles avatar renderer.
+ * Uses the new section-based particles state structure.
  */
 
-import type { ParticlesState } from '../stores/avatar';
+import type { ParticlesState } from '../stores/avatar.particles';
 
 export interface ParticlesPreset {
   id: string;
@@ -19,7 +20,6 @@ export const particlesPresetsData: ParticlesPreset[] = [
     name: 'Default',
     icon: 'ph:circles-three-duotone',
     particles: {
-      particleCount: 6000,
       formation: {
         type: 'sphere',
         radius: 2,
@@ -35,6 +35,10 @@ export const particlesPresetsData: ParticlesPreset[] = [
         glowIntensity: 0.3,
         brightnessVariation: 0.25,
         sharpness: 0.7,
+      },
+      transform: {
+        scale: 1,
+        particleCount: 6000,
       },
       physics: {
         returnForce: 0.04,
@@ -54,17 +58,14 @@ export const particlesPresetsData: ParticlesPreset[] = [
         wave: { enabled: false, speed: 1.5, amplitude: 0.1 },
         turbulence: { enabled: true, intensity: 0.02, speed: 1.0 },
       },
-      audioEffects: {
+      audio: {
         enabled: true,
         reactivity: 1.5,
-        bassInfluence: 1.0,
-        midInfluence: 0.6,
-        highInfluence: 0.8,
         smoothing: 0.7,
         scalePulse: true,
         movementIntensity: 0.5,
+        frequencyInfluence: { bass: 1.0, mid: 0.6, high: 0.8 },
       },
-      scale: 1,
     },
   },
   {
@@ -72,7 +73,6 @@ export const particlesPresetsData: ParticlesPreset[] = [
     name: 'Dense',
     icon: 'ph:dots-nine-duotone',
     particles: {
-      particleCount: 15000,
       formation: {
         type: 'sphere',
         radius: 2,
@@ -88,6 +88,10 @@ export const particlesPresetsData: ParticlesPreset[] = [
         glowIntensity: 0.4,
         brightnessVariation: 0.2,
         sharpness: 0.8,
+      },
+      transform: {
+        scale: 1,
+        particleCount: 15000,
       },
       physics: {
         returnForce: 0.05,
@@ -107,17 +111,14 @@ export const particlesPresetsData: ParticlesPreset[] = [
         wave: { enabled: false, speed: 1.0, amplitude: 0.08 },
         turbulence: { enabled: true, intensity: 0.015, speed: 0.8 },
       },
-      audioEffects: {
+      audio: {
         enabled: true,
         reactivity: 1.3,
-        bassInfluence: 0.8,
-        midInfluence: 0.5,
-        highInfluence: 0.6,
         smoothing: 0.75,
         scalePulse: true,
         movementIntensity: 0.4,
+        frequencyInfluence: { bass: 0.8, mid: 0.5, high: 0.6 },
       },
-      scale: 1,
     },
   },
   {
@@ -125,7 +126,6 @@ export const particlesPresetsData: ParticlesPreset[] = [
     name: 'Sparse',
     icon: 'ph:dots-three-duotone',
     particles: {
-      particleCount: 3000,
       formation: {
         type: 'sphere',
         radius: 2.5,
@@ -141,6 +141,10 @@ export const particlesPresetsData: ParticlesPreset[] = [
         glowIntensity: 0.5,
         brightnessVariation: 0.5,
         sharpness: 0.6,
+      },
+      transform: {
+        scale: 1,
+        particleCount: 3000,
       },
       physics: {
         returnForce: 0.03,
@@ -160,17 +164,14 @@ export const particlesPresetsData: ParticlesPreset[] = [
         wave: { enabled: true, speed: 2.0, amplitude: 0.15 },
         turbulence: { enabled: true, intensity: 0.03, speed: 1.2 },
       },
-      audioEffects: {
+      audio: {
         enabled: true,
         reactivity: 1.8,
-        bassInfluence: 1.2,
-        midInfluence: 0.7,
-        highInfluence: 1.0,
         smoothing: 0.6,
         scalePulse: true,
         movementIntensity: 0.7,
+        frequencyInfluence: { bass: 1.2, mid: 0.7, high: 1.0 },
       },
-      scale: 1,
     },
   },
   {
@@ -178,7 +179,6 @@ export const particlesPresetsData: ParticlesPreset[] = [
     name: 'Reactive',
     icon: 'ph:waveform-duotone',
     particles: {
-      particleCount: 8000,
       formation: {
         type: 'sphere',
         radius: 2,
@@ -194,6 +194,10 @@ export const particlesPresetsData: ParticlesPreset[] = [
         glowIntensity: 0.6,
         brightnessVariation: 0.3,
         sharpness: 0.75,
+      },
+      transform: {
+        scale: 1,
+        particleCount: 8000,
       },
       physics: {
         returnForce: 0.05,
@@ -213,17 +217,14 @@ export const particlesPresetsData: ParticlesPreset[] = [
         wave: { enabled: true, speed: 2.5, amplitude: 0.12 },
         turbulence: { enabled: true, intensity: 0.04, speed: 1.5 },
       },
-      audioEffects: {
+      audio: {
         enabled: true,
         reactivity: 2.5,
-        bassInfluence: 1.5,
-        midInfluence: 1.0,
-        highInfluence: 1.2,
         smoothing: 0.5,
         scalePulse: true,
         movementIntensity: 0.9,
+        frequencyInfluence: { bass: 1.5, mid: 1.0, high: 1.2 },
       },
-      scale: 1,
     },
   },
   {
@@ -231,7 +232,6 @@ export const particlesPresetsData: ParticlesPreset[] = [
     name: 'Calm',
     icon: 'ph:moon-duotone',
     particles: {
-      particleCount: 5000,
       formation: {
         type: 'sphere',
         radius: 2.2,
@@ -247,6 +247,10 @@ export const particlesPresetsData: ParticlesPreset[] = [
         glowIntensity: 0.25,
         brightnessVariation: 0.15,
         sharpness: 0.65,
+      },
+      transform: {
+        scale: 1,
+        particleCount: 5000,
       },
       physics: {
         returnForce: 0.015,
@@ -266,17 +270,14 @@ export const particlesPresetsData: ParticlesPreset[] = [
         wave: { enabled: false, speed: 1.0, amplitude: 0.05 },
         turbulence: { enabled: true, intensity: 0.01, speed: 0.5 },
       },
-      audioEffects: {
+      audio: {
         enabled: true,
         reactivity: 0.5,
-        bassInfluence: 0.3,
-        midInfluence: 0.2,
-        highInfluence: 0.4,
         smoothing: 0.9,
         scalePulse: false,
         movementIntensity: 0.2,
+        frequencyInfluence: { bass: 0.3, mid: 0.2, high: 0.4 },
       },
-      scale: 1,
     },
   },
   {
@@ -284,7 +285,6 @@ export const particlesPresetsData: ParticlesPreset[] = [
     name: 'Disc',
     icon: 'ph:circle-duotone',
     particles: {
-      particleCount: 7000,
       formation: {
         type: 'disc',
         radius: 2.5,
@@ -300,6 +300,10 @@ export const particlesPresetsData: ParticlesPreset[] = [
         glowIntensity: 0.45,
         brightnessVariation: 0.35,
         sharpness: 0.7,
+      },
+      transform: {
+        scale: 1,
+        particleCount: 7000,
       },
       physics: {
         returnForce: 0.04,
@@ -319,17 +323,14 @@ export const particlesPresetsData: ParticlesPreset[] = [
         wave: { enabled: true, speed: 1.8, amplitude: 0.08 },
         turbulence: { enabled: true, intensity: 0.02, speed: 1.0 },
       },
-      audioEffects: {
+      audio: {
         enabled: true,
         reactivity: 1.6,
-        bassInfluence: 1.1,
-        midInfluence: 0.7,
-        highInfluence: 0.9,
         smoothing: 0.65,
         scalePulse: true,
         movementIntensity: 0.55,
+        frequencyInfluence: { bass: 1.1, mid: 0.7, high: 0.9 },
       },
-      scale: 1,
     },
   },
   {
@@ -337,7 +338,6 @@ export const particlesPresetsData: ParticlesPreset[] = [
     name: 'Ring',
     icon: 'ph:circle-dashed-duotone',
     particles: {
-      particleCount: 4000,
       formation: {
         type: 'ring',
         radius: 2,
@@ -353,6 +353,10 @@ export const particlesPresetsData: ParticlesPreset[] = [
         glowIntensity: 0.5,
         brightnessVariation: 0.3,
         sharpness: 0.75,
+      },
+      transform: {
+        scale: 1,
+        particleCount: 4000,
       },
       physics: {
         returnForce: 0.035,
@@ -372,17 +376,14 @@ export const particlesPresetsData: ParticlesPreset[] = [
         wave: { enabled: false, speed: 1.5, amplitude: 0.1 },
         turbulence: { enabled: true, intensity: 0.018, speed: 0.9 },
       },
-      audioEffects: {
+      audio: {
         enabled: true,
         reactivity: 1.4,
-        bassInfluence: 0.9,
-        midInfluence: 0.6,
-        highInfluence: 0.75,
         smoothing: 0.7,
         scalePulse: true,
         movementIntensity: 0.5,
+        frequencyInfluence: { bass: 0.9, mid: 0.6, high: 0.75 },
       },
-      scale: 1,
     },
   },
   {
@@ -390,7 +391,6 @@ export const particlesPresetsData: ParticlesPreset[] = [
     name: 'Cube',
     icon: 'ph:cube-duotone',
     particles: {
-      particleCount: 6000,
       formation: {
         type: 'cube',
         radius: 1.8,
@@ -406,6 +406,10 @@ export const particlesPresetsData: ParticlesPreset[] = [
         glowIntensity: 0.4,
         brightnessVariation: 0.2,
         sharpness: 0.85,
+      },
+      transform: {
+        scale: 1,
+        particleCount: 6000,
       },
       physics: {
         returnForce: 0.06,
@@ -425,17 +429,14 @@ export const particlesPresetsData: ParticlesPreset[] = [
         wave: { enabled: false, speed: 1.5, amplitude: 0.1 },
         turbulence: { enabled: true, intensity: 0.01, speed: 0.7 },
       },
-      audioEffects: {
+      audio: {
         enabled: true,
         reactivity: 1.7,
-        bassInfluence: 1.0,
-        midInfluence: 0.8,
-        highInfluence: 0.9,
         smoothing: 0.6,
         scalePulse: true,
         movementIntensity: 0.6,
+        frequencyInfluence: { bass: 1.0, mid: 0.8, high: 0.9 },
       },
-      scale: 1,
     },
   },
 ];
