@@ -2,19 +2,21 @@
 import { onMounted, onUnmounted, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useKwami } from '@/composables/useKwami';
-import { useAvatarStore, type SkinSubtype, type CrystalFormation, type AvatarState } from '@/stores/avatar';
+import { useAvatarStore, type CrystalFormation, type AvatarState } from '@/stores/avatar';
+import { useBlobStore, type SkinType } from '@/stores/avatar.blob';
 import BasePanel from '@/components/ui/BasePanel.vue';
 import PanelSection from '@/components/ui/PanelSection.vue';
-import BaseButton from '@/components/ui/BaseButton.vue';
 import BlobSettings from './BlobSettings.vue';
 import CrystalSettings from './CrystalSettings.vue';
 import ParticlesSettings from './ParticlesSettings.vue';
 
 const { kwami, rendererType: kwamiRendererType, switchRenderer } = useKwami();
 const avatarStore = useAvatarStore();
+const blobStore = useBlobStore();
 
 // Use store state
-const { blob, crystal, particles, activeState, rendererType, blobPresets, crystalPresets, particlesPresets } = storeToRefs(avatarStore);
+const { crystal, particles, rendererType, blobPresets, crystalPresets, particlesPresets } = storeToRefs(avatarStore);
+const { skin, shape, animation, cursorTouch, audio } = storeToRefs(blobStore);
 
 // Helpers
 function getBlob() {
@@ -33,7 +35,7 @@ function syncFromKwami() {
   
   const blobInstance = getBlob();
   if (blobInstance) {
-    avatarStore.syncBlobFromExternal(blobInstance);
+    blobStore.syncFromKwami(blobInstance);
   }
 
   const crystalInstance = getCrystal();
@@ -50,35 +52,27 @@ function syncFromKwami() {
   avatarStore.setRendererType(kwamiRendererType.value as 'blob' | 'crystal' | 'particles');
 }
 
-// Sync Store to Kwami - Blob watchers
+// =====================================================
+// Sync Store to Kwami - Blob watchers (new structure)
+// =====================================================
+
+// SKIN watchers
+watch(() => skin.value.type, (v) => kwami.value?.avatar.setSkin({ skin: 'tricolor', subtype: v as SkinType }));
+watch(() => skin.value.colors, (v) => getBlob()?.setColors(v.x, v.y, v.z), { deep: true });
+watch(() => skin.value.opacity, (v) => kwami.value?.avatar.setOpacity(v));
+watch(() => skin.value.shininess, (v) => kwami.value?.avatar.setShininess(v));
+watch(() => skin.value.lightIntensity, (v) => getBlob()?.setLightIntensity(v));
+watch(() => skin.value.wireframe, (v) => kwami.value?.avatar.setWireframe(v));
+watch(() => skin.value.glassMode, (v) => getBlob()?.setGlassMode(v));
+watch(() => skin.value.resolution, (v) => getBlob()?.setResolution(v));
+
+// SHAPE watchers
+watch(() => shape.value.scale, (v) => kwami.value?.avatar.setScale(v));
+watch(() => shape.value.spikes, (v) => getBlob()?.setSpikes(v.x, v.y, v.z), { deep: true });
+watch(() => shape.value.amplitude, (v) => getBlob()?.setAmplitude(v.x, v.y, v.z), { deep: true });
+// Position (was startRotation) - convert degrees to radians
 watch(
-  () => blob.value.colors,
-  (v) => getBlob()?.setColors(v.x, v.y, v.z),
-  { deep: true }
-);
-watch(
-  () => blob.value.spikes,
-  (v) => getBlob()?.setSpikes(v.x, v.y, v.z),
-  { deep: true }
-);
-watch(
-  () => blob.value.amplitude,
-  (v) => getBlob()?.setAmplitude(v.x, v.y, v.z),
-  { deep: true }
-);
-watch(
-  () => blob.value.time,
-  (v) => getBlob()?.setTime(v.x, v.y, v.z),
-  { deep: true }
-);
-watch(
-  () => blob.value.rotation,
-  (v) => kwami.value?.avatar.setRotation(v.x, v.y, v.z),
-  { deep: true }
-);
-// Apply starting rotation position (degrees to radians)
-watch(
-  () => blob.value.startRotation,
+  () => shape.value.position,
   (v) => {
     const b = getBlob();
     if (b) {
@@ -93,37 +87,42 @@ watch(
   },
   { deep: true }
 );
-watch(() => blob.value.scale, (v) => kwami.value?.avatar.setScale(v));
-watch(() => blob.value.opacity, (v) => kwami.value?.avatar.setOpacity(v));
-watch(() => blob.value.shininess, (v) => kwami.value?.avatar.setShininess(v));
-watch(() => blob.value.lightIntensity, (v) => getBlob()?.setLightIntensity(v));
-watch(() => blob.value.wireframe, (v) => kwami.value?.avatar.setWireframe(v));
-watch(() => blob.value.glassMode, (v) => getBlob()?.setGlassMode(v));
+
+// ANIMATION watchers
+watch(() => animation.value.time, (v) => getBlob()?.setTime(v.x, v.y, v.z), { deep: true });
+watch(() => animation.value.rotation, (v) => kwami.value?.avatar.setRotation(v.x, v.y, v.z), { deep: true });
+watch(() => animation.value.breathing, (v) => {
+  const b = getBlob();
+  if (b && b.audioEffects) b.audioEffects.breathing = v;
+});
+
+// CURSOR & TOUCH watchers
+watch(() => cursorTouch.value.touch.strength, (v) => getBlob()?.setTouchStrength(v));
+watch(() => cursorTouch.value.touch.duration, (v) => getBlob()?.setTouchDuration(v));
+watch(() => cursorTouch.value.touch.maxPoints, (v) => getBlob()?.setMaxTouchPoints(v));
+
+// AUDIO watchers
 watch(
-  () => blob.value.skin,
-  (v) => kwami.value?.avatar.setSkin({ skin: 'tricolor', subtype: v as SkinSubtype })
+  () => audio.value,
+  (a) => {
+    const b = getBlob();
+    if (!b || !b.audioEffects) return;
+    
+    b.audioEffects.enabled = a.enabled;
+    b.audioEffects.reactivity = a.reactivity;
+    b.audioEffects.sensitivity = a.sensitivity;
+    b.audioEffects.responseSpeed = a.responseSpeed;
+    b.audioEffects.transientBoost = a.transientBoost;
+    b.audioEffects.bassSpike = a.frequencySpikes.bass;
+    b.audioEffects.midSpike = a.frequencySpikes.mid;
+    b.audioEffects.highSpike = a.frequencySpikes.high;
+    b.audioEffects.timeEnabled = a.timeModulation.enabled;
+    b.audioEffects.midTime = a.timeModulation.mid;
+    b.audioEffects.highTime = a.timeModulation.high;
+    b.audioEffects.ultraTime = a.timeModulation.ultra;
+  },
+  { deep: true }
 );
-watch(() => blob.value.resolution, (v) => getBlob()?.setResolution(v));
-watch(() => blob.value.touchStrength, (v) => {
-  const b = getBlob();
-  if (b) b.setTouchStrength(v);
-});
-watch(() => blob.value.touchDuration, (v) => {
-  const b = getBlob();
-  if (b) b.setTouchDuration(v);
-});
-watch(() => blob.value.maxTouchPoints, (v) => {
-  const b = getBlob();
-  if (b) b.setMaxTouchPoints(v);
-});
-watch(() => blob.value.transitionSpeed, (v) => {
-  const b = getBlob();
-  if (b) b.setTransitionSpeed(v);
-});
-watch(() => blob.value.thinkingDuration, (v) => {
-  const b = getBlob();
-  if (b) b.setThinkingDuration(v);
-});
 
 // Sync Store to Kwami - Crystal watchers
 watch(
@@ -219,39 +218,34 @@ function handleSwitchRenderer(type: 'blob' | 'crystal' | 'particles') {
   switchRenderer(type);
 }
 
-function handleStateChange(state: AvatarState) {
-  avatarStore.setActiveState(state);
-  kwami.value?.avatar.setState(state);
-}
-
 function handleRandomize() {
   kwami.value?.avatar.randomize();
   syncFromKwami();
 }
 
-function handleExport() {
-  kwami.value?.avatar.exportGLTF();
-}
-
 function handleReset() {
   // Reset store state
   avatarStore.reset();
+  blobStore.resetAll();
   
   // Apply defaults to kwami instance
   if (rendererType.value === 'blob') {
     const b = getBlob();
     if (b && kwami.value) {
-      kwami.value.avatar.setColors(blob.value.colors.x, blob.value.colors.y, blob.value.colors.z);
-      kwami.value.avatar.setRotation(blob.value.rotation.x, blob.value.rotation.y, blob.value.rotation.z);
-      kwami.value.avatar.setScale(blob.value.scale);
-      kwami.value.avatar.setOpacity(blob.value.opacity);
-      kwami.value.avatar.setShininess(blob.value.shininess);
-      kwami.value.avatar.setWireframe(blob.value.wireframe);
-      b.setSpikes(blob.value.spikes.x, blob.value.spikes.y, blob.value.spikes.z);
-      b.setAmplitude(blob.value.amplitude.x, blob.value.amplitude.y, blob.value.amplitude.z);
-      b.setTime(blob.value.time.x, blob.value.time.y, blob.value.time.z);
-      b.setLightIntensity(blob.value.lightIntensity);
-      b.setResolution(blob.value.resolution);
+      // Skin
+      kwami.value.avatar.setColors(skin.value.colors.x, skin.value.colors.y, skin.value.colors.z);
+      kwami.value.avatar.setOpacity(skin.value.opacity);
+      kwami.value.avatar.setShininess(skin.value.shininess);
+      kwami.value.avatar.setWireframe(skin.value.wireframe);
+      b.setLightIntensity(skin.value.lightIntensity);
+      b.setResolution(skin.value.resolution);
+      // Shape
+      kwami.value.avatar.setScale(shape.value.scale);
+      b.setSpikes(shape.value.spikes.x, shape.value.spikes.y, shape.value.spikes.z);
+      b.setAmplitude(shape.value.amplitude.x, shape.value.amplitude.y, shape.value.amplitude.z);
+      // Animation
+      b.setTime(animation.value.time.x, animation.value.time.y, animation.value.time.z);
+      kwami.value.avatar.setRotation(animation.value.rotation.x, animation.value.rotation.y, animation.value.rotation.z);
     }
   } else if (rendererType.value === 'crystal') {
     const c = getCrystal();
@@ -284,10 +278,65 @@ function handleReset() {
 function handleApplyPreset(presetId: string) {
   const success = avatarStore.applyPreset(presetId);
   if (success) {
-    // Sync to kwami - watchers will handle most of it
-    // But we need to switch renderer if needed
+    // Switch renderer if needed
     if (kwamiRendererType.value !== rendererType.value) {
       switchRenderer(rendererType.value);
+    }
+    
+    // Manually sync blob preset to kwami instance (watchers may not fire for all nested changes)
+    if (rendererType.value === 'blob') {
+      const b = getBlob();
+      if (b && kwami.value) {
+        // Skin
+        kwami.value.avatar.setSkin({ skin: 'tricolor', subtype: skin.value.type as SkinType });
+        b.setColors(skin.value.colors.x, skin.value.colors.y, skin.value.colors.z);
+        kwami.value.avatar.setOpacity(skin.value.opacity);
+        kwami.value.avatar.setShininess(skin.value.shininess);
+        b.setLightIntensity(skin.value.lightIntensity);
+        kwami.value.avatar.setWireframe(skin.value.wireframe);
+        b.setGlassMode(skin.value.glassMode);
+        b.setResolution(skin.value.resolution);
+        
+        // Shape
+        kwami.value.avatar.setScale(shape.value.scale);
+        b.setSpikes(shape.value.spikes.x, shape.value.spikes.y, shape.value.spikes.z);
+        b.setAmplitude(shape.value.amplitude.x, shape.value.amplitude.y, shape.value.amplitude.z);
+        const mesh = b.getMesh();
+        if (mesh) {
+          const degToRad = (deg: number) => (deg * Math.PI) / 180;
+          mesh.rotation.x = degToRad(shape.value.position.x);
+          mesh.rotation.y = degToRad(shape.value.position.y);
+          mesh.rotation.z = degToRad(shape.value.position.z);
+        }
+        
+        // Animation
+        b.setTime(animation.value.time.x, animation.value.time.y, animation.value.time.z);
+        kwami.value.avatar.setRotation(animation.value.rotation.x, animation.value.rotation.y, animation.value.rotation.z);
+        if (b.audioEffects) {
+          b.audioEffects.breathing = animation.value.breathing;
+        }
+        
+        // Touch
+        b.setTouchStrength(cursorTouch.value.touch.strength);
+        b.setTouchDuration(cursorTouch.value.touch.duration);
+        b.setMaxTouchPoints(cursorTouch.value.touch.maxPoints);
+        
+        // Audio
+        if (b.audioEffects) {
+          b.audioEffects.enabled = audio.value.enabled;
+          b.audioEffects.reactivity = audio.value.reactivity;
+          b.audioEffects.sensitivity = audio.value.sensitivity;
+          b.audioEffects.responseSpeed = audio.value.responseSpeed;
+          b.audioEffects.transientBoost = audio.value.transientBoost;
+          b.audioEffects.bassSpike = audio.value.frequencySpikes.bass;
+          b.audioEffects.midSpike = audio.value.frequencySpikes.mid;
+          b.audioEffects.highSpike = audio.value.frequencySpikes.high;
+          b.audioEffects.timeEnabled = audio.value.timeModulation.enabled;
+          b.audioEffects.midTime = audio.value.timeModulation.mid;
+          b.audioEffects.highTime = audio.value.timeModulation.high;
+          b.audioEffects.ultraTime = audio.value.timeModulation.ultra;
+        }
+      }
     }
   }
 }
@@ -318,9 +367,10 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <BasePanel icon="ph:ghost-duotone" title="Avatar">
-    <!-- Renderer Selector -->
-    <PanelSection title="Renderer">
+  <BasePanel icon="ph:ghost-duotone" title="3D Avatar">
+    <!-- Avatar Type Selector -->
+    <PanelSection title="Avatar Type" icon="ph:swap-duotone" collapsible>
+      <p class="section-desc">Choose the visual style for your avatar</p>
       <div class="renderer-selector">
         <label class="renderer-option" :class="{ active: rendererType === 'blob' }">
           <input
@@ -359,7 +409,8 @@ onUnmounted(() => {
     </PanelSection>
 
     <!-- Presets -->
-    <PanelSection title="Quick Presets">
+    <PanelSection title="Quick Presets" icon="ph:magic-wand-duotone" collapsible>
+      <p class="section-desc">Apply pre-configured looks or randomize</p>
       <div class="presets-grid">
         <button
           v-for="preset in (rendererType === 'blob' ? blobPresets : rendererType === 'crystal' ? crystalPresets : particlesPresets)"
@@ -372,65 +423,22 @@ onUnmounted(() => {
           <span class="preset-name">{{ preset.name }}</span>
         </button>
       </div>
+      <div class="preset-actions">
+        <button class="action-btn randomize" @click="handleRandomize" title="Randomize all settings">
+          <iconify-icon icon="ph:dice-five-duotone"></iconify-icon>
+          <span>Randomize</span>
+        </button>
+        <button class="action-btn reset" @click="handleReset" title="Reset to defaults">
+          <iconify-icon icon="ph:arrow-counter-clockwise-duotone"></iconify-icon>
+          <span>Reset</span>
+        </button>
+      </div>
     </PanelSection>
 
     <!-- Sub-components -->
-    <BlobSettings v-if="rendererType === 'blob'" v-model:state="blob" />
+    <BlobSettings v-if="rendererType === 'blob'" />
     <CrystalSettings v-if="rendererType === 'crystal'" v-model:state="crystal" />
     <ParticlesSettings v-if="rendererType === 'particles'" v-model:state="particles" />
-
-    <PanelSection title="State">
-      <div class="state-buttons">
-        <BaseButton
-          :variant="activeState === 'idle' ? 'primary' : 'secondary'"
-          @click="handleStateChange('idle')"
-          size="sm"
-          icon="ph:moon-stars-duotone"
-          >Idle</BaseButton
-        >
-        <BaseButton
-          :variant="activeState === 'listening' ? 'primary' : 'secondary'"
-          @click="handleStateChange('listening')"
-          size="sm"
-          icon="ph:microphone-duotone"
-          >Listen</BaseButton
-        >
-        <BaseButton
-          :variant="activeState === 'thinking' ? 'primary' : 'secondary'"
-          @click="handleStateChange('thinking')"
-          size="sm"
-          icon="ph:brain-duotone"
-          >Think</BaseButton
-        >
-        <BaseButton
-          :variant="activeState === 'speaking' ? 'primary' : 'secondary'"
-          @click="handleStateChange('speaking')"
-          size="sm"
-          icon="ph:speaker-high-duotone"
-          >Speak</BaseButton
-        >
-      </div>
-    </PanelSection>
-
-    <PanelSection title="Actions">
-      <div class="action-buttons">
-        <BaseButton variant="primary" @click="handleRandomize" icon="ph:dice-five-duotone" block
-          >Randomize</BaseButton
-        >
-        <div class="row-2" style="gap: 8px; margin-top: 8px">
-          <BaseButton variant="secondary" @click="handleExport" icon="ph:cube-duotone" block
-            >Export GLTF</BaseButton
-          >
-          <BaseButton
-            variant="secondary"
-            @click="handleReset"
-            icon="ph:arrow-counter-clockwise-duotone"
-            block
-            >Reset</BaseButton
-          >
-        </div>
-      </div>
-    </PanelSection>
   </BasePanel>
 </template>
 
@@ -539,26 +547,57 @@ onUnmounted(() => {
   color: var(--text-primary);
 }
 
-/* State Buttons */
-.state-buttons {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-/* Action Buttons */
-.action-buttons {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.row-2 {
+/* Preset Actions */
+.preset-actions {
   display: flex;
   gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--glass-border);
 }
 
-.row-2 > * {
+.action-btn {
   flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 12px;
+  background: var(--surface-1);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.action-btn iconify-icon {
+  font-size: 16px;
+}
+
+.action-btn:hover {
+  background: var(--surface-2);
+  color: var(--text-primary);
+  transform: translateY(-1px);
+}
+
+.action-btn.randomize:hover {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+}
+
+.action-btn.reset:hover {
+  border-color: var(--warning);
+  color: var(--warning);
+}
+
+/* Section Description */
+.section-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin: 0 0 12px 0;
+  line-height: 1.4;
 }
 </style>
