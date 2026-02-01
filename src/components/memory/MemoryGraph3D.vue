@@ -2,7 +2,7 @@
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
-import type { MemoryNode, MemoryEdge, MemoryGraph } from './types'
+import type { MemoryNode, MemoryGraph } from './types'
 import { getNodeColor, calculateDegrees, findCentralNode, calculateNodeRadius, truncateText } from './utils'
 
 const props = defineProps<{
@@ -458,7 +458,7 @@ function onMouseClick(event: MouseEvent) {
   const intersects = raycaster.intersectObjects(meshes)
   
   if (intersects.length > 0) {
-    const obj = intersects[0].object as THREE.Mesh
+    const obj = intersects[0]!.object as THREE.Mesh
     const nodeData = (obj as any).nodeData as MemoryNode
     
     if (nodeData) {

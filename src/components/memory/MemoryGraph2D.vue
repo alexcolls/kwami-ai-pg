@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 import type { MemoryNode, MemoryGraph, Position2D } from './types'
 import { 
   getNodeColorHex, 
@@ -94,6 +94,7 @@ function calculateLayout() {
 
 function draw() {
   if (!ctx) return
+  const c = ctx
   
   const { width, height } = canvasSize.value
   const lightMode = isLightMode()
@@ -106,13 +107,13 @@ function draw() {
   const textShadow = lightMode ? 'rgba(255, 255, 255, 0.9)' : 'rgba(0, 0, 0, 0.8)'
   
   // Clear canvas with theme background
-  ctx.fillStyle = getCanvasBg()
-  ctx.fillRect(0, 0, width, height)
+  c.fillStyle = getCanvasBg()
+  c.fillRect(0, 0, width, height)
   
   // Apply transform
-  ctx.save()
-  ctx.translate(transform.value.x, transform.value.y)
-  ctx.scale(transform.value.scale, transform.value.scale)
+  c.save()
+  c.translate(transform.value.x, transform.value.y)
+  c.scale(transform.value.scale, transform.value.scale)
   
   const nodes = props.graph.nodes
   const edges = props.graph.edges
@@ -142,12 +143,12 @@ function draw() {
       const ctrlY = midY + perpY
       
       // Draw edge
-      ctx.beginPath()
-      ctx.moveTo(startPos.x, startPos.y)
-      ctx.quadraticCurveTo(ctrlX, ctrlY, endPos.x, endPos.y)
-      ctx.strokeStyle = edgeColor
-      ctx.lineWidth = 1.5
-      ctx.stroke()
+      c.beginPath()
+      c.moveTo(startPos.x, startPos.y)
+      c.quadraticCurveTo(ctrlX, ctrlY, endPos.x, endPos.y)
+      c.strokeStyle = edgeColor
+      c.lineWidth = 1.5
+      c.stroke()
       
       // Draw edge label if enabled
       if (props.showEdgeLabels && transform.value.scale > 0.6) {
@@ -156,22 +157,22 @@ function draw() {
         
         const label = truncateText(edge.relation, 16)
         
-        ctx.font = '500 10px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
-        const textMetrics = ctx.measureText(label)
+        c.font = '500 10px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+        const textMetrics = c.measureText(label)
         const padding = 4
         const bgWidth = textMetrics.width + padding * 2
         const bgHeight = 14
         
         // Draw background
-        ctx.fillStyle = labelBg
-        roundRect(ctx, labelX - bgWidth/2, labelY - bgHeight/2, bgWidth, bgHeight, 3)
-        ctx.fill()
+        c.fillStyle = labelBg
+        roundRect(c, labelX - bgWidth/2, labelY - bgHeight/2, bgWidth, bgHeight, 3)
+        c.fill()
         
         // Draw text
-        ctx.fillStyle = textMuted
-        ctx.textAlign = 'center'
-        ctx.textBaseline = 'middle'
-        ctx.fillText(label, labelX, labelY)
+        c.fillStyle = textMuted
+        c.textAlign = 'center'
+        c.textBaseline = 'middle'
+        c.fillText(label, labelX, labelY)
       }
     }
   })
@@ -190,42 +191,42 @@ function draw() {
     const color = getNodeColorHex(node.type)
     
     // Draw glow
-    const gradient = ctx.createRadialGradient(pos.x, pos.y, radius * 0.5, pos.x, pos.y, radius * 2)
+    const gradient = c.createRadialGradient(pos.x, pos.y, radius * 0.5, pos.x, pos.y, radius * 2)
     gradient.addColorStop(0, color + '40')
     gradient.addColorStop(1, 'transparent')
-    ctx.fillStyle = gradient
-    ctx.beginPath()
-    ctx.arc(pos.x, pos.y, radius * 2, 0, Math.PI * 2)
-    ctx.fill()
+    c.fillStyle = gradient
+    c.beginPath()
+    c.arc(pos.x, pos.y, radius * 2, 0, Math.PI * 2)
+    c.fill()
     
     // Draw node
-    ctx.beginPath()
-    ctx.arc(pos.x, pos.y, radius, 0, Math.PI * 2)
-    ctx.fillStyle = color
-    ctx.fill()
+    c.beginPath()
+    c.arc(pos.x, pos.y, radius, 0, Math.PI * 2)
+    c.fillStyle = color
+    c.fill()
     
     // Draw border for selected/hovered
     if (isSelected || isHovered) {
-      ctx.strokeStyle = isSelected ? '#fff' : 'rgba(255,255,255,0.5)'
-      ctx.lineWidth = isSelected ? 3 : 2
-      ctx.stroke()
+      c.strokeStyle = isSelected ? '#fff' : 'rgba(255,255,255,0.5)'
+      c.lineWidth = isSelected ? 3 : 2
+      c.stroke()
     }
     
     // Draw label
     const label = truncateText(node.label, degree > 3 ? 18 : 12)
     const fontSize = 11 + Math.floor((degree / maxDegree) * 3)
     
-    ctx.font = `600 ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'top'
+    c.font = `600 ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`
+    c.textAlign = 'center'
+    c.textBaseline = 'top'
     
     // Text shadow
-    ctx.fillStyle = textShadow
-    ctx.fillText(label, pos.x + 1, pos.y + radius + 6 + 1)
+    c.fillStyle = textShadow
+    c.fillText(label, pos.x + 1, pos.y + radius + 6 + 1)
     
     // Text
-    ctx.fillStyle = textColor
-    ctx.fillText(label, pos.x, pos.y + radius + 6)
+    c.fillStyle = textColor
+    c.fillText(label, pos.x, pos.y + radius + 6)
   })
   
   ctx.restore()

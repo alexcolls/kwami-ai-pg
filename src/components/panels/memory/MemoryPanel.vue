@@ -70,19 +70,19 @@ const isDeleting = ref(false);
 const deleteError = ref('');
 
 // Format date for display (short version without time)
-function formatDate(dateStr: string | null): string {
-  if (!dateStr) return '';
-  try {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric',
-      year: 'numeric'
-    });
-  } catch {
-    return dateStr;
-  }
-}
+// function formatDate(dateStr: string | null): string {
+//   if (!dateStr) return '';
+//   try {
+//     const date = new Date(dateStr);
+//     return date.toLocaleDateString('en-US', { 
+//       month: 'short', 
+//       day: 'numeric',
+//       year: 'numeric'
+//     });
+//   } catch {
+//     return dateStr;
+//   }
+// }
 
 // Format date with time (HH:mm:ss) in user's local time
 function formatDateTime(dateStr: string | null): string {
@@ -232,7 +232,7 @@ function deleteEdge(edgeUuid: string | null) {
   const index = edges.value.findIndex(e => e.uuid === edgeUuid);
   if (index === -1) return;
   
-  const edge = edges.value[index];
+  const edge = edges.value[index]!;
   
   // Remove from UI immediately (optimistic)
   edges.value.splice(index, 1);
@@ -326,7 +326,7 @@ function deleteNode(nodeUuid: string | null) {
   const index = nodes.value.findIndex(n => n.uuid === nodeUuid);
   if (index === -1) return;
   
-  const node = nodes.value[index];
+  const node = nodes.value[index]!;
   
   // Remove from UI immediately (optimistic)
   nodes.value.splice(index, 1);
