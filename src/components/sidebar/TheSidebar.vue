@@ -1,13 +1,73 @@
 <script setup lang="ts">
+import { computed, ref, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { useUIStore } from '@/stores/ui';
+import { useThemeStore } from '@/stores/theme';
 import SidebarNavigation from './SidebarNavigation.vue';
 import SidebarContent from './SidebarContent.vue';
 
 const uiStore = useUIStore();
+const themeStore = useThemeStore();
+
+const sidebarRef = ref<HTMLElement | null>(null);
+const sidebarWidth = ref(0);
+const windowWidth = ref(window.innerWidth);
+
+// Update measurements
+function updateMeasurements() {
+  windowWidth.value = window.innerWidth;
+  if (sidebarRef.value) {
+    sidebarWidth.value = sidebarRef.value.offsetWidth;
+  }
+}
+
+// Computed class for sidebar position
+const isRight = computed(() => themeStore.sidebarPosition === 'right');
+
+// Computed style for smooth transform-based animation
+const sidebarStyle = computed(() => {
+  if (isRight.value) {
+    // Calculate how much to move right: viewport width - sidebar width - (left padding + right padding)
+    const translateX = windowWidth.value - sidebarWidth.value - 40; // 20px padding on each side
+    return {
+      transform: `translateX(${translateX}px)`
+    };
+  }
+  return {
+    transform: 'translateX(0)'
+  };
+});
+
+// Watch for panel state changes to update measurements
+watch([() => uiStore.isPanelOpen, () => uiStore.panelWidth], () => {
+  // Wait for DOM update then measure
+  nextTick(() => {
+    // Small delay for CSS transitions to complete
+    setTimeout(updateMeasurements, 400);
+  });
+});
+
+onMounted(() => {
+  updateMeasurements();
+  window.addEventListener('resize', updateMeasurements);
+  // Update width after initial render
+  requestAnimationFrame(updateMeasurements);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('resize', updateMeasurements);
+});
 </script>
 
 <template>
-  <div class="sidebar" :class="{ collapsed: !uiStore.isPanelOpen }">
+  <div 
+    ref="sidebarRef"
+    class="sidebar" 
+    :class="{ 
+      collapsed: !uiStore.isPanelOpen,
+      'sidebar-right': isRight
+    }"
+    :style="sidebarStyle"
+  >
     <SidebarNavigation />
     <SidebarContent>
       <slot></slot>
@@ -24,14 +84,13 @@ const uiStore = useUIStore();
   display: flex;
   gap: 12px;
   z-index: 1000;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   pointer-events: none;
+  /* Smooth transform animation */
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Right sidebar position */
-:global(body.sidebar-right) .sidebar {
-  left: auto;
-  right: 20px;
+/* Right sidebar - reverse the flex direction for proper ordering */
+.sidebar.sidebar-right {
   flex-direction: row-reverse;
 }
 
@@ -45,7 +104,9 @@ const uiStore = useUIStore();
   overflow: hidden;
 }
 
-:global(body.sidebar-right) .sidebar.collapsed :deep(.panel-column) {
+.sidebar.sidebar-right.collapsed :deep(.panel-column) {
   transform: translateX(20px);
 }
 </style>
+
+

@@ -43,7 +43,7 @@ function onMouseMove(e: MouseEvent) {
   if (!isResizing.value) return;
   
   // Check sidebar position for correct resize direction
-  const isRight = document.body.classList.contains('sidebar-right');
+  const isRight = themeStore.sidebarPosition === 'right';
   const delta = isRight ? startX.value - e.clientX : e.clientX - startX.value;
   const newWidth = startWidth.value + delta;
   uiStore.setPanelWidth(newWidth);
@@ -173,8 +173,8 @@ onUnmounted(() => {
   justify-content: center;
 }
 
-/* Right sidebar - handle on left */
-:global(body.sidebar-right) .resize-handle {
+/* Right sidebar - handle on left (use parent class instead of body) */
+:global(.sidebar-right) .resize-handle {
   right: auto;
   left: -4px;
 }
