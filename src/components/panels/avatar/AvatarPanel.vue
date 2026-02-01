@@ -3,6 +3,7 @@ import { onMounted, onUnmounted, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useKwami } from '@/composables/useKwami';
 import { useAvatarStore, type SkinSubtype, type CrystalFormation, type AvatarState } from '@/stores/avatar';
+import BasePanel from '@/components/ui/BasePanel.vue';
 import PanelSection from '@/components/ui/PanelSection.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
 import BlobSettings from './BlobSettings.vue';
@@ -97,6 +98,7 @@ watch(() => blob.value.opacity, (v) => kwami.value?.avatar.setOpacity(v));
 watch(() => blob.value.shininess, (v) => kwami.value?.avatar.setShininess(v));
 watch(() => blob.value.lightIntensity, (v) => getBlob()?.setLightIntensity(v));
 watch(() => blob.value.wireframe, (v) => kwami.value?.avatar.setWireframe(v));
+watch(() => blob.value.glassMode, (v) => getBlob()?.setGlassMode(v));
 watch(
   () => blob.value.skin,
   (v) => kwami.value?.avatar.setSkin({ skin: 'tricolor', subtype: v as SkinSubtype })
@@ -104,23 +106,23 @@ watch(
 watch(() => blob.value.resolution, (v) => getBlob()?.setResolution(v));
 watch(() => blob.value.touchStrength, (v) => {
   const b = getBlob();
-  if (b) (b as { touchStrength: number }).touchStrength = v;
+  if (b) b.setTouchStrength(v);
 });
 watch(() => blob.value.touchDuration, (v) => {
   const b = getBlob();
-  if (b) (b as { touchDuration: number }).touchDuration = v;
+  if (b) b.setTouchDuration(v);
 });
 watch(() => blob.value.maxTouchPoints, (v) => {
   const b = getBlob();
-  if (b) (b as { maxTouchPoints: number }).maxTouchPoints = v;
+  if (b) b.setMaxTouchPoints(v);
 });
 watch(() => blob.value.transitionSpeed, (v) => {
   const b = getBlob();
-  if (b) (b as { transitionSpeed: number }).transitionSpeed = v;
+  if (b) b.setTransitionSpeed(v);
 });
 watch(() => blob.value.thinkingDuration, (v) => {
   const b = getBlob();
-  if (b) (b as { thinkingDuration: number }).thinkingDuration = v;
+  if (b) b.setThinkingDuration(v);
 });
 
 // Sync Store to Kwami - Crystal watchers
@@ -151,8 +153,9 @@ watch(
   () => crystal.value.audioEffects,
   (v) => {
     const c = getCrystal();
-    if (c && typeof (c as any).setAudioEffects === 'function') {
-      (c as any).setAudioEffects(v);
+    if (c) {
+      // Crystal audio effects are set directly on properties
+      Object.assign(c.audioEffects, v);
     }
   },
   { deep: true }
@@ -160,11 +163,11 @@ watch(
 // Crystal transition watchers
 watch(() => crystal.value.transitionSpeed, (v) => {
   const c = getCrystal();
-  if (c) (c as { transitionSpeed?: number }).transitionSpeed = v;
+  if (c) c.transitionSpeed = v;
 });
 watch(() => crystal.value.thinkingDuration, (v) => {
   const c = getCrystal();
-  if (c) (c as { thinkingDuration?: number }).thinkingDuration = v;
+  if (c) c.thinkingDuration = v;
 });
 
 // Sync Store to Kwami - Particles watchers
@@ -315,127 +318,120 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="panel-inner">
-    <div class="panel-header">
-      <iconify-icon icon="ph:ghost-duotone" class="panel-icon"></iconify-icon>
-      <h2>Avatar</h2>
-    </div>
+  <BasePanel icon="ph:ghost-duotone" title="Avatar">
+    <!-- Renderer Selector -->
+    <PanelSection title="Renderer">
+      <div class="renderer-selector">
+        <label class="renderer-option" :class="{ active: rendererType === 'blob' }">
+          <input
+            type="radio"
+            name="renderer"
+            value="blob"
+            :checked="rendererType === 'blob'"
+            @change="handleSwitchRenderer('blob')"
+          />
+          <iconify-icon icon="ph:circle-wavy-duotone" class="renderer-icon"></iconify-icon>
+          <span class="renderer-label">Blob</span>
+        </label>
+        <label class="renderer-option" :class="{ active: rendererType === 'crystal' }">
+          <input
+            type="radio"
+            name="renderer"
+            value="crystal"
+            :checked="rendererType === 'crystal'"
+            @change="handleSwitchRenderer('crystal')"
+          />
+          <iconify-icon icon="ph:diamond-duotone" class="renderer-icon"></iconify-icon>
+          <span class="renderer-label">Crystal</span>
+        </label>
+        <label class="renderer-option" :class="{ active: rendererType === 'particles' }">
+          <input
+            type="radio"
+            name="renderer"
+            value="particles"
+            :checked="rendererType === 'particles'"
+            @change="handleSwitchRenderer('particles')"
+          />
+          <iconify-icon icon="ph:circles-three-plus-duotone" class="renderer-icon"></iconify-icon>
+          <span class="renderer-label">Particles</span>
+        </label>
+      </div>
+    </PanelSection>
 
-    <div class="panel-body">
-      <!-- Renderer Selector -->
-      <PanelSection title="Renderer">
-        <div class="renderer-selector">
-          <label class="renderer-option" :class="{ active: rendererType === 'blob' }">
-            <input
-              type="radio"
-              name="renderer"
-              value="blob"
-              :checked="rendererType === 'blob'"
-              @change="handleSwitchRenderer('blob')"
-            />
-            <iconify-icon icon="ph:circle-wavy-duotone" class="renderer-icon"></iconify-icon>
-            <span class="renderer-label">Blob</span>
-          </label>
-          <label class="renderer-option" :class="{ active: rendererType === 'crystal' }">
-            <input
-              type="radio"
-              name="renderer"
-              value="crystal"
-              :checked="rendererType === 'crystal'"
-              @change="handleSwitchRenderer('crystal')"
-            />
-            <iconify-icon icon="ph:diamond-duotone" class="renderer-icon"></iconify-icon>
-            <span class="renderer-label">Crystal</span>
-          </label>
-          <label class="renderer-option" :class="{ active: rendererType === 'particles' }">
-            <input
-              type="radio"
-              name="renderer"
-              value="particles"
-              :checked="rendererType === 'particles'"
-              @change="handleSwitchRenderer('particles')"
-            />
-            <iconify-icon icon="ph:circles-three-plus-duotone" class="renderer-icon"></iconify-icon>
-            <span class="renderer-label">Particles</span>
-          </label>
-        </div>
-      </PanelSection>
+    <!-- Presets -->
+    <PanelSection title="Quick Presets">
+      <div class="presets-grid">
+        <button
+          v-for="preset in (rendererType === 'blob' ? blobPresets : rendererType === 'crystal' ? crystalPresets : particlesPresets)"
+          :key="preset.id"
+          class="preset-btn"
+          @click="handleApplyPreset(preset.id)"
+          :title="preset.name"
+        >
+          <iconify-icon :icon="preset.icon" class="preset-icon"></iconify-icon>
+          <span class="preset-name">{{ preset.name }}</span>
+        </button>
+      </div>
+    </PanelSection>
 
-      <!-- Presets -->
-      <PanelSection title="Quick Presets">
-        <div class="presets-grid">
-          <button
-            v-for="preset in (rendererType === 'blob' ? blobPresets : rendererType === 'crystal' ? crystalPresets : particlesPresets)"
-            :key="preset.id"
-            class="preset-btn"
-            @click="handleApplyPreset(preset.id)"
-            :title="preset.name"
+    <!-- Sub-components -->
+    <BlobSettings v-if="rendererType === 'blob'" v-model:state="blob" />
+    <CrystalSettings v-if="rendererType === 'crystal'" v-model:state="crystal" />
+    <ParticlesSettings v-if="rendererType === 'particles'" v-model:state="particles" />
+
+    <PanelSection title="State">
+      <div class="state-buttons">
+        <BaseButton
+          :variant="activeState === 'idle' ? 'primary' : 'secondary'"
+          @click="handleStateChange('idle')"
+          size="sm"
+          icon="ph:moon-stars-duotone"
+          >Idle</BaseButton
+        >
+        <BaseButton
+          :variant="activeState === 'listening' ? 'primary' : 'secondary'"
+          @click="handleStateChange('listening')"
+          size="sm"
+          icon="ph:microphone-duotone"
+          >Listen</BaseButton
+        >
+        <BaseButton
+          :variant="activeState === 'thinking' ? 'primary' : 'secondary'"
+          @click="handleStateChange('thinking')"
+          size="sm"
+          icon="ph:brain-duotone"
+          >Think</BaseButton
+        >
+        <BaseButton
+          :variant="activeState === 'speaking' ? 'primary' : 'secondary'"
+          @click="handleStateChange('speaking')"
+          size="sm"
+          icon="ph:speaker-high-duotone"
+          >Speak</BaseButton
+        >
+      </div>
+    </PanelSection>
+
+    <PanelSection title="Actions">
+      <div class="action-buttons">
+        <BaseButton variant="primary" @click="handleRandomize" icon="ph:dice-five-duotone" block
+          >Randomize</BaseButton
+        >
+        <div class="row-2" style="gap: 8px; margin-top: 8px">
+          <BaseButton variant="secondary" @click="handleExport" icon="ph:cube-duotone" block
+            >Export GLTF</BaseButton
           >
-            <iconify-icon :icon="preset.icon" class="preset-icon"></iconify-icon>
-            <span class="preset-name">{{ preset.name }}</span>
-          </button>
-        </div>
-      </PanelSection>
-
-      <!-- Sub-components -->
-      <BlobSettings v-if="rendererType === 'blob'" v-model:state="blob" />
-      <CrystalSettings v-if="rendererType === 'crystal'" v-model:state="crystal" />
-      <ParticlesSettings v-if="rendererType === 'particles'" v-model:state="particles" />
-
-      <PanelSection title="State">
-        <div class="state-buttons">
           <BaseButton
-            :variant="activeState === 'idle' ? 'primary' : 'secondary'"
-            @click="handleStateChange('idle')"
-            size="sm"
-            icon="ph:moon-stars-duotone"
-            >Idle</BaseButton
-          >
-          <BaseButton
-            :variant="activeState === 'listening' ? 'primary' : 'secondary'"
-            @click="handleStateChange('listening')"
-            size="sm"
-            icon="ph:microphone-duotone"
-            >Listen</BaseButton
-          >
-          <BaseButton
-            :variant="activeState === 'thinking' ? 'primary' : 'secondary'"
-            @click="handleStateChange('thinking')"
-            size="sm"
-            icon="ph:brain-duotone"
-            >Think</BaseButton
-          >
-          <BaseButton
-            :variant="activeState === 'speaking' ? 'primary' : 'secondary'"
-            @click="handleStateChange('speaking')"
-            size="sm"
-            icon="ph:speaker-high-duotone"
-            >Speak</BaseButton
+            variant="secondary"
+            @click="handleReset"
+            icon="ph:arrow-counter-clockwise-duotone"
+            block
+            >Reset</BaseButton
           >
         </div>
-      </PanelSection>
-
-      <PanelSection title="Actions">
-        <div class="action-buttons">
-          <BaseButton variant="primary" @click="handleRandomize" icon="ph:dice-five-duotone" block
-            >Randomize</BaseButton
-          >
-          <div class="row-2" style="gap: 8px; margin-top: 8px">
-            <BaseButton variant="secondary" @click="handleExport" icon="ph:cube-duotone" block
-              >Export GLTF</BaseButton
-            >
-            <BaseButton
-              variant="secondary"
-              @click="handleReset"
-              icon="ph:arrow-counter-clockwise-duotone"
-              block
-              >Reset</BaseButton
-            >
-          </div>
-        </div>
-      </PanelSection>
-    </div>
-  </div>
+      </div>
+    </PanelSection>
+  </BasePanel>
 </template>
 
 <style scoped>

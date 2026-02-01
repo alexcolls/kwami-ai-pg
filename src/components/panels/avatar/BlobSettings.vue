@@ -62,10 +62,14 @@ function executeAction(action: InteractionAction) {
       kwami.value.avatar.randomize();
       window.dispatchEvent(new CustomEvent('kwami:randomized'));
       break;
-    case 'switchRenderer':
+    case 'switchRenderer': {
       const renderer = kwami.value.avatar.getRendererType();
-      switchRenderer(renderer === 'blob' ? 'crystal' : 'blob');
+      const renderers = ['blob', 'crystal', 'particles'] as const;
+      const currentIdx = renderers.indexOf(renderer as typeof renderers[number]);
+      const nextIdx = (currentIdx + 1) % renderers.length;
+      switchRenderer(renderers[nextIdx]);
       break;
+    }
     case 'cycleState':
       const states = ['idle', 'listening', 'thinking'] as const;
       const current = kwami.value.getState() || 'idle';
@@ -325,17 +329,6 @@ function randomizeQuality() {
   state.value.resolution = randomInRange(64, 256, 8);
 }
 
-function randomizeTransitions() {
-  state.value.transitionSpeed = randomInRange(0.02, 0.15, 0.01);
-  state.value.thinkingDuration = randomInRange(3000, 15000, 500);
-}
-
-function randomizeTouch() {
-  state.value.touchStrength = randomInRange(0.5, 2, 0.1);
-  state.value.touchDuration = randomInRange(500, 2000, 100);
-  state.value.maxTouchPoints = randomInRange(3, 10, 1);
-}
-
 // Color harmony helpers
 function hslToHex(h: number, s: number, l: number): string {
   h = ((h % 360) + 360) % 360; // Normalize hue
@@ -536,8 +529,6 @@ const skinGradient = computed(() => {
 </script>
 
 <template>
-  <div class="blob-settings">
-    
     <!-- Appearance Section -->
     <PanelSection title="Appearance" collapsible>
       <template #actions>
@@ -608,8 +599,9 @@ const skinGradient = computed(() => {
           <BaseSlider label="Shininess" :min="1" :max="200" :step="1" v-model="state.shininess" />
           <BaseSlider label="Light Intensity" :min="0" :max="5" :step="0.1" v-model="state.lightIntensity" />
         </div>
-        <div style="margin-top: 12px">
+        <div class="toggle-group" style="margin-top: 12px">
           <BaseToggle label="Wireframe Mode" v-model="state.wireframe" />
+          <BaseToggle label="Glass Effect" v-model="state.glassMode" />
         </div>
       </div>
     </PanelSection>
@@ -727,6 +719,18 @@ const skinGradient = computed(() => {
         </div>
       </div>
 
+      <div class="linked-sliders">
+        <div class="link-header">
+          <span class="link-title">Start Position (°)</span>
+        </div>
+        <div class="slider-group">
+          <BaseSlider label="X" :min="0" :max="360" :step="1" v-model="state.startRotation.x" />
+          <BaseSlider label="Y" :min="0" :max="360" :step="1" v-model="state.startRotation.y" />
+          <BaseSlider label="Z" :min="0" :max="360" :step="1" v-model="state.startRotation.z" />
+        </div>
+        <p class="hint">Initial rotation angle in degrees</p>
+      </div>
+
       <div class="subsection">
         <span class="subsection-title">Transitions</span>
         <div class="slider-group">
@@ -736,6 +740,7 @@ const skinGradient = computed(() => {
             :max="0.2" 
             :step="0.01" 
             v-model="state.transitionSpeed"
+            hint="How fast state transitions animate"
           />
           <BaseSlider 
             label="Thinking Duration" 
@@ -743,6 +748,7 @@ const skinGradient = computed(() => {
             :max="30000" 
             :step="500" 
             v-model="state.thinkingDuration"
+            hint="Auto-stop thinking after this duration (ms)"
           />
         </div>
       </div>
@@ -805,6 +811,24 @@ const skinGradient = computed(() => {
         </div>
       </div>
 
+      <div class="interaction-row">
+        <div class="interaction-header">
+          <iconify-icon icon="ph:mouse-duotone"></iconify-icon>
+          <span>Double Right Click</span>
+          <BaseToggle v-model="state.interaction.doubleRightClick.enabled" size="sm" />
+        </div>
+        <div class="interaction-config" v-if="state.interaction.doubleRightClick.enabled">
+          <BaseSelect
+            label="Action"
+            v-model="state.interaction.doubleRightClick.action"
+            :options="actionOptions"
+          />
+          <button class="test-btn" @click="testAction(state.interaction.doubleRightClick.action)" title="Test Action">
+            <iconify-icon icon="ph:play-fill"></iconify-icon>
+          </button>
+        </div>
+      </div>
+
       <!-- Hover Settings -->
       <div class="hover-settings">
         <div class="interaction-header">
@@ -822,6 +846,24 @@ const skinGradient = computed(() => {
         </div>
       </div>
 
+      <!-- Drag Settings -->
+      <div class="drag-settings">
+        <div class="interaction-header">
+          <iconify-icon icon="ph:hand-grabbing-duotone"></iconify-icon>
+          <span>Drag to Rotate</span>
+          <BaseToggle v-model="state.interaction.drag.enabled" size="sm" />
+        </div>
+        <div class="interaction-config" v-if="state.interaction.drag.enabled">
+          <BaseSlider
+            label="Sensitivity"
+            :min="0.1"
+            :max="3"
+            :step="0.1"
+            v-model="state.interaction.drag.sensitivity"
+          />
+        </div>
+      </div>
+
       <!-- Touch Settings -->
       <div class="subsection">
         <span class="subsection-title">Touch Physics</span>
@@ -832,6 +874,7 @@ const skinGradient = computed(() => {
             :max="3" 
             :step="0.1" 
             v-model="state.touchStrength"
+            hint="How much the blob deforms on touch"
           />
           <BaseSlider 
             label="Duration" 
@@ -839,6 +882,7 @@ const skinGradient = computed(() => {
             :max="3000" 
             :step="100" 
             v-model="state.touchDuration"
+            hint="How long the touch effect lasts (ms)"
           />
           <BaseSlider 
             label="Max Points" 
@@ -846,6 +890,7 @@ const skinGradient = computed(() => {
             :max="20" 
             :step="1" 
             v-model="state.maxTouchPoints"
+            hint="Maximum simultaneous touch points"
           />
         </div>
       </div>
@@ -861,25 +906,79 @@ const skinGradient = computed(() => {
       <AudioVisualizer />
 
       <div v-if="state.audioEffects.enabled" class="slider-group" style="margin-top: 12px">
-        <BaseSlider label="Reactivity" :min="0" :max="5" :step="0.1" v-model="state.audioEffects.reactivity" />
-        <BaseSlider label="Sensitivity" :min="0" :max="0.3" :step="0.005" v-model="state.audioEffects.sensitivity" />
-        <BaseSlider label="Breathing" :min="0" :max="0.2" :step="0.005" v-model="state.audioEffects.breathing" />
+        <BaseSlider 
+          label="Reactivity" 
+          :min="0" :max="5" :step="0.1" 
+          v-model="state.audioEffects.reactivity"
+          hint="Overall audio response intensity"
+        />
+        <BaseSlider 
+          label="Sensitivity" 
+          :min="0" :max="0.3" :step="0.005" 
+          v-model="state.audioEffects.sensitivity"
+          hint="Minimum audio level to trigger response"
+        />
+        <BaseSlider 
+          label="Breathing" 
+          :min="0" :max="0.2" :step="0.005" 
+          v-model="state.audioEffects.breathing"
+          hint="Subtle idle animation amplitude"
+        />
         
         <div class="subsection-title">Response Dynamics</div>
-        <BaseSlider label="Speed" :min="0" :max="1" :step="0.05" v-model="state.audioEffects.responseSpeed" />
-        <BaseSlider label="Transient" :min="0" :max="1" :step="0.05" v-model="state.audioEffects.transientBoost" />
+        <BaseSlider 
+          label="Speed" 
+          :min="0" :max="1" :step="0.05" 
+          v-model="state.audioEffects.responseSpeed"
+          hint="How quickly the blob responds to audio"
+        />
+        <BaseSlider 
+          label="Transient" 
+          :min="0" :max="1" :step="0.05" 
+          v-model="state.audioEffects.transientBoost"
+          hint="Boost for sudden audio peaks"
+        />
         
         <div class="subsection-title">Frequency Spikes</div>
-        <BaseSlider label="Bass" :min="0" :max="2" :step="0.05" v-model="state.audioEffects.bassSpike" />
-        <BaseSlider label="Mid" :min="0" :max="2" :step="0.05" v-model="state.audioEffects.midSpike" />
-        <BaseSlider label="High" :min="0" :max="2" :step="0.05" v-model="state.audioEffects.highSpike" />
+        <p class="hint" style="margin-bottom: 8px">How much each frequency band affects spike intensity</p>
+        <BaseSlider 
+          label="Bass (20-250Hz)" 
+          :min="0" :max="2" :step="0.05" 
+          v-model="state.audioEffects.bassSpike"
+        />
+        <BaseSlider 
+          label="Mid (250-2000Hz)" 
+          :min="0" :max="2" :step="0.05" 
+          v-model="state.audioEffects.midSpike"
+        />
+        <BaseSlider 
+          label="High (2000-8000Hz)" 
+          :min="0" :max="2" :step="0.05" 
+          v-model="state.audioEffects.highSpike"
+        />
         
         <div class="subsection-title">Time Modulation</div>
         <BaseToggle label="Enable Time Effects" v-model="state.audioEffects.timeEnabled" />
-        <div v-if="state.audioEffects.timeEnabled">
-            <BaseSlider label="Mid Time" :min="0" :max="0.5" :step="0.01" v-model="state.audioEffects.midTime" />
-            <BaseSlider label="High Time" :min="0" :max="0.5" :step="0.01" v-model="state.audioEffects.highTime" />
-            <BaseSlider label="Ultra Time" :min="0" :max="0.5" :step="0.01" v-model="state.audioEffects.ultraTime" />
+        <p v-if="state.audioEffects.timeEnabled" class="hint" style="margin: 8px 0">Audio-driven animation speed variation</p>
+        <div v-if="state.audioEffects.timeEnabled" class="slider-group">
+          <BaseSlider 
+            label="Mid Time" 
+            :min="0" :max="0.5" :step="0.01" 
+            v-model="state.audioEffects.midTime"
+            hint="Mid frequencies affect animation speed"
+          />
+          <BaseSlider 
+            label="High Time" 
+            :min="0" :max="0.5" :step="0.01" 
+            v-model="state.audioEffects.highTime"
+            hint="High frequencies affect animation speed"
+          />
+          <BaseSlider 
+            label="Ultra Time" 
+            :min="0" :max="0.5" :step="0.01" 
+            v-model="state.audioEffects.ultraTime"
+            hint="Ultra-high frequencies (>8kHz) effect"
+          />
         </div>
       </div>
     </PanelSection>
@@ -902,16 +1001,9 @@ const skinGradient = computed(() => {
       </div>
       <p class="hint">Higher = more detail, lower performance</p>
     </PanelSection>
-
-  </div>
 </template>
 
 <style scoped>
-.blob-settings {
-  display: flex;
-  flex-direction: column;
-}
-
 /* Subsection styling */
 .subsection {
   margin-bottom: 16px;
@@ -1225,5 +1317,20 @@ const skinGradient = computed(() => {
 
 .toggle-row {
   margin-bottom: 12px;
+}
+
+.toggle-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.drag-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--glass-border);
 }
 </style>

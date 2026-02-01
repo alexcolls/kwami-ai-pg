@@ -55,10 +55,14 @@ function executeAction(action: InteractionAction) {
       kwami.value.avatar.randomize();
       window.dispatchEvent(new CustomEvent('kwami:randomized'));
       break;
-    case 'switchRenderer':
+    case 'switchRenderer': {
       const renderer = kwami.value.avatar.getRendererType();
-      switchRenderer(renderer === 'blob' ? 'crystal' : 'blob'); // Should cycle through particles too?
+      const renderers = ['blob', 'crystal', 'particles'] as const;
+      const currentIdx = renderers.indexOf(renderer as typeof renderers[number]);
+      const nextIdx = (currentIdx + 1) % renderers.length;
+      switchRenderer(renderers[nextIdx]);
       break;
+    }
     case 'cycleState':
       const states = ['idle', 'listening', 'thinking'] as const;
       const current = kwami.value.getState() || 'idle';
@@ -70,7 +74,7 @@ function executeAction(action: InteractionAction) {
       break;
     case 'pulse':
       const particles = kwami.value.avatar.getParticles();
-      if (particles) particles.triggerPulse?.(); // Assuming triggerPulse exists or will be added
+      if (particles) (particles as any).triggerPulse?.(); // Assuming triggerPulse exists or will be added
       break;
     case 'moveToClick':
       // Not implemented for Particles yet
@@ -222,8 +226,6 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="particles-settings">
-    
     <!-- Appearance Section -->
     <PanelSection title="Appearance" collapsible>
       <!-- Formation -->
@@ -716,15 +718,9 @@ onMounted(() => {
         Tip: Drag canvas to rotate. Click particles to explode them.
       </p>
     </PanelSection>
-  </div>
 </template>
 
 <style scoped>
-.particles-settings {
-  display: flex;
-  flex-direction: column;
-}
-
 /* Subsection styling */
 .subsection {
   margin-bottom: 16px;

@@ -55,10 +55,14 @@ function executeAction(action: InteractionAction) {
       kwami.value.avatar.randomize();
       window.dispatchEvent(new CustomEvent('kwami:randomized'));
       break;
-    case 'switchRenderer':
+    case 'switchRenderer': {
       const renderer = kwami.value.avatar.getRendererType();
-      switchRenderer(renderer === 'blob' ? 'crystal' : 'blob');
+      const renderers = ['blob', 'crystal', 'particles'] as const;
+      const currentIdx = renderers.indexOf(renderer as typeof renderers[number]);
+      const nextIdx = (currentIdx + 1) % renderers.length;
+      switchRenderer(renderers[nextIdx]);
       break;
+    }
     case 'cycleState':
       const states = ['idle', 'listening', 'thinking'] as const;
       const current = kwami.value.getState() || 'idle';
@@ -227,8 +231,6 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="crystal-settings">
-    
     <!-- Appearance Section -->
     <PanelSection title="Appearance" collapsible>
       <!-- Formation -->
@@ -494,16 +496,9 @@ onMounted(() => {
         Enable to make crystals react to audio input
       </p>
     </PanelSection>
-
-  </div>
 </template>
 
 <style scoped>
-.crystal-settings {
-  display: flex;
-  flex-direction: column;
-}
-
 /* Subsection styling */
 .subsection {
   margin-bottom: 16px;

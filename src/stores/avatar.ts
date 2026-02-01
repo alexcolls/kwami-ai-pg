@@ -5,6 +5,7 @@ import {
   avatarPresetsRef,
   getBlobPresets,
   getCrystalPresets,
+  getParticlesPresets,
   getPresetById,
   type AvatarPreset,
 } from '../templates/avatar-templates';
@@ -100,6 +101,8 @@ export interface BlobState {
   shininess: number;
   lightIntensity: number;
   wireframe: boolean;
+  /** Enable glass effect (stencil-based transparency) */
+  glassMode: boolean;
   skin: SkinSubtype;
   resolution: number;
   touchStrength: number;
@@ -213,6 +216,7 @@ export function getDefaultBlobState(): BlobState {
     shininess: 50,
     lightIntensity: 0,
     wireframe: false,
+    glassMode: false,
     skin: 'poles',
     resolution: 180,
     touchStrength: 1,
@@ -341,15 +345,7 @@ export const useAvatarStore = defineStore('avatar', () => {
 
   const crystalPresets = computed(() => getCrystalPresets());
 
-  // Particles presets (hardcoded for now)
-  const particlesPresets = computed(() => [
-    { id: 'particles-default', name: 'Default', icon: 'ph:circles-three-duotone' },
-    { id: 'particles-dense', name: 'Dense', icon: 'ph:dots-nine-duotone' },
-    { id: 'particles-sparse', name: 'Sparse', icon: 'ph:dots-three-duotone' },
-    { id: 'particles-reactive', name: 'Reactive', icon: 'ph:waveform-duotone' },
-    { id: 'particles-calm', name: 'Calm', icon: 'ph:moon-duotone' },
-    { id: 'particles-disc', name: 'Disc', icon: 'ph:circle-duotone' },
-  ]);
+  const particlesPresets = computed(() => getParticlesPresets());
 
   // Actions
   function setRendererType(type: RendererType) {
@@ -395,97 +391,23 @@ export const useAvatarStore = defineStore('avatar', () => {
   }
 
   function applyPreset(presetId: string) {
-    // Handle particles presets (hardcoded)
-    if (presetId.startsWith('particles-')) {
-      rendererType.value = 'particles';
-      
-      switch (presetId) {
-        case 'particles-default':
-          Object.assign(particles, getDefaultParticlesState());
-          break;
-        case 'particles-dense':
-          Object.assign(particles, {
-            ...getDefaultParticlesState(),
-            particleCount: 15000,
-            visual: {
-              ...getDefaultParticlesState().visual,
-              particleSize: 1.8,
-              opacity: 0.85,
-            },
-          });
-          break;
-        case 'particles-sparse':
-          Object.assign(particles, {
-            ...getDefaultParticlesState(),
-            particleCount: 3000,
-            visual: {
-              ...getDefaultParticlesState().visual,
-              particleSize: 3.5,
-              brightnessVariation: 0.5,
-            },
-          });
-          break;
-        case 'particles-reactive':
-          Object.assign(particles, {
-            ...getDefaultParticlesState(),
-            audioEffects: {
-              enabled: true,
-              reactivity: 0.9,
-              bassInfluence: 0.6,
-              midInfluence: 0.3,
-              highInfluence: 0.7,
-              smoothing: 0.7,
-            },
-            physics: {
-              ...getDefaultParticlesState().physics,
-              explosionForce: 12,
-              returnForce: 0.05,
-            },
-          });
-          break;
-        case 'particles-calm':
-          Object.assign(particles, {
-            ...getDefaultParticlesState(),
-            audioEffects: {
-              enabled: true,
-              reactivity: 0.2,
-              bassInfluence: 0.1,
-              midInfluence: 0.1,
-              highInfluence: 0.2,
-              smoothing: 0.95,
-            },
-            physics: {
-              ...getDefaultParticlesState().physics,
-              damping: 0.96,
-              returnForce: 0.015,
-              leaderSpeed: 0.01,
-            },
-          });
-          break;
-        case 'particles-disc':
-          Object.assign(particles, {
-            ...getDefaultParticlesState(),
-            formation: {
-              type: 'disc' as ParticlesFormationType,
-              radius: 2,
-              density: 'uniform' as ParticlesDensity,
-              noise: 0.03,
-            },
-          });
-          break;
-      }
-      return true;
-    }
-
     const preset = getPresetById(presetId);
     if (!preset) return false;
 
     rendererType.value = preset.renderer;
 
     if (preset.renderer === 'blob' && preset.blob) {
-      Object.assign(blob, preset.blob);
+      // Deep merge blob state with defaults
+      const defaultState = getDefaultBlobState();
+      Object.assign(blob, defaultState, preset.blob);
     } else if (preset.renderer === 'crystal' && preset.crystal) {
-      Object.assign(crystal, preset.crystal);
+      // Deep merge crystal state with defaults
+      const defaultState = getDefaultCrystalState();
+      Object.assign(crystal, defaultState, preset.crystal);
+    } else if (preset.renderer === 'particles' && preset.particles) {
+      // Deep merge particles state with defaults
+      const defaultState = getDefaultParticlesState();
+      Object.assign(particles, defaultState, preset.particles);
     }
 
     return true;
