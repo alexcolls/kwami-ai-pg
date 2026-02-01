@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   modelValue: number;
   label?: string;
   icon?: string;
@@ -11,11 +11,16 @@ const props = defineProps<{
   unit?: string;
   inline?: boolean;
   hideValue?: boolean;
-}>();
+  editValue?: boolean;
+}>(), {
+  editValue: true
+});
 
 const emit = defineEmits(['update:modelValue']);
 
 const isDragging = ref(false);
+const isEditing = ref(false);
+const editInputValue = ref('');
 
 const minVal = computed(() => props.min ?? 0);
 const maxVal = computed(() => props.max ?? 100);
@@ -32,7 +37,9 @@ const displayValue = computed(() => {
 const fillPercent = computed(() => {
   const range = maxVal.value - minVal.value;
   if (range === 0) return 0;
-  return ((props.modelValue - minVal.value) / range) * 100;
+  // Clamp fill percent between 0 and 100 for visual display
+  const percent = ((props.modelValue - minVal.value) / range) * 100;
+  return Math.max(0, Math.min(100, percent));
 });
 
 const trackStyle = computed(() => ({
@@ -51,6 +58,28 @@ function onMouseDown() {
 function onMouseUp() {
   isDragging.value = false;
 }
+
+function startEditing() {
+  if (!props.editValue) return;
+  isEditing.value = true;
+  editInputValue.value = displayValue.value;
+}
+
+function finishEditing() {
+  isEditing.value = false;
+  const parsed = parseFloat(editInputValue.value);
+  if (!isNaN(parsed)) {
+    emit('update:modelValue', parsed);
+  }
+}
+
+function onEditKeydown(e: KeyboardEvent) {
+  if (e.key === 'Enter') {
+    finishEditing();
+  } else if (e.key === 'Escape') {
+    isEditing.value = false;
+  }
+}
 </script>
 
 <template>
@@ -63,9 +92,26 @@ function onMouseUp() {
         <iconify-icon v-if="icon" :icon="icon"></iconify-icon>
         {{ label }}
       </label>
-      <span v-if="hideValue !== true" class="slider-value">
-        {{ displayValue }}<span v-if="unit" class="slider-unit">{{ unit }}</span>
-      </span>
+      <template v-if="hideValue !== true">
+        <input
+          v-if="isEditing"
+          v-model="editInputValue"
+          type="text"
+          class="slider-value-input"
+          @blur="finishEditing"
+          @keydown="onEditKeydown"
+          ref="editInput"
+          autofocus
+        />
+        <span 
+          v-else 
+          class="slider-value" 
+          :class="{ editable: editValue }"
+          @click="startEditing"
+        >
+          {{ displayValue }}<span v-if="unit" class="slider-unit">{{ unit }}</span>
+        </span>
+      </template>
     </div>
     
     <div class="slider-track-wrapper" :style="trackStyle">
@@ -142,6 +188,33 @@ function onMouseUp() {
   padding: 2px 8px;
   border-radius: 6px;
   transition: all 0.2s ease;
+}
+
+.slider-value.editable {
+  cursor: pointer;
+}
+
+.slider-value.editable:hover {
+  background: var(--accent-primary);
+  color: white;
+}
+
+.slider-value-input {
+  font-size: 11px;
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-weight: 500;
+  color: var(--accent-primary);
+  background: var(--surface-2);
+  border: 1px solid var(--accent-primary);
+  padding: 2px 6px;
+  border-radius: 6px;
+  width: 60px;
+  text-align: center;
+  outline: none;
+}
+
+.slider-value-input:focus {
+  box-shadow: 0 0 0 2px var(--accent-glow);
 }
 
 .slider-control.dragging .slider-value {

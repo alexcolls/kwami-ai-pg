@@ -3,6 +3,8 @@ import { ref, computed } from 'vue';
 import { supabase } from '@/lib/supabase';
 import type { User, Session, AuthError } from '@supabase/supabase-js';
 
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null);
   const session = ref<Session | null>(null);
@@ -14,6 +16,24 @@ export const useAuthStore = defineStore('auth', () => {
   const userId = computed(() => user.value?.id || null);
   const userEmail = computed(() => user.value?.email || null);
 
+  // Check if we're running in a popup window (opened for OAuth)
+  function isInPopup(): boolean {
+    return !!(window.opener && window.opener !== window);
+  }
+
+  // Handle popup OAuth callback - notify parent and close
+  function handlePopupCallback(session: Session) {
+    if (window.opener) {
+      // Send session info to parent window
+      window.opener.postMessage(
+        { type: 'supabase-auth-callback', session },
+        window.location.origin
+      );
+      // Close popup after small delay to ensure message is sent
+      setTimeout(() => window.close(), 100);
+    }
+  }
+
   // Initialize auth state listener
   function initAuth() {
     // Get initial session
@@ -22,6 +42,12 @@ export const useAuthStore = defineStore('auth', () => {
       user.value = initialSession?.user ?? null;
       loading.value = false;
       
+      // If we're in a popup and have a session, notify parent and close
+      if (isInPopup() && initialSession) {
+        handlePopupCallback(initialSession);
+        return;
+      }
+      
       // Clean up URL hash after OAuth callback (Supabase returns tokens in hash)
       if (window.location.hash && window.location.hash.includes('access_token')) {
         window.history.replaceState({}, '', window.location.pathname);
@@ -29,14 +55,33 @@ export const useAuthStore = defineStore('auth', () => {
     });
 
     // Listen for auth changes
-    supabase.auth.onAuthStateChange((_event, newSession) => {
+    supabase.auth.onAuthStateChange((event, newSession) => {
       session.value = newSession;
       user.value = newSession?.user ?? null;
       loading.value = false;
       
+      // If we're in a popup and just signed in, notify parent and close
+      if (isInPopup() && event === 'SIGNED_IN' && newSession) {
+        handlePopupCallback(newSession);
+        return;
+      }
+      
       // Clean up URL hash after auth state change
       if (window.location.hash) {
         window.history.replaceState({}, '', window.location.pathname);
+      }
+    });
+
+    // Listen for messages from OAuth popup (if we're the parent)
+    window.addEventListener('message', (event) => {
+      // Verify origin for security
+      if (event.origin !== window.location.origin) return;
+      
+      if (event.data?.type === 'supabase-auth-callback' && event.data?.session) {
+        // Update our session from the popup's callback
+        session.value = event.data.session;
+        user.value = event.data.session.user;
+        loading.value = false;
       }
     });
   }
@@ -98,17 +143,15 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  // Sign in with Google OAuth
-  async function signInWithGoogle() {
+  // Sign in with Google ID token (for popup flow)
+  async function signInWithGoogleIdToken(idToken: string) {
     loading.value = true;
     error.value = null;
 
     try {
-      const { data, error: authError } = await supabase.auth.signInWithOAuth({
+      const { data, error: authError } = await supabase.auth.signInWithIdToken({
         provider: 'google',
-        options: {
-          redirectTo: window.location.origin,
-        },
+        token: idToken,
       });
 
       if (authError) {
@@ -116,6 +159,8 @@ export const useAuthStore = defineStore('auth', () => {
         return { success: false, error: authError };
       }
 
+      user.value = data.user;
+      session.value = data.session;
       return { success: true, data };
     } catch (e) {
       const err = e as AuthError;
@@ -162,6 +207,30 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = null;
   }
 
+  // Check if email exists in the system (for smart login/signup flow)
+  async function checkEmailExists(email: string): Promise<{ exists: boolean; error?: string }> {
+    try {
+      const response = await fetch(`${API_BASE}/auth/check-email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        return { exists: false, error: errorData.message || 'Failed to check email' };
+      }
+
+      const data = await response.json();
+      return { exists: data.exists };
+    } catch (e) {
+      console.error('Error checking email:', e);
+      return { exists: false, error: 'Network error checking email' };
+    }
+  }
+
   return {
     // State
     user,
@@ -176,9 +245,10 @@ export const useAuthStore = defineStore('auth', () => {
     initAuth,
     signInWithEmail,
     signUpWithEmail,
-    signInWithGoogle,
+    signInWithGoogleIdToken,
     signOut,
     getAccessToken,
     clearError,
+    checkEmailExists,
   };
 });

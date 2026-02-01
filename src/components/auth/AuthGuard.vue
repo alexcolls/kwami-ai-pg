@@ -13,20 +13,24 @@ onMounted(() => {
 <template>
   <div class="auth-guard">
     <!-- Loading state -->
-    <div v-if="authStore.loading" class="loading-container">
-      <div class="loading-spinner">
-        <iconify-icon icon="ph:spinner-gap-bold" class="spin"></iconify-icon>
+    <Transition name="fade">
+      <div v-if="authStore.loading" class="loading-container">
+        <div class="loading-spinner">
+          <iconify-icon icon="ph:spinner-gap-bold" class="spin"></iconify-icon>
+        </div>
+        <p class="loading-text">Loading...</p>
       </div>
-      <p class="loading-text">Loading...</p>
-    </div>
+    </Transition>
 
-    <!-- Not authenticated - show auth page -->
-    <AuthPage v-else-if="!authStore.isAuthenticated" />
-
-    <!-- Authenticated - show app content -->
-    <div v-else class="app-content">
+    <!-- App content (always rendered for canvas background) -->
+    <div class="app-content" :class="{ 'behind-auth': !authStore.isAuthenticated && !authStore.loading }">
       <slot />
     </div>
+
+    <!-- Auth overlay (shown when not authenticated) -->
+    <Transition name="fade">
+      <AuthPage v-if="!authStore.isAuthenticated && !authStore.loading" />
+    </Transition>
   </div>
 </template>
 
@@ -42,6 +46,8 @@ onMounted(() => {
 }
 
 .loading-container {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   display: flex;
@@ -50,6 +56,7 @@ onMounted(() => {
   justify-content: center;
   background: linear-gradient(135deg, #050510 0%, #0a0a20 50%, #050510 100%);
   gap: 16px;
+  z-index: 2000;
 }
 
 .loading-spinner {
@@ -79,5 +86,22 @@ onMounted(() => {
 .app-content {
   width: 100%;
   height: 100%;
+  transition: filter 0.3s ease;
+}
+
+/* When auth overlay is shown, slightly blur the background canvas */
+.app-content.behind-auth {
+  pointer-events: none;
+}
+
+/* Fade transition */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>

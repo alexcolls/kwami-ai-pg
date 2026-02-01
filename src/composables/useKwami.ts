@@ -11,7 +11,7 @@ declare global {
 
 // Singleton state
 const kwamiInstance = shallowRef<Kwami | null>(null);
-const rendererType = ref<'blob' | 'crystal'>('blob');
+const rendererType = ref<'blob' | 'crystal' | 'particles'>('blob');
 const isConnected = ref(false);
 
 export function useKwami() {
@@ -21,11 +21,18 @@ export function useKwami() {
   // User ID from authenticated user, fallback to 'anonymous'
   const userId = computed(() => authStore.userId || 'anonymous');
 
-  function init(canvas: HTMLCanvasElement, renderer: 'blob' | 'crystal' = 'blob') {
+  function init(canvas: HTMLCanvasElement, renderer: 'blob' | 'crystal' | 'particles' = 'blob') {
     rendererType.value = renderer;
 
     // Get voice config from store
     const voiceStore = useVoiceStore();
+
+    // Background colors per renderer
+    const getBackgroundColors = () => {
+      if (renderer === 'crystal') return ['#050510', '#0a0a20', '#050510'];
+      if (renderer === 'particles') return ['#000000', '#0a0a15', '#000000'];
+      return ['#0a0a1a', '#1a1a3a', '#0a0a1a'];
+    };
 
     const config = {
       avatar: {
@@ -52,14 +59,39 @@ export function useKwami() {
           scale: 1.0,
           rotation: { x: 0, y: 0.002, z: 0 },
         },
+        particles: {
+          particleCount: 6000,
+          visual: {
+            color: '#ffffff',
+            glowColor: '#88ccff',
+            particleSize: 0.6,
+            opacity: 0.95,
+            sharpness: 0.7,
+          },
+          formation: {
+            type: 'sphere',
+            radius: 2,
+          },
+          animation: {
+            enabled: true,
+            breathing: { enabled: true, speed: 1.0, intensity: 0.15 },
+            floating: { enabled: true, speed: 0.5, amplitude: 0.08 },
+            rotation: { enabled: true, speedX: 0, speedY: 0.1, speedZ: 0 },
+            turbulence: { enabled: true, intensity: 0.02, speed: 1.0 },
+          },
+          audioEffects: {
+            enabled: true,
+            reactivity: 1.5,
+            bassInfluence: 1.0,
+            movementIntensity: 0.5,
+          },
+        },
         scene: {
+          enableControls: true,
           background: {
             type: 'gradient',
             gradient: {
-              colors:
-                renderer === 'crystal'
-                  ? ['#050510', '#0a0a20', '#050510']
-                  : ['#0a0a1a', '#1a1a3a', '#0a0a1a'],
+              colors: getBackgroundColors(),
               direction: 'radial',
             },
           },
@@ -178,7 +210,7 @@ export function useKwami() {
     }
   }
 
-  function switchRenderer(newRenderer: 'blob' | 'crystal') {
+  function switchRenderer(newRenderer: 'blob' | 'crystal' | 'particles') {
     if (!kwamiInstance.value) {
       console.warn('Cannot switch renderer: Kwami not initialized');
       return;
