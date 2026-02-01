@@ -5,7 +5,8 @@
  */
 
 import { shallowRef, type ShallowRef } from 'vue';
-import type { BlobState, CrystalState, ParticlesState, RendererType } from '../stores/avatar';
+import type { CrystalState, ParticlesState, RendererType } from '../stores/avatar';
+import type { BlobState } from '../stores/avatar.blob';
 import { blobPresetsData, type BlobPreset } from './blob-presets';
 import { crystalPresetsData, type CrystalPreset } from './crystal-presets';
 import { particlesPresetsData, type ParticlesPreset } from './particles-presets';
