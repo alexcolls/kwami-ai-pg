@@ -1,7 +1,8 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 
-export type ThemeMode = 'dark' | 'light' | 'system';
+export type ThemeMode = 'dark' | 'light' | 'system' | 'auto';
+export type SidebarPosition = 'left' | 'right';
 
 export interface AccentColor {
   name: string;
@@ -38,6 +39,8 @@ export const accentPresets: AccentColor[] = [
 export const useThemeStore = defineStore('theme', () => {
   // Theme mode
   const mode = ref<ThemeMode>('dark');
+  const autoStartTime = ref('06:00');
+  const autoEndTime = ref('18:00');
   
   // Accent color
   const accentPrimary = ref('#00d9ff');
@@ -46,14 +49,30 @@ export const useThemeStore = defineStore('theme', () => {
   // Glass settings
   const glassBlur = ref(24);
   const glassOpacity = ref(88);
+  const glassTint = ref(0); // 0-100, tint with accent color
+  const noiseTexture = ref(0); // 0-100, grain intensity
   
   // UI settings
-  const borderRadius = ref(10); // 0-20
-  const animationSpeed = ref(1); // 0.5-2 multiplier
-  const surfaceContrast = ref(50); // 0-100, controls surface layer visibility
+  const borderRadius = ref(10);
+  const animationSpeed = ref(1);
+  const surfaceContrast = ref(50);
   const panelBorder = ref(true);
   const glowEffects = ref(true);
-  const compactMode = ref(false); // reduces spacing
+  const compactMode = ref(false);
+  const saturation = ref(100); // 0-200, color saturation
+  const sidebarPosition = ref<SidebarPosition>('left');
+  const gradientDirection = ref(135); // 0-360 degrees
+  const shadowIntensity = ref(50); // 0-100
+  
+  // Accessibility
+  const highContrast = ref(false);
+  const focusIndicators = ref(true);
+  
+  // Cursor flashlight
+  const cursorFlashlight = ref(false);
+  const flashlightSize = ref(200); // pixels
+  const flashlightIntensity = ref(30); // 0-100
+  const flashlightColor = ref('#ffffff');
   
   // Load from localStorage
   function loadSettings() {
@@ -62,37 +81,66 @@ export const useThemeStore = defineStore('theme', () => {
       try {
         const settings = JSON.parse(saved);
         mode.value = settings.mode || 'dark';
+        autoStartTime.value = settings.autoStartTime || '06:00';
+        autoEndTime.value = settings.autoEndTime || '18:00';
         accentPrimary.value = settings.accentPrimary || '#00d9ff';
         accentSecondary.value = settings.accentSecondary || '#a855f7';
         glassBlur.value = settings.glassBlur ?? 24;
         glassOpacity.value = settings.glassOpacity ?? 88;
+        glassTint.value = settings.glassTint ?? 0;
+        noiseTexture.value = settings.noiseTexture ?? 0;
         borderRadius.value = settings.borderRadius ?? 10;
         animationSpeed.value = settings.animationSpeed ?? 1;
         surfaceContrast.value = settings.surfaceContrast ?? 50;
         panelBorder.value = settings.panelBorder ?? true;
         glowEffects.value = settings.glowEffects ?? true;
         compactMode.value = settings.compactMode ?? false;
+        saturation.value = settings.saturation ?? 100;
+        sidebarPosition.value = settings.sidebarPosition || 'left';
+        gradientDirection.value = settings.gradientDirection ?? 135;
+        shadowIntensity.value = settings.shadowIntensity ?? 50;
+        highContrast.value = settings.highContrast ?? false;
+        focusIndicators.value = settings.focusIndicators ?? true;
+        cursorFlashlight.value = settings.cursorFlashlight ?? false;
+        flashlightSize.value = settings.flashlightSize ?? 200;
+        flashlightIntensity.value = settings.flashlightIntensity ?? 30;
+        flashlightColor.value = settings.flashlightColor || '#ffffff';
       } catch (e) {
         console.warn('Failed to load theme settings:', e);
       }
     }
     applyTheme();
+    setupFlashlight();
   }
   
   // Save to localStorage
   function saveSettings() {
     localStorage.setItem('kwami-theme', JSON.stringify({
       mode: mode.value,
+      autoStartTime: autoStartTime.value,
+      autoEndTime: autoEndTime.value,
       accentPrimary: accentPrimary.value,
       accentSecondary: accentSecondary.value,
       glassBlur: glassBlur.value,
       glassOpacity: glassOpacity.value,
+      glassTint: glassTint.value,
+      noiseTexture: noiseTexture.value,
       borderRadius: borderRadius.value,
       animationSpeed: animationSpeed.value,
       surfaceContrast: surfaceContrast.value,
       panelBorder: panelBorder.value,
       glowEffects: glowEffects.value,
       compactMode: compactMode.value,
+      saturation: saturation.value,
+      sidebarPosition: sidebarPosition.value,
+      gradientDirection: gradientDirection.value,
+      shadowIntensity: shadowIntensity.value,
+      highContrast: highContrast.value,
+      focusIndicators: focusIndicators.value,
+      cursorFlashlight: cursorFlashlight.value,
+      flashlightSize: flashlightSize.value,
+      flashlightIntensity: flashlightIntensity.value,
+      flashlightColor: flashlightColor.value,
     }));
   }
   
@@ -100,14 +148,27 @@ export const useThemeStore = defineStore('theme', () => {
   function applyTheme() {
     const root = document.documentElement;
     
+    // Apply saturation filter
+    root.style.setProperty('--saturation', `${saturation.value}%`);
+    
     // Apply accent colors
     root.style.setProperty('--accent-primary', accentPrimary.value);
     root.style.setProperty('--accent-secondary', accentSecondary.value);
     root.style.setProperty('--accent-glow', glowEffects.value ? `${accentPrimary.value}26` : 'transparent');
     root.style.setProperty('--accent-hover', adjustBrightness(accentPrimary.value, 20));
     
+    // Gradient direction
+    root.style.setProperty('--gradient-direction', `${gradientDirection.value}deg`);
+    
     // Apply glass settings
     root.style.setProperty('--glass-blur', `${glassBlur.value}px`);
+    
+    // Noise texture
+    root.style.setProperty('--noise-opacity', `${noiseTexture.value / 100}`);
+    
+    // Shadow intensity
+    const shadowBase = shadowIntensity.value / 100;
+    root.style.setProperty('--shadow-intensity', `${shadowBase}`);
     
     // Apply UI settings
     root.style.setProperty('--radius-sm', `${Math.max(2, borderRadius.value - 4)}px`);
@@ -121,63 +182,206 @@ export const useThemeStore = defineStore('theme', () => {
     
     root.style.setProperty('--glass-border', panelBorder.value ? 'rgba(255, 255, 255, 0.06)' : 'transparent');
     
-    // Compact mode - add/remove class on body
+    // Compact mode
     if (compactMode.value) {
       document.body.classList.add('compact-mode');
     } else {
       document.body.classList.remove('compact-mode');
     }
     
+    // High contrast mode
+    if (highContrast.value) {
+      document.body.classList.add('high-contrast');
+    } else {
+      document.body.classList.remove('high-contrast');
+    }
+    
+    // Focus indicators
+    if (focusIndicators.value) {
+      document.body.classList.add('focus-visible');
+    } else {
+      document.body.classList.remove('focus-visible');
+    }
+    
+    // Sidebar position
+    if (sidebarPosition.value === 'right') {
+      document.body.classList.add('sidebar-right');
+    } else {
+      document.body.classList.remove('sidebar-right');
+    }
+    
     // Surface contrast
     const contrast = surfaceContrast.value / 100;
     
-    // Apply glow effects
+    // Apply glow effects with shadow intensity
+    const shadowMult = shadowIntensity.value / 50;
     if (glowEffects.value) {
-      root.style.setProperty('--glass-shadow', '0 8px 32px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.03) inset');
+      root.style.setProperty('--glass-shadow', `0 ${8 * shadowMult}px ${32 * shadowMult}px rgba(0, 0, 0, ${0.5 * shadowMult}), 0 0 0 1px rgba(255, 255, 255, 0.03) inset`);
     } else {
-      root.style.setProperty('--glass-shadow', '0 4px 16px rgba(0, 0, 0, 0.3)');
+      root.style.setProperty('--glass-shadow', `0 ${4 * shadowMult}px ${16 * shadowMult}px rgba(0, 0, 0, ${0.3 * shadowMult})`);
     }
     
     // Apply theme mode
-    const effectiveMode = mode.value === 'system' 
-      ? (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark')
-      : mode.value;
+    let effectiveMode = mode.value;
+
+    if (mode.value === 'system') {
+      effectiveMode = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+    } else if (mode.value === 'auto') {
+      const now = new Date();
+      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+      
+      const [startHour, startMinute] = autoStartTime.value.split(':').map(Number);
+      const startMinutes = startHour * 60 + startMinute;
+      
+      const [endHour, endMinute] = autoEndTime.value.split(':').map(Number);
+      const endMinutes = endHour * 60 + endMinute;
+      
+      let isLight = false;
+      if (endMinutes > startMinutes) {
+        isLight = currentMinutes >= startMinutes && currentMinutes < endMinutes;
+      } else {
+        isLight = currentMinutes >= startMinutes || currentMinutes < endMinutes;
+      }
+      
+      effectiveMode = isLight ? 'light' : 'dark';
+    }
     
     root.setAttribute('data-theme', effectiveMode);
     
+    // Glass tint calculation
+    const tintAmount = glassTint.value / 100;
+    const accentRgb = hexToRgb(accentPrimary.value);
+    
     if (effectiveMode === 'light') {
-      root.style.setProperty('--glass-bg', `rgba(255, 255, 255, ${glassOpacity.value / 100})`);
+      const baseBg = `rgba(255, 255, 255, ${glassOpacity.value / 100})`;
+      const tintedBg = tintAmount > 0 && accentRgb
+        ? `rgba(${Math.round(255 * (1 - tintAmount * 0.1) + accentRgb.r * tintAmount * 0.1)}, ${Math.round(255 * (1 - tintAmount * 0.1) + accentRgb.g * tintAmount * 0.1)}, ${Math.round(255 * (1 - tintAmount * 0.1) + accentRgb.b * tintAmount * 0.1)}, ${glassOpacity.value / 100})`
+        : baseBg;
+      root.style.setProperty('--glass-bg', tintedBg);
       root.style.setProperty('--glass-border', panelBorder.value ? 'rgba(0, 0, 0, 0.08)' : 'transparent');
       root.style.setProperty('--glass-highlight', 'rgba(0, 0, 0, 0.02)');
-      root.style.setProperty('--text-primary', '#1a1a2e');
-      root.style.setProperty('--text-secondary', '#4a4a6a');
-      root.style.setProperty('--text-muted', '#8a8aa0');
+      
+      // High contrast adjustments
+      if (highContrast.value) {
+        root.style.setProperty('--text-primary', '#000000');
+        root.style.setProperty('--text-secondary', '#1a1a1a');
+        root.style.setProperty('--text-muted', '#404040');
+      } else {
+        root.style.setProperty('--text-primary', '#1a1a2e');
+        root.style.setProperty('--text-secondary', '#4a4a6a');
+        root.style.setProperty('--text-muted', '#8a8aa0');
+      }
+      
       root.style.setProperty('--surface-1', `rgba(0, 0, 0, ${0.03 * contrast * 2})`);
       root.style.setProperty('--surface-2', `rgba(0, 0, 0, ${0.05 * contrast * 2})`);
       root.style.setProperty('--surface-3', `rgba(0, 0, 0, ${0.08 * contrast * 2})`);
       root.style.setProperty('--surface-4', `rgba(0, 0, 0, ${0.12 * contrast * 2})`);
+      
       if (glowEffects.value) {
-        root.style.setProperty('--glass-shadow', '0 8px 32px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(0, 0, 0, 0.03) inset');
+        root.style.setProperty('--glass-shadow', `0 ${8 * shadowMult}px ${32 * shadowMult}px rgba(0, 0, 0, ${0.1 * shadowMult}), 0 0 0 1px rgba(0, 0, 0, 0.03) inset`);
       } else {
-        root.style.setProperty('--glass-shadow', '0 4px 16px rgba(0, 0, 0, 0.08)');
+        root.style.setProperty('--glass-shadow', `0 ${4 * shadowMult}px ${16 * shadowMult}px rgba(0, 0, 0, ${0.08 * shadowMult})`);
       }
     } else {
-      root.style.setProperty('--glass-bg', `rgba(8, 10, 18, ${glassOpacity.value / 100})`);
+      const baseBg = `rgba(8, 10, 18, ${glassOpacity.value / 100})`;
+      const tintedBg = tintAmount > 0 && accentRgb
+        ? `rgba(${Math.round(8 * (1 - tintAmount * 0.15) + accentRgb.r * tintAmount * 0.15)}, ${Math.round(10 * (1 - tintAmount * 0.15) + accentRgb.g * tintAmount * 0.15)}, ${Math.round(18 * (1 - tintAmount * 0.15) + accentRgb.b * tintAmount * 0.15)}, ${glassOpacity.value / 100})`
+        : baseBg;
+      root.style.setProperty('--glass-bg', tintedBg);
       root.style.setProperty('--glass-border', panelBorder.value ? 'rgba(255, 255, 255, 0.06)' : 'transparent');
       root.style.setProperty('--glass-highlight', 'rgba(255, 255, 255, 0.03)');
-      root.style.setProperty('--text-primary', '#f4f5f9');
-      root.style.setProperty('--text-secondary', '#a0a4b8');
-      root.style.setProperty('--text-muted', '#5c6178');
+      
+      // High contrast adjustments
+      if (highContrast.value) {
+        root.style.setProperty('--text-primary', '#ffffff');
+        root.style.setProperty('--text-secondary', '#e0e0e0');
+        root.style.setProperty('--text-muted', '#b0b0b0');
+      } else {
+        root.style.setProperty('--text-primary', '#f4f5f9');
+        root.style.setProperty('--text-secondary', '#a0a4b8');
+        root.style.setProperty('--text-muted', '#5c6178');
+      }
+      
       root.style.setProperty('--surface-1', `rgba(255, 255, 255, ${0.025 * contrast * 2})`);
       root.style.setProperty('--surface-2', `rgba(255, 255, 255, ${0.05 * contrast * 2})`);
       root.style.setProperty('--surface-3', `rgba(255, 255, 255, ${0.08 * contrast * 2})`);
       root.style.setProperty('--surface-4', `rgba(255, 255, 255, ${0.12 * contrast * 2})`);
     }
     
+    // Flashlight settings
+    root.style.setProperty('--flashlight-size', `${flashlightSize.value}px`);
+    root.style.setProperty('--flashlight-intensity', `${flashlightIntensity.value / 100}`);
+    root.style.setProperty('--flashlight-color', flashlightColor.value);
+    
     saveSettings();
   }
   
-  // Helper to adjust color brightness
+  // Flashlight effect
+  let flashlightElement: HTMLDivElement | null = null;
+  
+  function setupFlashlight() {
+    if (typeof window === 'undefined') return;
+    
+    // Remove existing flashlight
+    if (flashlightElement) {
+      flashlightElement.remove();
+      flashlightElement = null;
+    }
+    
+    if (!cursorFlashlight.value) return;
+    
+    // Create flashlight element
+    flashlightElement = document.createElement('div');
+    flashlightElement.id = 'cursor-flashlight';
+    flashlightElement.style.cssText = `
+      position: fixed;
+      pointer-events: none;
+      z-index: 9999;
+      width: var(--flashlight-size);
+      height: var(--flashlight-size);
+      border-radius: 50%;
+      background: radial-gradient(circle, var(--flashlight-color) 0%, transparent 70%);
+      opacity: var(--flashlight-intensity);
+      transform: translate(-50%, -50%);
+      mix-blend-mode: soft-light;
+      transition: opacity 0.15s ease;
+    `;
+    document.body.appendChild(flashlightElement);
+    
+    document.addEventListener('mousemove', updateFlashlightPosition);
+    document.addEventListener('mouseleave', hideFlashlight);
+    document.addEventListener('mouseenter', showFlashlight);
+  }
+  
+  function updateFlashlightPosition(e: MouseEvent) {
+    if (flashlightElement) {
+      flashlightElement.style.left = `${e.clientX}px`;
+      flashlightElement.style.top = `${e.clientY}px`;
+    }
+  }
+  
+  function hideFlashlight() {
+    if (flashlightElement) {
+      flashlightElement.style.opacity = '0';
+    }
+  }
+  
+  function showFlashlight() {
+    if (flashlightElement) {
+      flashlightElement.style.opacity = `var(--flashlight-intensity)`;
+    }
+  }
+  
+  // Helper functions
+  function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? {
+      r: parseInt(result[1], 16),
+      g: parseInt(result[2], 16),
+      b: parseInt(result[3], 16)
+    } : null;
+  }
+  
   function adjustBrightness(hex: string, percent: number): string {
     const num = parseInt(hex.replace('#', ''), 16);
     const amt = Math.round(2.55 * percent);
@@ -192,10 +396,30 @@ export const useThemeStore = defineStore('theme', () => {
     mode.value = newMode;
     applyTheme();
   }
+
+  function setAutoStartTime(time: string) {
+    autoStartTime.value = time;
+    if (mode.value === 'auto') applyTheme();
+  }
+
+  function setAutoEndTime(time: string) {
+    autoEndTime.value = time;
+    if (mode.value === 'auto') applyTheme();
+  }
   
   function setAccent(primary: string, secondary: string) {
     accentPrimary.value = primary;
     accentSecondary.value = secondary;
+    applyTheme();
+  }
+  
+  function setAccentPrimary(color: string) {
+    accentPrimary.value = color;
+    applyTheme();
+  }
+  
+  function setAccentSecondary(color: string) {
+    accentSecondary.value = color;
     applyTheme();
   }
   
@@ -210,6 +434,16 @@ export const useThemeStore = defineStore('theme', () => {
   
   function setGlassOpacity(value: number) {
     glassOpacity.value = value;
+    applyTheme();
+  }
+  
+  function setGlassTint(value: number) {
+    glassTint.value = value;
+    applyTheme();
+  }
+  
+  function setNoiseTexture(value: number) {
+    noiseTexture.value = value;
     applyTheme();
   }
   
@@ -243,19 +477,85 @@ export const useThemeStore = defineStore('theme', () => {
     applyTheme();
   }
   
+  function setSaturation(value: number) {
+    saturation.value = value;
+    applyTheme();
+  }
+  
+  function setSidebarPosition(value: SidebarPosition) {
+    sidebarPosition.value = value;
+    applyTheme();
+  }
+  
+  function setGradientDirection(value: number) {
+    gradientDirection.value = value;
+    applyTheme();
+  }
+  
+  function setShadowIntensity(value: number) {
+    shadowIntensity.value = value;
+    applyTheme();
+  }
+  
+  function setHighContrast(value: boolean) {
+    highContrast.value = value;
+    applyTheme();
+  }
+  
+  function setFocusIndicators(value: boolean) {
+    focusIndicators.value = value;
+    applyTheme();
+  }
+  
+  function setCursorFlashlight(value: boolean) {
+    cursorFlashlight.value = value;
+    applyTheme();
+    setupFlashlight();
+  }
+  
+  function setFlashlightSize(value: number) {
+    flashlightSize.value = value;
+    applyTheme();
+  }
+  
+  function setFlashlightIntensity(value: number) {
+    flashlightIntensity.value = value;
+    applyTheme();
+  }
+  
+  function setFlashlightColor(value: string) {
+    flashlightColor.value = value;
+    applyTheme();
+  }
+  
   function resetToDefaults() {
     mode.value = 'dark';
+    autoStartTime.value = '06:00';
+    autoEndTime.value = '18:00';
     accentPrimary.value = '#00d9ff';
     accentSecondary.value = '#a855f7';
     glassBlur.value = 24;
     glassOpacity.value = 88;
+    glassTint.value = 0;
+    noiseTexture.value = 0;
     borderRadius.value = 10;
     animationSpeed.value = 1;
     surfaceContrast.value = 50;
     panelBorder.value = true;
     glowEffects.value = true;
     compactMode.value = false;
+    saturation.value = 100;
+    sidebarPosition.value = 'left';
+    gradientDirection.value = 135;
+    shadowIntensity.value = 50;
+    highContrast.value = false;
+    focusIndicators.value = true;
+    cursorFlashlight.value = false;
+    flashlightSize.value = 200;
+    flashlightIntensity.value = 30;
+    flashlightColor.value = '#ffffff';
     applyTheme();
+    setupFlashlight();
   }
   
   // Listen for system theme changes
@@ -265,34 +565,71 @@ export const useThemeStore = defineStore('theme', () => {
         applyTheme();
       }
     });
+
+    // Check auto mode every minute
+    setInterval(() => {
+      if (mode.value === 'auto') {
+        applyTheme();
+      }
+    }, 60000);
   }
   
   return {
     // State
     mode,
+    autoStartTime,
+    autoEndTime,
     accentPrimary,
     accentSecondary,
     glassBlur,
     glassOpacity,
+    glassTint,
+    noiseTexture,
     borderRadius,
     animationSpeed,
     surfaceContrast,
     panelBorder,
     glowEffects,
     compactMode,
+    saturation,
+    sidebarPosition,
+    gradientDirection,
+    shadowIntensity,
+    highContrast,
+    focusIndicators,
+    cursorFlashlight,
+    flashlightSize,
+    flashlightIntensity,
+    flashlightColor,
     // Actions
     loadSettings,
     setMode,
+    setAutoStartTime,
+    setAutoEndTime,
     setAccent,
+    setAccentPrimary,
+    setAccentSecondary,
     setAccentPreset,
     setGlassBlur,
     setGlassOpacity,
+    setGlassTint,
+    setNoiseTexture,
     setBorderRadius,
     setAnimationSpeed,
     setSurfaceContrast,
     setPanelBorder,
     setGlowEffects,
     setCompactMode,
+    setSaturation,
+    setSidebarPosition,
+    setGradientDirection,
+    setShadowIntensity,
+    setHighContrast,
+    setFocusIndicators,
+    setCursorFlashlight,
+    setFlashlightSize,
+    setFlashlightIntensity,
+    setFlashlightColor,
     resetToDefaults,
     applyTheme,
   };

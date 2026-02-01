@@ -277,6 +277,7 @@ body.compact-mode .panel-header {
 
 body.compact-mode .panel-body {
   padding: 4px 0 !important;
+  grid-template-columns: 1fr !important;
 }
 
 body.compact-mode .panel-section {
@@ -423,4 +424,70 @@ body.compact-mode .panel-column {
 body.compact-mode .control-bar-container {
   top: 12px !important;
   right: 12px !important;
+}
+
+/* =====================================================
+   SATURATION FILTER - Applied to entire UI
+   ===================================================== */
+
+#app {
+  filter: saturate(var(--saturation, 100%));
+}
+
+/* =====================================================
+   FOCUS INDICATORS - Enhanced accessibility
+   ===================================================== */
+
+body.focus-visible *:focus {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+body.focus-visible *:focus:not(:focus-visible) {
+  outline: none;
+}
+
+body.focus-visible *:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+body:not(.focus-visible) *:focus {
+  outline: none;
+}
+
+/* =====================================================
+   HIGH CONTRAST MODE - Enhanced readability
+   ===================================================== */
+
+body.high-contrast .glass-panel {
+  border-width: 2px !important;
+}
+
+body.high-contrast button,
+body.high-contrast input,
+body.high-contrast select {
+  border-width: 2px !important;
+}
+
+body.high-contrast .nav-btn.active {
+  box-shadow: 0 0 0 2px var(--accent-primary) !important;
+}
+
+/* =====================================================
+   RIGHT SIDEBAR POSITION - Compact mode adjustment
+   ===================================================== */
+
+body.sidebar-right.compact-mode .sidebar {
+  left: auto !important;
+  right: 12px !important;
+}
+
+body.sidebar-right .control-bar-container {
+  right: auto;
+  left: 16px;
+}
+
+body.sidebar-right.compact-mode .control-bar-container {
+  left: 12px !important;
 }

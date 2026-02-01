@@ -24,8 +24,15 @@ const uiStore = useUIStore();
   display: flex;
   gap: 12px;
   z-index: 1000;
-  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   pointer-events: none;
+}
+
+/* Right sidebar position */
+:global(body.sidebar-right) .sidebar {
+  left: auto;
+  right: 20px;
+  flex-direction: row-reverse;
 }
 
 /* Handle collapsed state for content via deep selector */
@@ -36,5 +43,9 @@ const uiStore = useUIStore();
   width: 0;
   padding: 0;
   overflow: hidden;
+}
+
+:global(body.sidebar-right) .sidebar.collapsed :deep(.panel-column) {
+  transform: translateX(20px);
 }
 </style>
