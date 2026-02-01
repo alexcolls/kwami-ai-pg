@@ -41,6 +41,10 @@
   scrollbar-width: thin;
   scrollbar-color: var(--surface-3) transparent;
   margin-bottom: max(4px, calc(var(--radius-xl, 16px) - 16px));
+  /* Multi-column responsive grid layout */
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  align-content: start;
 }
 
 .panel-body::-webkit-scrollbar {
