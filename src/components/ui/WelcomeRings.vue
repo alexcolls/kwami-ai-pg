@@ -49,7 +49,7 @@ const WORDMARK_PATH = 'M 200.8 70 L 200.8 67.1 L 240.2 67.1 L 240.2 7.2 L 217.7 
 // Gradient base coordinates
 const GRADIENT_BASE = { x1: 213.98, y1: 290, x2: 179.72, y2: 320 };
 
-const containerRef = ref<HTMLDivElement | null>(null);
+// const containerRef = ref<HTMLDivElement | null>(null);
 const svgRef = ref<SVGSVGElement | null>(null);
 const ringsGroupRef = ref<SVGGElement | null>(null);
 const wordmarkRef = ref<SVGPathElement | null>(null);
@@ -75,9 +75,9 @@ function parseHex(input: string): { r: number; g: number; b: number } | null {
   const raw = hex.slice(1);
   
   if (raw.length === 3) {
-    const r = parseInt(raw[0] + raw[0], 16);
-    const g = parseInt(raw[1] + raw[1], 16);
-    const b = parseInt(raw[2] + raw[2], 16);
+    const r = parseInt((raw[0] || '0') + (raw[0] || '0'), 16);
+    const g = parseInt((raw[1] || '0') + (raw[1] || '0'), 16);
+    const b = parseInt((raw[2] || '0') + (raw[2] || '0'), 16);
     if (Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) return null;
     return { r, g, b };
   }
@@ -100,15 +100,15 @@ function rgbToHex(rgb: { r: number; g: number; b: number }): string {
 
 function interpolatePalette(palette: string[], t: number): string {
   if (!palette.length) return '#000000';
-  if (palette.length === 1) return palette[0];
+  if (palette.length === 1) return palette[0]!;
 
   const clamped = Math.max(0, Math.min(1, t));
   const scaled = clamped * (palette.length - 1);
   const idx = Math.floor(scaled);
   const frac = scaled - idx;
 
-  const a = palette[idx];
-  const b = palette[Math.min(idx + 1, palette.length - 1)];
+  const a = palette[idx] || '#000000';
+  const b = palette[Math.min(idx + 1, palette.length - 1)] || '#000000';
 
   const ca = parseHex(a);
   const cb = parseHex(b);
@@ -137,7 +137,7 @@ function resizeSvg() {
   // Update all ellipses
   for (let i = 0; i < ellipseRefs.length; i++) {
     const count = i + 1;
-    const e = ellipseRefs[i];
+    const e = ellipseRefs[i]!;
     e.setAttribute('cx', String(cx));
     e.setAttribute('cy', String(cy));
     e.setAttribute('rx', String(baseRadius));
@@ -175,7 +175,7 @@ function tick(ts: number) {
   // Animate rings expansion
   for (let i = 0; i < ellipseRefs.length; i++) {
     const count = i + 1;
-    const e = ellipseRefs[i];
+    const e = ellipseRefs[i]!;
     const delta = pulse * count * props.ringPulsePxPerIndex;
     e.setAttribute('rx', String(baseRadius + delta));
     e.setAttribute('ry', String(baseRadius + delta));
@@ -263,7 +263,7 @@ const gradientId = `kwami-welcome-grad-${Math.random().toString(36).slice(2, 8)}
 
 <template>
   <div
-    ref="containerRef"
+  <div
     class="kwami-welcome-rings"
     :style="{
       zIndex: zIndex,

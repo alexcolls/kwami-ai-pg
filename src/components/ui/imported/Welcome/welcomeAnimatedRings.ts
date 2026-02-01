@@ -32,7 +32,7 @@ export function createWelcomeAnimatedRings(options: WelcomeAnimatedRingsOptions 
 
   const resizeMode: WelcomeRingsResizeMode = options.resize ?? 'manual';
 
-  let mountedInto: HTMLElement | null = null;
+  // let _mountedInto: HTMLElement | null = null;
   let rafId: number | null = null;
   let startTs: number | null = null;
   let destroyed = false;
@@ -139,7 +139,7 @@ export function createWelcomeAnimatedRings(options: WelcomeAnimatedRingsOptions 
 
     for (let i = 0; i < ellipses.length; i++) {
       const count = i + 1;
-      const e = ellipses[i];
+      const e = ellipses[i]!;
       e.setAttribute('cx', String(cx));
       e.setAttribute('cy', String(cy));
       e.setAttribute('rx', String(baseRadius));
@@ -147,7 +147,7 @@ export function createWelcomeAnimatedRings(options: WelcomeAnimatedRingsOptions 
 
       const t = count / ellipses.length;
       e.style.opacity = String(1 - t);
-      e.setAttribute('stroke', interpolatePalette(colors, t));
+      e.setAttribute('stroke', interpolatePalette(colors, t) || DEFAULT_COLORS[0]!);
     }
 
     if (wordmark) {
@@ -172,7 +172,7 @@ export function createWelcomeAnimatedRings(options: WelcomeAnimatedRingsOptions 
     // Animate rings expansion without accumulating radius.
     for (let i = 0; i < ellipses.length; i++) {
       const count = i + 1;
-      const e = ellipses[i];
+      const e = ellipses[i]!;
       const delta = pulse * count * ringPulsePxPerIndex;
       e.setAttribute('rx', String(baseRadius + delta));
       e.setAttribute('ry', String(baseRadius + delta));
@@ -217,7 +217,7 @@ export function createWelcomeAnimatedRings(options: WelcomeAnimatedRingsOptions 
       if (destroyed) return;
       const resolved = target ?? mount ?? document.body;
       if (!resolved) throw new Error('createWelcomeAnimatedRings.mount: no mount target provided');
-      mountedInto = resolved;
+      // _mountedInto = resolved;
 
       if (insert === 'first' && resolved.firstChild) {
         resolved.insertBefore(container, resolved.firstChild);
@@ -259,7 +259,7 @@ export function createWelcomeAnimatedRings(options: WelcomeAnimatedRingsOptions 
       handle.stop();
       detachAutoResize();
       if (container.parentNode) container.parentNode.removeChild(container);
-      mountedInto = null;
+      // _mountedInto = null;
       wordmark = null;
     },
   };
@@ -273,15 +273,15 @@ export function createWelcomeAnimatedRings(options: WelcomeAnimatedRingsOptions 
 
 function interpolatePalette(palette: string[], t: number): string {
   if (!palette.length) return '#000000';
-  if (palette.length === 1) return palette[0];
+  if (palette.length === 1) return palette[0]!;
 
   const clamped = Math.max(0, Math.min(1, t));
   const scaled = clamped * (palette.length - 1);
   const idx = Math.floor(scaled);
   const frac = scaled - idx;
 
-  const a = palette[idx];
-  const b = palette[Math.min(idx + 1, palette.length - 1)];
+  const a = palette[idx] || '#000000';
+  const b = palette[Math.min(idx + 1, palette.length - 1)] || '#000000';
 
   const ca = parseHex(a);
   const cb = parseHex(b);
@@ -304,9 +304,9 @@ function parseHex(input: string): { r: number; g: number; b: number } | null {
 
   const raw = hex.slice(1);
   if (raw.length === 3) {
-    const r = parseInt(raw[0] + raw[0], 16);
-    const g = parseInt(raw[1] + raw[1], 16);
-    const b = parseInt(raw[2] + raw[2], 16);
+    const r = parseInt((raw[0] || '0') + (raw[0] || '0'), 16);
+    const g = parseInt((raw[1] || '0') + (raw[1] || '0'), 16);
+    const b = parseInt((raw[2] || '0') + (raw[2] || '0'), 16);
     if (Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) return null;
     return { r, g, b };
   }

@@ -70,9 +70,9 @@ const emit = defineEmits<{
 }>();
 
 // Helper functions for randomization
-function randomHex(): string {
-  return '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0');
-}
+// function randomHex(): string {
+//   return '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0');
+// }
 
 function randomDarkHex(): string {
   // Generate darker colors suitable for backgrounds
@@ -376,7 +376,7 @@ const blendModeOptions = [
 // Preview gradient CSS for the UI
 const gradientPreviewStyle = computed(() => {
   if (!background.value?.gradient) return {};
-  const { type, angle, radialCenter, radialSize, stops, orbs } = background.value.gradient;
+  const { type, angle, radialCenter, /* radialSize, */ stops, orbs } = background.value.gradient;
   
   if (type === 'orbs') {
     // Create blurred orb effect using radial gradients

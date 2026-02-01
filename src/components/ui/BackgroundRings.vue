@@ -51,9 +51,9 @@ function parseHex(input: string): { r: number; g: number; b: number } | null {
   const raw = hex.slice(1);
   
   if (raw.length === 3) {
-    const r = parseInt(raw[0] + raw[0], 16);
-    const g = parseInt(raw[1] + raw[1], 16);
-    const b = parseInt(raw[2] + raw[2], 16);
+    const r = parseInt((raw[0] || '0') + (raw[0] || '0'), 16);
+    const g = parseInt((raw[1] || '0') + (raw[1] || '0'), 16);
+    const b = parseInt((raw[2] || '0') + (raw[2] || '0'), 16);
     if (Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) return null;
     return { r, g, b };
   }
@@ -76,15 +76,15 @@ function rgbToHex(rgb: { r: number; g: number; b: number }): string {
 
 function interpolatePalette(palette: string[], t: number): string {
   if (!palette.length) return '#000000';
-  if (palette.length === 1) return palette[0];
+  if (palette.length === 1) return palette[0]!;
 
   const clamped = Math.max(0, Math.min(1, t));
   const scaled = clamped * (palette.length - 1);
   const idx = Math.floor(scaled);
   const frac = scaled - idx;
 
-  const a = palette[idx];
-  const b = palette[Math.min(idx + 1, palette.length - 1)];
+  const a = palette[idx] || '#000000';
+  const b = palette[Math.min(idx + 1, palette.length - 1)] || '#000000';
 
   const ca = parseHex(a);
   const cb = parseHex(b);

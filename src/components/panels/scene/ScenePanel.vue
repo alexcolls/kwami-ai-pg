@@ -2,14 +2,14 @@
 import { reactive, ref, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { useKwami } from '@/composables/useKwami';
 import * as THREE from 'three';
-import SceneBackground, { type BackgroundConfig, type GradientStop, type GradientOrb } from './SceneBackground.vue';
+import SceneBackground, { type BackgroundConfig } from './SceneBackground.vue';
 
 const { kwami } = useKwami();
 
 // Types (Must match child components)
-type MediaType = 'none' | 'solid' | 'image' | 'video';
-type MediaFit = 'cover' | 'contain' | 'stretch';
-type GradientType = 'radial' | 'linear' | 'orbs';
+// type MediaType = 'none' | 'solid' | 'image' | 'video';
+// type MediaFit = 'cover' | 'contain' | 'stretch';
+// type GradientType = 'radial' | 'linear' | 'orbs';
 type BlendMode = 'normal' | 'multiply' | 'screen' | 'overlay' | 'soft-light';
 
 // Helper to generate orb IDs
@@ -321,7 +321,7 @@ function updateMediaBackground() {
       }
     );
   } else if (media.type === 'video') {
-    const { url, muted, loop, opacity } = media.video;
+    const { url, muted, loop /*, opacity */ } = media.video;
     if (!url) {
       compositeBackground();
       return;
