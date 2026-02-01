@@ -9,6 +9,7 @@ import {
   getPresetById,
   type AvatarPreset,
 } from '../templates/avatar-templates';
+import { useBlobStore } from './avatar.blob';
 
 // Re-export AvatarPreset for backwards compatibility
 export type { AvatarPreset };
@@ -397,9 +398,10 @@ export const useAvatarStore = defineStore('avatar', () => {
     rendererType.value = preset.renderer;
 
     if (preset.renderer === 'blob' && preset.blob) {
-      // Deep merge blob state with defaults
-      const defaultState = getDefaultBlobState();
-      Object.assign(blob, defaultState, preset.blob);
+      // Use the new blob store for presets
+      const blobStore = useBlobStore();
+      // Cast to the new BlobState type since presets now use the new structure
+      blobStore.importState(preset.blob as Parameters<typeof blobStore.importState>[0]);
     } else if (preset.renderer === 'crystal' && preset.crystal) {
       // Deep merge crystal state with defaults
       const defaultState = getDefaultCrystalState();
