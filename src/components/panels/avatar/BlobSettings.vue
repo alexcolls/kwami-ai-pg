@@ -1,19 +1,250 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
+import { useKwami } from '@/composables/useKwami';
 import PanelSection from '@/components/ui/PanelSection.vue';
 import BaseSlider from '@/components/ui/BaseSlider.vue';
 import BaseToggle from '@/components/ui/BaseToggle.vue';
+import BaseSelect from '@/components/ui/BaseSelect.vue';
 import BaseColorPicker from '@/components/ui/BaseColorPicker.vue';
-import type { BlobState, SkinSubtype } from '@/stores/avatar';
+import type { BlobState, SkinSubtype, InteractionAction } from '@/stores/avatar';
+import AudioVisualizer from '../audio/AudioVisualizer.vue';
+import MicrophoneControl from '../audio/MicrophoneControl.vue';
 
 // Use defineModel for proper two-way binding (Vue 3.3+)
 const state = defineModel<BlobState>('state', { required: true });
+const { kwami, switchRenderer } = useKwami();
 
 // Link toggles for XYZ controls
 const linkSpikes = ref(false);
 const linkAmplitude = ref(false);
 const linkTime = ref(false);
 const linkRotation = ref(false);
+
+// Interaction Logic
+const actionOptions = [
+  { label: 'None', value: 'none' },
+  { label: 'Toggle Listening', value: 'toggleListening' },
+  { label: 'Start Listening', value: 'startListening' },
+  { label: 'Stop Listening', value: 'stopListening' },
+  { label: 'Randomize', value: 'randomize' },
+  { label: 'Switch Renderer', value: 'switchRenderer' },
+  { label: 'Cycle State', value: 'cycleState' },
+  { label: 'Pulse Effect', value: 'pulse' },
+  { label: 'Move to Click', value: 'moveToClick' },
+];
+
+const cursorOptions = [
+  { label: 'Pointer', value: 'pointer' },
+  { label: 'Grab', value: 'grab' },
+  { label: 'Crosshair', value: 'crosshair' },
+  { label: 'Default', value: 'default' },
+];
+
+function executeAction(action: InteractionAction) {
+  if (!kwami.value) return;
+
+  switch (action) {
+    case 'toggleListening':
+      const currentState = kwami.value.getState() || 'idle';
+      if (currentState === 'listening') {
+        kwami.value.setState('idle');
+      } else {
+        kwami.value.setState('listening');
+      }
+      break;
+    case 'startListening':
+      kwami.value.setState('listening');
+      break;
+    case 'stopListening':
+      kwami.value.setState('idle');
+      break;
+    case 'randomize':
+      kwami.value.avatar.randomize();
+      window.dispatchEvent(new CustomEvent('kwami:randomized'));
+      break;
+    case 'switchRenderer':
+      const renderer = kwami.value.avatar.getRendererType();
+      switchRenderer(renderer === 'blob' ? 'crystal' : 'blob');
+      break;
+    case 'cycleState':
+      const states = ['idle', 'listening', 'thinking'] as const;
+      const current = kwami.value.getState() || 'idle';
+      const currentIndex = states.indexOf(current as typeof states[number]);
+      const nextIndex = (currentIndex + 1) % states.length;
+      const nextState = states[nextIndex] || 'idle';
+      kwami.value.setState(nextState);
+      window.dispatchEvent(new CustomEvent('kwami:stateChanged', { detail: nextState }));
+      break;
+    case 'pulse':
+      const blob = kwami.value.avatar.getBlob();
+      if (blob) blob.triggerPulse();
+      break;
+    case 'moveToClick': {
+      const blob = kwami.value.avatar.getBlob();
+      if (blob) {
+        const randomX = 0.2 + Math.random() * 0.6;
+        const randomY = 0.2 + Math.random() * 0.6;
+        blob.moveToPosition(randomX, randomY);
+      }
+      break;
+    }
+  }
+}
+
+function testAction(action: InteractionAction) {
+  executeAction(action);
+}
+
+// Watchers for Interaction
+watch(() => state.value.interaction, (config) => {
+  const blob = kwami.value?.avatar.getBlob();
+  if (!blob) return;
+
+  // Apply click handlers
+  if (config.click.enabled && config.click.action !== 'none') {
+    blob.onClick = () => executeAction(config.click.action);
+  } else {
+    blob.onClick = () => {};
+  }
+
+  if (config.doubleClick.enabled && config.doubleClick.action !== 'none') {
+    blob.onDoubleClick = () => executeAction(config.doubleClick.action);
+  } else {
+    blob.onDoubleClick = () => {};
+  }
+
+  // Right clicks
+  if (config.rightClick.enabled && config.rightClick.action !== 'none') {
+    blob.setRightClickCallback(() => executeAction(config.rightClick.action));
+  } else {
+    blob.setRightClickCallback(() => {});
+  }
+
+  if (config.doubleRightClick.enabled && config.doubleRightClick.action !== 'none') {
+    blob.setDoubleRightClickCallback(() => executeAction(config.doubleRightClick.action));
+  } else {
+    blob.setDoubleRightClickCallback(() => {});
+  }
+}, { deep: true, immediate: true });
+
+// Audio Helpers
+function getBlob() {
+  return kwami.value?.avatar.getBlob();
+}
+
+function getScene() {
+  return kwami.value?.avatar.getScene();
+}
+
+// Watchers for Audio Effects
+watch(() => state.value.audioEffects, (s) => {
+  const blob = getBlob();
+  if (blob) {
+    blob.audioEffects.enabled = s.enabled;
+    blob.audioEffects.reactivity = s.reactivity;
+    blob.audioEffects.sensitivity = s.sensitivity;
+    blob.audioEffects.breathing = s.breathing;
+    blob.audioEffects.responseSpeed = s.responseSpeed;
+    blob.audioEffects.transientBoost = s.transientBoost;
+    blob.audioEffects.bassSpike = s.bassSpike;
+    blob.audioEffects.midSpike = s.midSpike;
+    blob.audioEffects.highSpike = s.highSpike;
+    blob.audioEffects.timeEnabled = s.timeEnabled;
+    blob.audioEffects.midTime = s.midTime;
+    blob.audioEffects.highTime = s.highTime;
+    blob.audioEffects.ultraTime = s.ultraTime;
+  }
+}, { deep: true, immediate: true });
+
+// Watchers for Scene (Camera & Lighting)
+watch(
+  () => state.value.scene.camera.fov,
+  (v) => {
+    const s = getScene();
+    if (s) {
+      s.camera.fov = v;
+      s.camera.updateProjectionMatrix();
+    }
+  }
+);
+
+watch(
+  () => state.value.scene.camera.distance,
+  (v) => {
+    const s = getScene();
+    if (s) {
+      s.camera.position.z = v;
+      s.camera.lookAt(0, 0, 0);
+    }
+  }
+);
+
+function updateAvatarLighting() {
+  const blob = getBlob();
+  if (!blob) return;
+  
+  const { top, bottom } = state.value.scene.lighting;
+  
+  if (typeof blob.setLightPosition === 'function') {
+    const topWeight = top;
+    const bottomWeight = bottom;
+    const totalWeight = topWeight + bottomWeight + 0.01;
+    
+    const y = ((topWeight * 500) - (bottomWeight * 500)) / totalWeight;
+    const z = ((topWeight * 2000) + (bottomWeight * 400)) / totalWeight;
+    
+    blob.setLightPosition(0, y, z);
+  }
+}
+
+function updateAvatarGlow() {
+  const blob = getBlob();
+  if (!blob) return;
+  
+  if (typeof blob.setLightIntensity === 'function') {
+    const ambient = state.value.scene.lighting.ambient;
+    const glowIntensity = ambient * 1.25;
+    blob.setLightIntensity(glowIntensity);
+  }
+}
+
+watch(
+  () => state.value.scene.lighting.top,
+  (v) => {
+    const s = getScene();
+    if (s) s.lights.top.intensity = v;
+    updateAvatarLighting();
+  }
+);
+
+watch(
+  () => state.value.scene.lighting.bottom,
+  (v) => {
+    const s = getScene();
+    if (s) s.lights.bottom.intensity = v;
+    updateAvatarLighting();
+  }
+);
+
+watch(
+  () => state.value.scene.lighting.ambient,
+  (v) => {
+    const s = getScene();
+    if (s) s.lights.ambient.intensity = v;
+    updateAvatarGlow();
+  }
+);
+
+// Initial sync on mount
+onMounted(() => {
+  const s = getScene();
+  if (s) {
+    // Sync initial values if needed, or just let defaults apply
+    // For now we assume store defaults are good or synced from ScenePanel previously
+    updateAvatarLighting();
+    updateAvatarGlow();
+  }
+});
 
 // Color helpers
 function randomHex(): string {
@@ -137,7 +368,7 @@ function hslToHex(h: number, s: number, l: number): string {
   return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
 }
 
-// Color palette types with their harmonic formulas
+// Color palette types
 type PaletteType = 'complementary' | 'analogous' | 'triadic' | 'split' | 'monochrome' | 'warm' | 'cool' | 'pastel' | 'vibrant' | 'sunset' | 'ocean' | 'forest';
 
 const palettes: Record<PaletteType, { 
@@ -152,11 +383,7 @@ const palettes: Record<PaletteType, {
       const h = Math.random() * 360;
       const s = 60 + Math.random() * 30;
       const l = 45 + Math.random() * 20;
-      return [
-        hslToHex(h, s, l),
-        hslToHex(h + 180, s, l),
-        hslToHex(h + 180, s * 0.7, l + 15),
-      ];
+      return [hslToHex(h, s, l), hslToHex(h + 180, s, l), hslToHex(h + 180, s * 0.7, l + 15)];
     }
   },
   analogous: {
@@ -166,11 +393,7 @@ const palettes: Record<PaletteType, {
       const h = Math.random() * 360;
       const s = 55 + Math.random() * 35;
       const l = 45 + Math.random() * 20;
-      return [
-        hslToHex(h, s, l),
-        hslToHex(h + 30, s, l + 5),
-        hslToHex(h - 30, s, l - 5),
-      ];
+      return [hslToHex(h, s, l), hslToHex(h + 30, s, l + 5), hslToHex(h - 30, s, l - 5)];
     }
   },
   triadic: {
@@ -180,11 +403,7 @@ const palettes: Record<PaletteType, {
       const h = Math.random() * 360;
       const s = 60 + Math.random() * 30;
       const l = 50 + Math.random() * 15;
-      return [
-        hslToHex(h, s, l),
-        hslToHex(h + 120, s, l),
-        hslToHex(h + 240, s, l),
-      ];
+      return [hslToHex(h, s, l), hslToHex(h + 120, s, l), hslToHex(h + 240, s, l)];
     }
   },
   split: {
@@ -194,11 +413,7 @@ const palettes: Record<PaletteType, {
       const h = Math.random() * 360;
       const s = 60 + Math.random() * 30;
       const l = 50 + Math.random() * 15;
-      return [
-        hslToHex(h, s, l),
-        hslToHex(h + 150, s, l),
-        hslToHex(h + 210, s, l),
-      ];
+      return [hslToHex(h, s, l), hslToHex(h + 150, s, l), hslToHex(h + 210, s, l)];
     }
   },
   monochrome: {
@@ -207,39 +422,27 @@ const palettes: Record<PaletteType, {
     generate: () => {
       const h = Math.random() * 360;
       const s = 50 + Math.random() * 40;
-      return [
-        hslToHex(h, s, 30 + Math.random() * 15),
-        hslToHex(h, s * 0.8, 50 + Math.random() * 10),
-        hslToHex(h, s * 0.6, 70 + Math.random() * 10),
-      ];
+      return [hslToHex(h, s, 30 + Math.random() * 15), hslToHex(h, s * 0.8, 50 + Math.random() * 10), hslToHex(h, s * 0.6, 70 + Math.random() * 10)];
     }
   },
   warm: {
     label: 'Warm',
     icon: 'ph:sun-duotone',
     generate: () => {
-      const baseH = Math.random() * 60; // 0-60 (red to yellow)
+      const baseH = Math.random() * 60;
       const s = 65 + Math.random() * 30;
       const l = 50 + Math.random() * 15;
-      return [
-        hslToHex(baseH, s, l),
-        hslToHex(baseH + 20 + Math.random() * 20, s, l + 5),
-        hslToHex(baseH - 10 + Math.random() * 10, s * 0.9, l - 5),
-      ];
+      return [hslToHex(baseH, s, l), hslToHex(baseH + 20 + Math.random() * 20, s, l + 5), hslToHex(baseH - 10 + Math.random() * 10, s * 0.9, l - 5)];
     }
   },
   cool: {
     label: 'Cool',
     icon: 'ph:snowflake-duotone',
     generate: () => {
-      const baseH = 180 + Math.random() * 80; // 180-260 (cyan to blue-purple)
+      const baseH = 180 + Math.random() * 80;
       const s = 55 + Math.random() * 35;
       const l = 45 + Math.random() * 20;
-      return [
-        hslToHex(baseH, s, l),
-        hslToHex(baseH + 25 + Math.random() * 20, s, l + 5),
-        hslToHex(baseH - 20 + Math.random() * 15, s * 0.85, l - 5),
-      ];
+      return [hslToHex(baseH, s, l), hslToHex(baseH + 25 + Math.random() * 20, s, l + 5), hslToHex(baseH - 20 + Math.random() * 15, s * 0.85, l - 5)];
     }
   },
   pastel: {
@@ -249,11 +452,7 @@ const palettes: Record<PaletteType, {
       const h1 = Math.random() * 360;
       const h2 = (h1 + 60 + Math.random() * 60) % 360;
       const h3 = (h2 + 60 + Math.random() * 60) % 360;
-      return [
-        hslToHex(h1, 40 + Math.random() * 20, 80 + Math.random() * 10),
-        hslToHex(h2, 35 + Math.random() * 25, 78 + Math.random() * 12),
-        hslToHex(h3, 38 + Math.random() * 22, 82 + Math.random() * 8),
-      ];
+      return [hslToHex(h1, 40 + Math.random() * 20, 80 + Math.random() * 10), hslToHex(h2, 35 + Math.random() * 25, 78 + Math.random() * 12), hslToHex(h3, 38 + Math.random() * 22, 82 + Math.random() * 8)];
     }
   },
   vibrant: {
@@ -263,47 +462,28 @@ const palettes: Record<PaletteType, {
       const h1 = Math.random() * 360;
       const h2 = (h1 + 90 + Math.random() * 60) % 360;
       const h3 = (h2 + 90 + Math.random() * 60) % 360;
-      return [
-        hslToHex(h1, 85 + Math.random() * 15, 50 + Math.random() * 10),
-        hslToHex(h2, 80 + Math.random() * 20, 52 + Math.random() * 10),
-        hslToHex(h3, 82 + Math.random() * 18, 48 + Math.random() * 12),
-      ];
+      return [hslToHex(h1, 85 + Math.random() * 15, 50 + Math.random() * 10), hslToHex(h2, 80 + Math.random() * 20, 52 + Math.random() * 10), hslToHex(h3, 82 + Math.random() * 18, 48 + Math.random() * 12)];
     }
   },
   sunset: {
     label: 'Sunset',
     icon: 'ph:sun-horizon-duotone',
     generate: () => {
-      // Oranges, pinks, purples
-      return [
-        hslToHex(15 + Math.random() * 20, 80 + Math.random() * 20, 55 + Math.random() * 15),
-        hslToHex(330 + Math.random() * 30, 70 + Math.random() * 25, 60 + Math.random() * 15),
-        hslToHex(270 + Math.random() * 40, 50 + Math.random() * 30, 45 + Math.random() * 20),
-      ];
+      return [hslToHex(15 + Math.random() * 20, 80 + Math.random() * 20, 55 + Math.random() * 15), hslToHex(330 + Math.random() * 30, 70 + Math.random() * 25, 60 + Math.random() * 15), hslToHex(270 + Math.random() * 40, 50 + Math.random() * 30, 45 + Math.random() * 20)];
     }
   },
   ocean: {
     label: 'Ocean',
     icon: 'ph:waves-duotone',
     generate: () => {
-      // Blues, teals, aquas
-      return [
-        hslToHex(200 + Math.random() * 20, 70 + Math.random() * 25, 45 + Math.random() * 15),
-        hslToHex(175 + Math.random() * 25, 60 + Math.random() * 30, 50 + Math.random() * 15),
-        hslToHex(210 + Math.random() * 30, 55 + Math.random() * 35, 55 + Math.random() * 20),
-      ];
+      return [hslToHex(200 + Math.random() * 20, 70 + Math.random() * 25, 45 + Math.random() * 15), hslToHex(175 + Math.random() * 25, 60 + Math.random() * 30, 50 + Math.random() * 15), hslToHex(210 + Math.random() * 30, 55 + Math.random() * 35, 55 + Math.random() * 20)];
     }
   },
   forest: {
     label: 'Forest',
     icon: 'ph:tree-duotone',
     generate: () => {
-      // Greens, browns, earth tones
-      return [
-        hslToHex(90 + Math.random() * 40, 40 + Math.random() * 35, 35 + Math.random() * 20),
-        hslToHex(30 + Math.random() * 20, 35 + Math.random() * 30, 30 + Math.random() * 20),
-        hslToHex(70 + Math.random() * 50, 45 + Math.random() * 30, 45 + Math.random() * 20),
-      ];
+      return [hslToHex(90 + Math.random() * 40, 40 + Math.random() * 35, 35 + Math.random() * 20), hslToHex(30 + Math.random() * 20, 35 + Math.random() * 30, 30 + Math.random() * 20), hslToHex(70 + Math.random() * 50, 45 + Math.random() * 30, 45 + Math.random() * 20)];
     }
   },
 };
@@ -356,60 +536,112 @@ const skinGradient = computed(() => {
 </script>
 
 <template>
-  <div>
-    <PanelSection title="Skin">
+  <div class="blob-settings">
+    
+    <!-- Appearance Section -->
+    <PanelSection title="Appearance" collapsible>
       <template #actions>
-        <button class="dice-btn" @click="randomizeSkin" title="Randomize skin">
-          <iconify-icon icon="ph:dice-three-duotone"></iconify-icon>
-        </button>
-      </template>
-      <div class="skin-selector">
-        <label
-          v-for="skin in ['poles', 'donut', 'vintage']"
-          :key="skin"
-          class="skin-option"
-          :class="{ active: state.skin === skin }"
-        >
-          <input type="radio" :value="skin" v-model="state.skin" />
-          <span class="skin-preview" :style="{ background: skinGradient[skin as keyof typeof skinGradient] }"></span>
-          <span class="skin-label">{{ skin.charAt(0).toUpperCase() + skin.slice(1) }}</span>
-        </label>
-      </div>
-    </PanelSection>
-
-    <PanelSection title="Colors">
-      <template #actions>
-        <button class="dice-btn" @click="randomizeColors" title="Randomize colors">
-          <iconify-icon icon="ph:dice-three-duotone"></iconify-icon>
-        </button>
-      </template>
-      <div class="row-3">
-        <BaseColorPicker label="X Axis" v-model="state.colors.x" />
-        <BaseColorPicker label="Y Axis" v-model="state.colors.y" />
-        <BaseColorPicker label="Z Axis" v-model="state.colors.z" />
-      </div>
-      <div class="color-palettes">
-        <span class="palette-label">Palettes:</span>
-        <div class="palette-grid">
-          <button 
-            v-for="(palette, key) in palettes" 
-            :key="key"
-            class="palette-btn" 
-            @click="applyPalette(key as PaletteType)" 
-            :title="palette.label"
-          >
-            <iconify-icon :icon="palette.icon"></iconify-icon>
+        <div class="action-row">
+          <button class="dice-btn" @click="randomizeAppearance" title="Randomize appearance">
+            <iconify-icon icon="ph:dice-three-duotone"></iconify-icon>
           </button>
+        </div>
+      </template>
+      
+      <!-- Skin -->
+      <div class="subsection">
+        <div class="subsection-header">
+          <span class="subsection-title">Skin Style</span>
+          <button class="dice-btn-sm" @click="randomizeSkin" title="Randomize skin">
+            <iconify-icon icon="ph:dice-one-duotone"></iconify-icon>
+          </button>
+        </div>
+        <div class="skin-selector">
+          <label
+            v-for="skin in ['poles', 'donut', 'vintage']"
+            :key="skin"
+            class="skin-option"
+            :class="{ active: state.skin === skin }"
+          >
+            <input type="radio" :value="skin" v-model="state.skin" />
+            <span class="skin-preview" :style="{ background: skinGradient[skin as keyof typeof skinGradient] }"></span>
+            <span class="skin-label">{{ skin.charAt(0).toUpperCase() + skin.slice(1) }}</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Colors -->
+      <div class="subsection">
+        <div class="subsection-header">
+          <span class="subsection-title">Colors</span>
+          <button class="dice-btn-sm" @click="randomizeColors" title="Randomize colors">
+            <iconify-icon icon="ph:dice-one-duotone"></iconify-icon>
+          </button>
+        </div>
+        <div class="row-3">
+          <BaseColorPicker label="X Axis" v-model="state.colors.x" />
+          <BaseColorPicker label="Y Axis" v-model="state.colors.y" />
+          <BaseColorPicker label="Z Axis" v-model="state.colors.z" />
+        </div>
+        <div class="color-palettes">
+          <span class="palette-label">Palettes:</span>
+          <div class="palette-grid">
+            <button 
+              v-for="(palette, key) in palettes" 
+              :key="key"
+              class="palette-btn" 
+              @click="applyPalette(key as PaletteType)" 
+              :title="palette.label"
+            >
+              <iconify-icon :icon="palette.icon"></iconify-icon>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Properties -->
+      <div class="subsection">
+        <span class="subsection-title">Properties</span>
+        <div class="slider-group">
+          <BaseSlider label="Scale" :min="0.5" :max="10" :step="0.1" v-model="state.scale" />
+          <BaseSlider label="Opacity" :min="0" :max="1" :step="0.01" v-model="state.opacity" />
+          <BaseSlider label="Shininess" :min="1" :max="200" :step="1" v-model="state.shininess" />
+          <BaseSlider label="Light Intensity" :min="0" :max="5" :step="0.1" v-model="state.lightIntensity" />
+        </div>
+        <div style="margin-top: 12px">
+          <BaseToggle label="Wireframe Mode" v-model="state.wireframe" />
         </div>
       </div>
     </PanelSection>
 
-    <PanelSection title="Shape">
+    <!-- Camera & Lighting Section -->
+    <PanelSection title="Scene" collapsible>
+      <div class="subsection">
+        <span class="subsection-title">Camera</span>
+        <div class="slider-group">
+          <BaseSlider label="FOV" :min="30" :max="150" :step="1" v-model="state.scene.camera.fov" />
+          <BaseSlider label="Distance" :min="2" :max="20" :step="0.5" v-model="state.scene.camera.distance" />
+        </div>
+      </div>
+      
+      <div class="subsection">
+        <span class="subsection-title">Lighting</span>
+        <div class="slider-group">
+          <BaseSlider label="Top" :min="0" :max="2" :step="0.1" v-model="state.scene.lighting.top" />
+          <BaseSlider label="Bottom" :min="0" :max="2" :step="0.1" v-model="state.scene.lighting.bottom" />
+          <BaseSlider label="Ambient" :min="0" :max="2" :step="0.1" v-model="state.scene.lighting.ambient" />
+        </div>
+      </div>
+    </PanelSection>
+
+    <!-- Shape Section -->
+    <PanelSection title="Shape" collapsible>
       <template #actions>
         <button class="dice-btn" @click="randomizeShape" title="Randomize shape">
           <iconify-icon icon="ph:dice-three-duotone"></iconify-icon>
         </button>
       </template>
+      
       <div class="linked-sliders">
         <div class="link-header">
           <span class="link-title">Spikes</span>
@@ -449,12 +681,14 @@ const skinGradient = computed(() => {
       </div>
     </PanelSection>
 
-    <PanelSection title="Animation">
+    <!-- Animation Section -->
+    <PanelSection title="Animation" collapsible>
       <template #actions>
         <button class="dice-btn" @click="randomizeAnimation" title="Randomize animation">
           <iconify-icon icon="ph:dice-three-duotone"></iconify-icon>
         </button>
       </template>
+      
       <div class="linked-sliders">
         <div class="link-header">
           <span class="link-title">Time Scale</span>
@@ -492,26 +726,166 @@ const skinGradient = computed(() => {
           <BaseSlider v-if="!linkRotation" label="Z" :min="0" :max="0.02" :step="0.001" v-model="state.rotation.z" />
         </div>
       </div>
+
+      <div class="subsection">
+        <span class="subsection-title">Transitions</span>
+        <div class="slider-group">
+          <BaseSlider 
+            label="Speed" 
+            :min="0.01" 
+            :max="0.2" 
+            :step="0.01" 
+            v-model="state.transitionSpeed"
+          />
+          <BaseSlider 
+            label="Thinking Duration" 
+            :min="1000" 
+            :max="30000" 
+            :step="500" 
+            v-model="state.thinkingDuration"
+          />
+        </div>
+      </div>
     </PanelSection>
 
-    <PanelSection title="Appearance">
-      <template #actions>
-        <button class="dice-btn" @click="randomizeAppearance" title="Randomize appearance">
-          <iconify-icon icon="ph:dice-three-duotone"></iconify-icon>
-        </button>
-      </template>
-      <div class="slider-group">
-        <BaseSlider label="Scale" :min="0.5" :max="10" :step="0.1" v-model="state.scale" />
-        <BaseSlider label="Opacity" :min="0" :max="1" :step="0.01" v-model="state.opacity" />
-        <BaseSlider label="Shininess" :min="1" :max="200" :step="1" v-model="state.shininess" />
-        <BaseSlider label="Light Intensity" :min="0" :max="5" :step="0.1" v-model="state.lightIntensity" />
+    <!-- Interaction Section -->
+    <PanelSection title="Interaction" collapsible>
+      <!-- Click Actions -->
+      <div class="interaction-row">
+        <div class="interaction-header">
+          <iconify-icon icon="ph:hand-tap-duotone"></iconify-icon>
+          <span>Single Click</span>
+          <BaseToggle v-model="state.interaction.click.enabled" size="sm" />
+        </div>
+        <div class="interaction-config" v-if="state.interaction.click.enabled">
+          <BaseSelect
+            label="Action"
+            v-model="state.interaction.click.action"
+            :options="actionOptions"
+          />
+          <button class="test-btn" @click="testAction(state.interaction.click.action)" title="Test Action">
+            <iconify-icon icon="ph:play-fill"></iconify-icon>
+          </button>
+        </div>
       </div>
-      <div style="margin-top: 12px">
-        <BaseToggle label="Wireframe Mode" v-model="state.wireframe" />
+
+      <div class="interaction-row">
+        <div class="interaction-header">
+          <iconify-icon icon="ph:hand-duotone"></iconify-icon>
+          <span>Double Click</span>
+          <BaseToggle v-model="state.interaction.doubleClick.enabled" size="sm" />
+        </div>
+        <div class="interaction-config" v-if="state.interaction.doubleClick.enabled">
+          <BaseSelect
+            label="Action"
+            v-model="state.interaction.doubleClick.action"
+            :options="actionOptions"
+          />
+          <button class="test-btn" @click="testAction(state.interaction.doubleClick.action)" title="Test Action">
+            <iconify-icon icon="ph:play-fill"></iconify-icon>
+          </button>
+        </div>
+      </div>
+
+      <div class="interaction-row">
+        <div class="interaction-header">
+          <iconify-icon icon="ph:mouse-right-click-duotone"></iconify-icon>
+          <span>Right Click</span>
+          <BaseToggle v-model="state.interaction.rightClick.enabled" size="sm" />
+        </div>
+        <div class="interaction-config" v-if="state.interaction.rightClick.enabled">
+          <BaseSelect
+            label="Action"
+            v-model="state.interaction.rightClick.action"
+            :options="actionOptions"
+          />
+          <button class="test-btn" @click="testAction(state.interaction.rightClick.action)" title="Test Action">
+            <iconify-icon icon="ph:play-fill"></iconify-icon>
+          </button>
+        </div>
+      </div>
+
+      <!-- Hover Settings -->
+      <div class="hover-settings">
+        <div class="interaction-header">
+            <iconify-icon icon="ph:cursor-duotone"></iconify-icon>
+            <span>Hover Effects</span>
+            <BaseToggle v-model="state.interaction.hover.enabled" size="sm" />
+        </div>
+        <div class="interaction-config" v-if="state.interaction.hover.enabled">
+            <BaseToggle label="Highlight" v-model="state.interaction.hover.highlightOnHover" />
+            <BaseSelect
+                label="Cursor"
+                v-model="state.interaction.hover.cursorStyle"
+                :options="cursorOptions"
+            />
+        </div>
+      </div>
+
+      <!-- Touch Settings -->
+      <div class="subsection">
+        <span class="subsection-title">Touch Physics</span>
+        <div class="slider-group">
+          <BaseSlider 
+            label="Strength" 
+            :min="0.1" 
+            :max="3" 
+            :step="0.1" 
+            v-model="state.touchStrength"
+          />
+          <BaseSlider 
+            label="Duration" 
+            :min="100" 
+            :max="3000" 
+            :step="100" 
+            v-model="state.touchDuration"
+          />
+          <BaseSlider 
+            label="Max Points" 
+            :min="1" 
+            :max="20" 
+            :step="1" 
+            v-model="state.maxTouchPoints"
+          />
+        </div>
       </div>
     </PanelSection>
 
-    <PanelSection title="Quality">
+    <!-- Audio Reactivity Section -->
+    <PanelSection title="Audio Reactivity" collapsible>
+      <div class="toggle-row">
+        <BaseToggle label="Enable Audio Effects" v-model="state.audioEffects.enabled" />
+      </div>
+      
+      <MicrophoneControl />
+      <AudioVisualizer />
+
+      <div v-if="state.audioEffects.enabled" class="slider-group" style="margin-top: 12px">
+        <BaseSlider label="Reactivity" :min="0" :max="5" :step="0.1" v-model="state.audioEffects.reactivity" />
+        <BaseSlider label="Sensitivity" :min="0" :max="0.3" :step="0.005" v-model="state.audioEffects.sensitivity" />
+        <BaseSlider label="Breathing" :min="0" :max="0.2" :step="0.005" v-model="state.audioEffects.breathing" />
+        
+        <div class="subsection-title">Response Dynamics</div>
+        <BaseSlider label="Speed" :min="0" :max="1" :step="0.05" v-model="state.audioEffects.responseSpeed" />
+        <BaseSlider label="Transient" :min="0" :max="1" :step="0.05" v-model="state.audioEffects.transientBoost" />
+        
+        <div class="subsection-title">Frequency Spikes</div>
+        <BaseSlider label="Bass" :min="0" :max="2" :step="0.05" v-model="state.audioEffects.bassSpike" />
+        <BaseSlider label="Mid" :min="0" :max="2" :step="0.05" v-model="state.audioEffects.midSpike" />
+        <BaseSlider label="High" :min="0" :max="2" :step="0.05" v-model="state.audioEffects.highSpike" />
+        
+        <div class="subsection-title">Time Modulation</div>
+        <BaseToggle label="Enable Time Effects" v-model="state.audioEffects.timeEnabled" />
+        <div v-if="state.audioEffects.timeEnabled">
+            <BaseSlider label="Mid Time" :min="0" :max="0.5" :step="0.01" v-model="state.audioEffects.midTime" />
+            <BaseSlider label="High Time" :min="0" :max="0.5" :step="0.01" v-model="state.audioEffects.highTime" />
+            <BaseSlider label="Ultra Time" :min="0" :max="0.5" :step="0.01" v-model="state.audioEffects.ultraTime" />
+        </div>
+      </div>
+    </PanelSection>
+
+    <!-- Quality Section -->
+    <PanelSection title="Quality" collapsible>
       <template #actions>
         <button class="dice-btn" @click="randomizeQuality" title="Randomize quality">
           <iconify-icon icon="ph:dice-three-duotone"></iconify-icon>
@@ -529,66 +903,39 @@ const skinGradient = computed(() => {
       <p class="hint">Higher = more detail, lower performance</p>
     </PanelSection>
 
-    <PanelSection title="Transitions">
-      <template #actions>
-        <button class="dice-btn" @click="randomizeTransitions" title="Randomize transitions">
-          <iconify-icon icon="ph:dice-three-duotone"></iconify-icon>
-        </button>
-      </template>
-      <div class="slider-group">
-        <BaseSlider 
-          label="Transition Speed" 
-          :min="0.01" 
-          :max="0.2" 
-          :step="0.01" 
-          v-model="state.transitionSpeed"
-        />
-        <BaseSlider 
-          label="Thinking Duration" 
-          :min="1000" 
-          :max="30000" 
-          :step="500" 
-          v-model="state.thinkingDuration"
-        />
-      </div>
-      <p class="hint">Controls how the blob animates between states</p>
-    </PanelSection>
-
-    <PanelSection title="Touch Interaction">
-      <template #actions>
-        <button class="dice-btn" @click="randomizeTouch" title="Randomize touch">
-          <iconify-icon icon="ph:dice-three-duotone"></iconify-icon>
-        </button>
-      </template>
-      <div class="slider-group">
-        <BaseSlider 
-          label="Touch Strength" 
-          :min="0.1" 
-          :max="3" 
-          :step="0.1" 
-          v-model="state.touchStrength"
-        />
-        <BaseSlider 
-          label="Touch Duration (ms)" 
-          :min="100" 
-          :max="3000" 
-          :step="100" 
-          v-model="state.touchDuration"
-        />
-        <BaseSlider 
-          label="Max Touch Points" 
-          :min="1" 
-          :max="20" 
-          :step="1" 
-          v-model="state.maxTouchPoints"
-        />
-      </div>
-      <p class="hint">Controls how the blob reacts to clicks/touches</p>
-    </PanelSection>
   </div>
 </template>
 
 <style scoped>
+.blob-settings {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Subsection styling */
+.subsection {
+  margin-bottom: 16px;
+}
+
+.subsection:last-child {
+  margin-bottom: 0;
+}
+
+.subsection-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.subsection-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
 /* Skin Selector */
 .skin-selector {
   display: flex;
@@ -642,9 +989,7 @@ const skinGradient = computed(() => {
 }
 
 /* Dice Button */
-.dice-btn {
-  width: 24px;
-  height: 24px;
+.dice-btn, .dice-btn-sm {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -654,17 +999,30 @@ const skinGradient = computed(() => {
   color: var(--text-muted);
   cursor: pointer;
   transition: all 0.2s ease;
+}
+
+.dice-btn {
+  width: 24px;
+  height: 24px;
   font-size: 14px;
 }
 
-.dice-btn:hover {
+.dice-btn-sm {
+  width: 20px;
+  height: 20px;
+  font-size: 12px;
+  background: transparent;
+  border-color: transparent;
+}
+
+.dice-btn:hover, .dice-btn-sm:hover {
   background: var(--accent-glow);
   border-color: var(--accent-primary);
   color: var(--accent-primary);
   transform: rotate(15deg) scale(1.1);
 }
 
-.dice-btn:active {
+.dice-btn:active, .dice-btn-sm:active {
   transform: rotate(180deg) scale(0.95);
 }
 
@@ -791,5 +1149,81 @@ const skinGradient = computed(() => {
   font-size: 10px;
   color: var(--text-muted);
   font-style: italic;
+}
+
+/* Interaction Styles */
+.interaction-row {
+  background: var(--surface-1);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  margin-bottom: 10px;
+}
+
+.interaction-row:last-child {
+  margin-bottom: 0;
+}
+
+.interaction-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.interaction-header iconify-icon {
+  font-size: 18px;
+  color: var(--accent-primary);
+}
+
+.interaction-header span {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.interaction-config {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--glass-border);
+}
+
+.interaction-config > :first-child {
+  flex: 1;
+}
+
+.test-btn {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-2);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  color: var(--accent-primary);
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+
+.test-btn:hover {
+  background: var(--accent-glow);
+  border-color: var(--accent-primary);
+  transform: scale(1.05);
+}
+
+.hover-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--glass-border);
+}
+
+.toggle-row {
+  margin-bottom: 12px;
 }
 </style>

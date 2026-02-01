@@ -2,14 +2,13 @@
 import { onMounted, onUnmounted, ref, watch } from 'vue';
 import { useKwami } from '@/composables/useKwami';
 import { useUIStore } from '@/stores/ui';
-import { useInteractionStore, type InteractionAction } from '@/stores/interaction';
+import { useAuthStore } from '@/stores/auth';
 import AuthGuard from '@/components/auth/AuthGuard.vue';
+import WelcomeScreen from '@/components/welcome/WelcomeScreen.vue';
 import TheSidebar from '@/components/sidebar/TheSidebar.vue';
 import ControlBar from '@/components/controls/ControlBar.vue';
 import AvatarPanel from '@/components/panels/avatar/AvatarPanel.vue';
 import ScenePanel from '@/components/panels/scene/ScenePanel.vue';
-import InteractionPanel from '@/components/panels/interaction/InteractionPanel.vue';
-import AudioPanel from '@/components/panels/audio/AudioPanel.vue';
 import VoicePanel from '@/components/panels/voice/VoicePanel.vue';
 import EnhancementsPanel from '@/components/panels/enhancements/EnhancementsPanel.vue';
 import TranscriptionPanel from '@/components/panels/transcription/TranscriptionPanel.vue';
@@ -19,6 +18,7 @@ import ToolsPanel from '@/components/panels/tools/ToolsPanel.vue';
 import InfoPanel from '@/components/panels/info/InfoPanel.vue';
 import MetricsPanel from '@/components/panels/metrics/MetricsPanel.vue';
 import AccountPanel from '@/components/panels/account/AccountPanel.vue';
+import ThemePanel from '@/components/panels/theme/ThemePanel.vue';
 import LLMPanel from '@/components/panels/models/LLMPanel.vue';
 import STTPanel from '@/components/panels/models/STTPanel.vue';
 import TTSPanel from '@/components/panels/models/TTSPanel.vue';
@@ -27,137 +27,26 @@ import RotationDisplay from '@/components/ui/RotationDisplay.vue';
 
 const { kwami, init, switchRenderer } = useKwami();
 const uiStore = useUIStore();
-const interactionStore = useInteractionStore();
+const authStore = useAuthStore();
 
 const canvasRef = ref<HTMLCanvasElement | null>(null);
 
-// Execute interaction action based on config
-function executeInteractionAction(action: InteractionAction) {
-  if (!kwami.value) return;
+// Welcome screen state
+const showWelcome = ref(false);
+const hasShownWelcome = ref(false);
 
-  switch (action) {
-    case 'toggleListening': {
-      const currentState = kwami.value.getState() || 'idle';
-      if (currentState === 'listening') {
-        kwami.value.setState('idle');
-      } else {
-        kwami.value.setState('listening');
-      }
-      break;
-    }
-    case 'startListening':
-      kwami.value.setState('listening');
-      break;
-    case 'stopListening':
-      kwami.value.setState('idle');
-      break;
-    case 'randomize':
-      kwami.value.avatar.randomize();
-      window.dispatchEvent(new CustomEvent('kwami:randomized'));
-      break;
-    case 'switchRenderer': {
-      const renderer = kwami.value.avatar.getRendererType();
-      switchRenderer(renderer === 'blob' ? 'crystal' : 'blob');
-      break;
-    }
-    case 'cycleState': {
-      const states = ['idle', 'listening', 'thinking'] as const;
-      const current = kwami.value.getState() || 'idle';
-      const currentIndex = states.indexOf(current as typeof states[number]);
-      const nextIndex = (currentIndex + 1) % states.length;
-      const nextState = states[nextIndex] || 'idle';
-      kwami.value.setState(nextState);
-      window.dispatchEvent(new CustomEvent('kwami:stateChanged', { detail: nextState }));
-      break;
-    }
-    case 'pulse': {
-      // Trigger visual pulse effect on the current renderer
-      const blob = kwami.value.avatar.getBlob();
-      const crystal = kwami.value.avatar.getCrystal();
-      if (blob) blob.triggerPulse();
-      if (crystal) crystal.triggerPulse();
-      break;
-    }
-    case 'none':
-    default:
-      break;
+// Watch for authentication to show welcome screen
+watch(() => authStore.isAuthenticated, (isAuth, wasAuth) => {
+  // Show welcome when user just logged in (was not auth, now is auth)
+  if (isAuth && !wasAuth && !hasShownWelcome.value) {
+    showWelcome.value = true;
+    hasShownWelcome.value = true;
   }
-}
-
-// Apply interaction configuration to the Kwami instance
-function applyInteractionConfig() {
-  if (!kwami.value) return;
-
-  const config = interactionStore.config;
-  const blob = kwami.value.avatar.getBlob();
-  const crystal = kwami.value.avatar.getCrystal();
-
-  // Apply click callback
-  // When enabled with a valid action: execute the action
-  // When disabled or action is 'none': use no-op to prevent default pulse
-  const clickHandler = config.click.enabled && config.click.action !== 'none'
-    ? () => executeInteractionAction(config.click.action)
-    : () => {}; // No-op prevents default pulse behavior
-
-  if (blob) {
-    blob.onClick = clickHandler;
-  }
-  if (crystal) {
-    crystal.onClick = clickHandler;
-  }
-
-  // Apply double-click callback
-  // When disabled or action is 'none': use no-op to prevent default toggle behavior
-  const doubleClickHandler = config.doubleClick.enabled && config.doubleClick.action !== 'none'
-    ? () => executeInteractionAction(config.doubleClick.action)
-    : () => {};
-
-  if (blob) {
-    blob.onDoubleClick = doubleClickHandler;
-  }
-  if (crystal) {
-    crystal.onDoubleClick = doubleClickHandler;
-  }
-
-  // Apply right-click callbacks
-  const rightClickHandler = config.rightClick.enabled && config.rightClick.action !== 'none'
-    ? () => executeInteractionAction(config.rightClick.action)
-    : () => {};
-  const doubleRightClickHandler = config.doubleRightClick.enabled && config.doubleRightClick.action !== 'none'
-    ? () => executeInteractionAction(config.doubleRightClick.action)
-    : () => {};
-
-  if (blob) {
-    blob.setRightClickCallback(rightClickHandler);
-    blob.setDoubleRightClickCallback(doubleRightClickHandler);
-  }
-  if (crystal) {
-    crystal.setRightClickCallback(rightClickHandler);
-    crystal.setDoubleRightClickCallback(doubleRightClickHandler);
-  }
-
-  // Apply hover cursor style
-  if (canvasRef.value) {
-    canvasRef.value.style.cursor = config.hover.enabled
-      ? config.hover.cursorStyle
-      : 'default';
-  }
-}
-
-// Watch interaction config for changes and apply them
-watch(
-  () => interactionStore.config,
-  () => {
-    applyInteractionConfig();
-  },
-  { deep: true }
-);
-
-// Also re-apply when renderer switches
-window.addEventListener('kwami:rendererChanged', () => {
-  // Small delay to ensure new renderer is initialized
-  setTimeout(() => applyInteractionConfig(), 50);
 });
+
+function onWelcomeComplete() {
+  showWelcome.value = false;
+}
 
 // Track if Kwami has been initialized
 const isInitialized = ref(false);
@@ -176,9 +65,6 @@ function initializeKwami() {
   requestAnimationFrame(() => {
     handleResize();
   });
-
-  // Apply initial interaction configuration
-  applyInteractionConfig();
 
   // Console info
   console.log('🎮 Kwami Playground (🫧 blob renderer)');
@@ -260,37 +146,48 @@ onUnmounted(() => {
 </script>
 
 <template>
+  <!-- Welcome screen shown after login -->
+  <WelcomeScreen
+    v-if="showWelcome"
+    :visible="showWelcome"
+    :duration="3500"
+    @complete="onWelcomeComplete"
+  />
+
   <AuthGuard>
     <div id="kwami-root">
+      <!-- Canvas always renders for background effect -->
       <canvas id="kwami-canvas" ref="canvasRef"></canvas>
 
-      <!-- Control Bar (top-right) -->
-      <div class="control-bar-container">
-        <ControlBar />
-      </div>
+      <!-- UI controls only shown when authenticated and welcome complete -->
+      <template v-if="authStore.isAuthenticated && !showWelcome">
+        <!-- Control Bar (top-right) -->
+        <div class="control-bar-container">
+          <ControlBar />
+        </div>
 
-      <!-- Rotation Display (bottom-left) -->
-      <RotationDisplay />
+        <!-- Rotation Display (bottom-left) -->
+        <RotationDisplay />
 
-      <TheSidebar>
-        <AvatarPanel v-if="uiStore.activePanel === 'avatar'" />
-        <ScenePanel v-if="uiStore.activePanel === 'scene'" />
-        <InteractionPanel v-if="uiStore.activePanel === 'interaction'" />
-        <AudioPanel v-if="uiStore.activePanel === 'audio'" />
-        <VoicePanel v-if="uiStore.activePanel === 'voice'" />
-        <EnhancementsPanel v-if="uiStore.activePanel === 'enhancements'" />
-        <TranscriptionPanel v-if="uiStore.activePanel === 'transcription'" />
-        <PersonaPanel v-if="uiStore.activePanel === 'persona'" />
-        <MemoryPanel v-if="uiStore.activePanel === 'memory'" />
-        <ToolsPanel v-if="uiStore.activePanel === 'tools'" />
-        <InfoPanel v-if="uiStore.activePanel === 'info'" />
-        <MetricsPanel v-if="uiStore.activePanel === 'metrics'" />
-        <AccountPanel v-if="uiStore.activePanel === 'account'" />
-        <LLMPanel v-if="uiStore.activePanel === 'llm'" />
-        <STTPanel v-if="uiStore.activePanel === 'stt'" />
-        <TTSPanel v-if="uiStore.activePanel === 'tts'" />
-        <UnifiedModelsPanel v-if="uiStore.activePanel === 'models'" />
-      </TheSidebar>
+        <TheSidebar>
+          <AvatarPanel v-if="uiStore.activePanel === 'avatar'" />
+          <ScenePanel v-if="uiStore.activePanel === 'scene'" />
+          <VoicePanel v-if="uiStore.activePanel === 'voice'" />
+          <EnhancementsPanel v-if="uiStore.activePanel === 'enhancements'" />
+          <TranscriptionPanel v-if="uiStore.activePanel === 'transcription'" />
+          <PersonaPanel v-if="uiStore.activePanel === 'persona'" />
+          <MemoryPanel v-if="uiStore.activePanel === 'memory'" />
+          <ToolsPanel v-if="uiStore.activePanel === 'tools'" />
+          <InfoPanel v-if="uiStore.activePanel === 'info'" />
+          <MetricsPanel v-if="uiStore.activePanel === 'metrics'" />
+          <AccountPanel v-if="uiStore.activePanel === 'account'" />
+          <ThemePanel v-if="uiStore.activePanel === 'theme'" />
+          <LLMPanel v-if="uiStore.activePanel === 'llm'" />
+          <STTPanel v-if="uiStore.activePanel === 'stt'" />
+          <TTSPanel v-if="uiStore.activePanel === 'tts'" />
+          <UnifiedModelsPanel v-if="uiStore.activePanel === 'models'" />
+        </TheSidebar>
+      </template>
     </div>
   </AuthGuard>
 </template>

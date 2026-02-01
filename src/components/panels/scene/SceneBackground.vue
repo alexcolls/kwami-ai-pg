@@ -8,13 +8,23 @@ import BaseInput from '@/components/ui/BaseInput.vue';
 
 type MediaType = 'none' | 'solid' | 'image' | 'video';
 type MediaFit = 'cover' | 'contain' | 'stretch';
-type GradientType = 'radial' | 'linear';
+type GradientType = 'radial' | 'linear' | 'orbs';
 type BlendMode = 'normal' | 'multiply' | 'screen' | 'overlay' | 'soft-light';
 
 export interface GradientStop {
   color: string;
   position: number; // 0-100
   opacity: number;  // 0-1
+}
+
+export interface GradientOrb {
+  id: string;
+  x: number; // 0-100 position
+  y: number; // 0-100 position
+  size: number; // 10-100 radius percentage
+  color: string;
+  opacity: number; // 0-1
+  softness: number; // 0-100 edge softness
 }
 
 export interface BackgroundConfig {
@@ -44,6 +54,7 @@ export interface BackgroundConfig {
     radialCenter: { x: number; y: number }; // 0-100
     radialSize: number; // 0-200 (percentage)
     stops: GradientStop[];
+    orbs: GradientOrb[]; // For orbs mode
     opacity: number;
     blendMode: BlendMode;
   };
@@ -57,6 +68,28 @@ const emit = defineEmits<{
   (e: 'imageUpload', file: File): void;
   (e: 'videoUpload', file: File): void;
 }>();
+
+// Helper functions for randomization
+function randomHex(): string {
+  return '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0');
+}
+
+function randomDarkHex(): string {
+  // Generate darker colors suitable for backgrounds
+  const r = Math.floor(Math.random() * 60);
+  const g = Math.floor(Math.random() * 60);
+  const b = Math.floor(Math.random() * 80);
+  return '#' + r.toString(16).padStart(2, '0') + g.toString(16).padStart(2, '0') + b.toString(16).padStart(2, '0');
+}
+
+function randomInRange(min: number, max: number, step: number = 1): number {
+  const range = (max - min) / step;
+  return min + Math.round(Math.random() * range) * step;
+}
+
+function generateOrbId(): string {
+  return Math.random().toString(36).substring(2, 9);
+}
 
 // Initialize optional properties with defaults
 watch(background, (bg) => {
@@ -90,6 +123,11 @@ watch(background, (bg) => {
           { color: '#1a1a3a', position: 50, opacity: 1 },
           { color: '#0a0a1a', position: 100, opacity: 1 },
         ],
+        orbs: [
+          { id: generateOrbId(), x: 20, y: 30, size: 40, color: '#1a2a4a', opacity: 0.8, softness: 80 },
+          { id: generateOrbId(), x: 80, y: 70, size: 50, color: '#2a1a3a', opacity: 0.7, softness: 70 },
+          { id: generateOrbId(), x: 50, y: 50, size: 60, color: '#0a1a2a', opacity: 0.6, softness: 90 },
+        ],
         opacity: 1,
         blendMode: 'normal',
       };
@@ -99,6 +137,13 @@ watch(background, (bg) => {
         { color: '#0a0a1a', position: 0, opacity: 1 },
         { color: '#1a1a3a', position: 50, opacity: 1 },
         { color: '#0a0a1a', position: 100, opacity: 1 },
+      ];
+    }
+    if (!bg.gradient.orbs || bg.gradient.orbs.length === 0) {
+      bg.gradient.orbs = [
+        { id: generateOrbId(), x: 20, y: 30, size: 40, color: '#1a2a4a', opacity: 0.8, softness: 80 },
+        { id: generateOrbId(), x: 80, y: 70, size: 50, color: '#2a1a3a', opacity: 0.7, softness: 70 },
+        { id: generateOrbId(), x: 50, y: 50, size: 60, color: '#0a1a2a', opacity: 0.6, softness: 90 },
       ];
     }
   }
@@ -163,6 +208,77 @@ function removeGradientStop(index: number) {
   if (!background.value?.gradient) return;
   if (background.value.gradient.stops.length > 2) {
     background.value.gradient.stops.splice(index, 1);
+  }
+}
+
+// Orb management
+function addOrb() {
+  if (!background.value?.gradient) return;
+  const newOrb: GradientOrb = {
+    id: generateOrbId(),
+    x: randomInRange(10, 90),
+    y: randomInRange(10, 90),
+    size: randomInRange(30, 60),
+    color: randomDarkHex(),
+    opacity: randomInRange(50, 90) / 100,
+    softness: randomInRange(60, 90),
+  };
+  background.value.gradient.orbs.push(newOrb);
+}
+
+function removeOrb(index: number) {
+  if (!background.value?.gradient) return;
+  if (background.value.gradient.orbs.length > 1) {
+    background.value.gradient.orbs.splice(index, 1);
+  }
+}
+
+// Randomize functions
+function randomizeColors() {
+  if (!background.value?.gradient) return;
+  for (const stop of background.value.gradient.stops) {
+    stop.color = randomDarkHex();
+  }
+}
+
+function randomizePositions() {
+  if (!background.value?.gradient) return;
+  const { type } = background.value.gradient;
+  
+  if (type === 'linear') {
+    background.value.gradient.angle = randomInRange(0, 360, 15);
+  } else if (type === 'radial') {
+    background.value.gradient.radialCenter.x = randomInRange(20, 80);
+    background.value.gradient.radialCenter.y = randomInRange(20, 80);
+    background.value.gradient.radialSize = randomInRange(60, 150, 10);
+  } else if (type === 'orbs') {
+    for (const orb of background.value.gradient.orbs) {
+      orb.x = randomInRange(10, 90);
+      orb.y = randomInRange(10, 90);
+      orb.size = randomInRange(25, 70);
+      orb.softness = randomInRange(50, 95);
+    }
+  }
+}
+
+function randomizeOrbs() {
+  if (!background.value?.gradient) return;
+  for (const orb of background.value.gradient.orbs) {
+    orb.x = randomInRange(10, 90);
+    orb.y = randomInRange(10, 90);
+    orb.size = randomInRange(25, 70);
+    orb.color = randomDarkHex();
+    orb.opacity = randomInRange(50, 90) / 100;
+    orb.softness = randomInRange(50, 95);
+  }
+}
+
+function randomizeAll() {
+  if (!background.value?.gradient) return;
+  randomizeColors();
+  randomizePositions();
+  if (background.value.gradient.type === 'orbs') {
+    randomizeOrbs();
   }
 }
 
@@ -260,7 +376,23 @@ const blendModeOptions = [
 // Preview gradient CSS for the UI
 const gradientPreviewStyle = computed(() => {
   if (!background.value?.gradient) return {};
-  const { type, angle, radialCenter, radialSize, stops } = background.value.gradient;
+  const { type, angle, radialCenter, radialSize, stops, orbs } = background.value.gradient;
+  
+  if (type === 'orbs') {
+    // Create blurred orb effect using radial gradients
+    // Note: actual blur is done in canvas, this is just a preview approximation
+    const orbGradients = orbs.map(orb => {
+      const r = parseInt(orb.color.slice(1, 3), 16);
+      const g = parseInt(orb.color.slice(3, 5), 16);
+      const b = parseInt(orb.color.slice(5, 7), 16);
+      const size = orb.size * 0.5;
+      // Simulate blur with a soft gradient
+      return `radial-gradient(circle ${size}% at ${orb.x}% ${orb.y}%, rgba(${r}, ${g}, ${b}, ${orb.opacity}) 0%, rgba(${r}, ${g}, ${b}, ${orb.opacity * 0.3}) 50%, transparent 100%)`;
+    });
+    return {
+      background: orbGradients.join(', '),
+    };
+  }
   
   const colorStops = stops
     .slice()
@@ -419,12 +551,19 @@ const gradientPreviewStyle = computed(() => {
 
     <!-- GRADIENT LAYER (FRONT OVERLAY) -->
     <PanelSection title="Gradient Overlay" icon="ph:gradient-duotone">
-      <div class="gradient-toggle">
-        <label class="toggle-switch">
-          <input type="checkbox" v-model="background.gradient.enabled" />
-          <span class="slider"></span>
-        </label>
-        <span class="toggle-label">{{ background.gradient.enabled ? 'Enabled' : 'Disabled' }}</span>
+      <div class="gradient-header">
+        <div class="gradient-toggle">
+          <label class="toggle-switch">
+            <input type="checkbox" v-model="background.gradient.enabled" />
+            <span class="slider"></span>
+          </label>
+          <span class="toggle-label">{{ background.gradient.enabled ? 'Enabled' : 'Disabled' }}</span>
+        </div>
+        <div v-if="background.gradient.enabled" class="dice-buttons">
+          <button class="dice-btn" @click="randomizeAll" title="Randomize All">
+            <iconify-icon icon="ph:dice-five-duotone"></iconify-icon>
+          </button>
+        </div>
       </div>
       
       <div v-if="background.gradient.enabled" class="gradient-preview-box">
@@ -434,17 +573,27 @@ const gradientPreviewStyle = computed(() => {
 
     <!-- Gradient Type & Position -->
     <PanelSection v-if="background.gradient.enabled" title="Gradient Type">
-      <div class="gradient-type-selector">
-        <label class="gradient-type-option" :class="{ active: background.gradient.type === 'radial' }">
-          <input type="radio" value="radial" v-model="background.gradient.type" />
-          <iconify-icon icon="ph:circle-duotone"></iconify-icon>
-          <span>Radial</span>
-        </label>
-        <label class="gradient-type-option" :class="{ active: background.gradient.type === 'linear' }">
-          <input type="radio" value="linear" v-model="background.gradient.type" />
-          <iconify-icon icon="ph:arrows-out-line-horizontal-duotone"></iconify-icon>
-          <span>Linear</span>
-        </label>
+      <div class="section-header-row">
+        <div class="gradient-type-selector">
+          <label class="gradient-type-option" :class="{ active: background.gradient.type === 'radial' }">
+            <input type="radio" value="radial" v-model="background.gradient.type" />
+            <iconify-icon icon="ph:circle-duotone"></iconify-icon>
+            <span>Radial</span>
+          </label>
+          <label class="gradient-type-option" :class="{ active: background.gradient.type === 'linear' }">
+            <input type="radio" value="linear" v-model="background.gradient.type" />
+            <iconify-icon icon="ph:arrows-out-line-horizontal-duotone"></iconify-icon>
+            <span>Linear</span>
+          </label>
+          <label class="gradient-type-option" :class="{ active: background.gradient.type === 'orbs' }">
+            <input type="radio" value="orbs" v-model="background.gradient.type" />
+            <iconify-icon icon="ph:circles-three-duotone"></iconify-icon>
+            <span>Orbs</span>
+          </label>
+        </div>
+        <button class="dice-btn" @click="randomizePositions" title="Randomize Positions">
+          <iconify-icon icon="ph:dice-three-duotone"></iconify-icon>
+        </button>
       </div>
 
       <!-- Linear gradient angle -->
@@ -490,8 +639,95 @@ const gradientPreviewStyle = computed(() => {
       </div>
     </PanelSection>
 
-    <!-- Gradient Colors / Stops -->
-    <PanelSection v-if="background.gradient.enabled" title="Color Stops">
+    <!-- Orbs Settings -->
+    <PanelSection v-if="background.gradient.enabled && background.gradient.type === 'orbs'" title="Gradient Orbs">
+      <template #actions>
+        <button class="dice-btn" @click="randomizeOrbs" title="Randomize Orbs">
+          <iconify-icon icon="ph:dice-four-duotone"></iconify-icon>
+        </button>
+      </template>
+      <div class="orbs-list">
+        <div
+          v-for="(orb, index) in background.gradient.orbs"
+          :key="orb.id"
+          class="orb-row"
+        >
+          <div class="orb-header">
+            <span class="orb-label">Orb {{ index + 1 }}</span>
+            <div class="orb-preview" :style="{ background: orb.color, opacity: orb.opacity }"></div>
+            <button
+              v-if="background.gradient.orbs.length > 1"
+              class="remove-orb-btn"
+              @click="removeOrb(index)"
+              title="Remove orb"
+            >
+              <iconify-icon icon="ph:x"></iconify-icon>
+            </button>
+          </div>
+          <div class="orb-controls">
+            <BaseColorPicker
+              label="Color"
+              v-model="orb.color"
+            />
+            <div class="orb-position-grid">
+              <BaseSlider
+                label="X"
+                v-model="orb.x"
+                :min="0"
+                :max="100"
+                :step="1"
+                unit="%"
+              />
+              <BaseSlider
+                label="Y"
+                v-model="orb.y"
+                :min="0"
+                :max="100"
+                :step="1"
+                unit="%"
+              />
+            </div>
+            <div class="orb-size-grid">
+              <BaseSlider
+                label="Size"
+                v-model="orb.size"
+                :min="10"
+                :max="100"
+                :step="5"
+                unit="%"
+              />
+              <BaseSlider
+                label="Softness"
+                v-model="orb.softness"
+                :min="0"
+                :max="100"
+                :step="5"
+                unit="%"
+              />
+            </div>
+            <BaseSlider
+              label="Opacity"
+              v-model="orb.opacity"
+              :min="0"
+              :max="1"
+              :step="0.05"
+            />
+          </div>
+        </div>
+      </div>
+      <button class="add-orb-btn" @click="addOrb">
+        <iconify-icon icon="ph:plus"></iconify-icon>
+        <span>Add Orb</span>
+      </button>
+    </PanelSection>
+
+    <!-- Gradient Colors / Stops (not for orbs) -->
+    <PanelSection v-if="background.gradient.enabled && background.gradient.type !== 'orbs'" title="Color Stops">
+      <template #actions>
+        <button class="dice-btn" @click="randomizeColors" title="Randomize Colors">
+          <iconify-icon icon="ph:dice-four-duotone"></iconify-icon>
+        </button>
+      </template>
       <div class="color-stops-list">
         <div
           v-for="(stop, index) in background.gradient.stops"
@@ -551,8 +787,8 @@ const gradientPreviewStyle = computed(() => {
       </div>
     </PanelSection>
 
-    <!-- Gradient Presets -->
-    <PanelSection title="Gradient Presets">
+    <!-- Gradient Presets (not for orbs) -->
+    <PanelSection v-if="background.gradient.type !== 'orbs'" title="Gradient Presets">
       <div class="preset-grid">
         <button
           v-for="(preset, name) in gradientPresets"
@@ -576,6 +812,56 @@ const gradientPreviewStyle = computed(() => {
 </template>
 
 <style scoped>
+/* Dice Buttons */
+.dice-btn {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-1);
+  border: 1px solid var(--glass-border);
+  border-radius: 6px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.dice-btn:hover {
+  background: var(--accent-glow);
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+  transform: rotate(15deg) scale(1.1);
+}
+
+.dice-btn:active {
+  transform: rotate(180deg) scale(0.95);
+}
+
+.dice-buttons {
+  display: flex;
+  gap: 6px;
+}
+
+/* Section Headers */
+.gradient-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.section-header-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.section-header-row .gradient-type-selector {
+  flex: 1;
+}
+
 /* Background Type Selector */
 .bg-type-selector {
   display: flex;
@@ -826,6 +1112,101 @@ const gradientPreviewStyle = computed(() => {
 }
 
 .add-stop-btn iconify-icon {
+  font-size: 16px;
+}
+
+/* Orbs UI */
+.orbs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.orb-row {
+  padding: 12px;
+  background: var(--surface-1);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--glass-border);
+}
+
+.orb-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.orb-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  flex: 1;
+}
+
+.orb-preview {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1px solid var(--glass-border);
+}
+
+.remove-orb-btn {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid var(--glass-border);
+  border-radius: 6px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.remove-orb-btn:hover {
+  background: rgba(255, 100, 100, 0.1);
+  border-color: rgba(255, 100, 100, 0.5);
+  color: #ff6464;
+}
+
+.orb-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.orb-position-grid,
+.orb-size-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.add-orb-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px;
+  margin-top: 8px;
+  background: var(--surface-1);
+  border: 1px dashed var(--glass-border);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.add-orb-btn:hover {
+  background: var(--surface-2);
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+}
+
+.add-orb-btn iconify-icon {
   font-size: 16px;
 }
 

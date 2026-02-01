@@ -1,28 +1,27 @@
 <script setup lang="ts">
-import { reactive, onMounted, onUnmounted, watch } from 'vue';
+import { reactive, ref, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { useKwami } from '@/composables/useKwami';
 import * as THREE from 'three';
-import SceneCamera from './SceneCamera.vue';
-import SceneLighting from './SceneLighting.vue';
-import SceneBackground, { type BackgroundConfig, type GradientStop } from './SceneBackground.vue';
+import SceneBackground, { type BackgroundConfig, type GradientStop, type GradientOrb } from './SceneBackground.vue';
 
 const { kwami } = useKwami();
 
 // Types (Must match child components)
 type MediaType = 'none' | 'solid' | 'image' | 'video';
 type MediaFit = 'cover' | 'contain' | 'stretch';
-type GradientType = 'radial' | 'linear';
+type GradientType = 'radial' | 'linear' | 'orbs';
 type BlendMode = 'normal' | 'multiply' | 'screen' | 'overlay' | 'soft-light';
 
+// Helper to generate orb IDs
+function generateOrbId(): string {
+  return Math.random().toString(36).substring(2, 9);
+}
+
 interface ScenePanelState {
-  camera: { fov: number; distance: number };
-  lighting: { top: number; bottom: number; ambient: number };
   background: BackgroundConfig;
 }
 
 const state = reactive<ScenePanelState>({
-  camera: { fov: 100, distance: 6 },
-  lighting: { top: 0.7, bottom: 0.4, ambient: 1.0 },
   background: {
     media: {
       type: 'none',
@@ -52,6 +51,11 @@ const state = reactive<ScenePanelState>({
         { color: '#1a1a3a', position: 50, opacity: 1 },
         { color: '#0a0a1a', position: 100, opacity: 1 },
       ],
+      orbs: [
+        { id: generateOrbId(), x: 20, y: 30, size: 40, color: '#1a2a4a', opacity: 0.8, softness: 80 },
+        { id: generateOrbId(), x: 80, y: 70, size: 50, color: '#2a1a3a', opacity: 0.7, softness: 70 },
+        { id: generateOrbId(), x: 50, y: 50, size: 60, color: '#0a1a2a', opacity: 0.6, softness: 90 },
+      ],
       opacity: 1,
       blendMode: 'normal',
     },
@@ -61,16 +65,6 @@ const state = reactive<ScenePanelState>({
 // Logic
 function getScene() {
   return kwami.value?.avatar.getScene();
-}
-
-function syncFromKwami() {
-  const scene = getScene();
-  if (!scene) return;
-  state.camera.fov = scene.camera.fov;
-  state.camera.distance = scene.camera.position.z;
-  state.lighting.top = scene.lights.top.intensity;
-  state.lighting.bottom = scene.lights.bottom.intensity;
-  state.lighting.ambient = scene.lights.ambient.intensity;
 }
 
 // Helper to convert hex color + opacity to rgba string
@@ -104,40 +98,65 @@ function createGradientCanvas(width: number, height: number): HTMLCanvasElement 
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
 
-  const { type, angle, radialCenter, radialSize, stops, opacity } = gradient;
+  const { type, angle, radialCenter, radialSize, stops, orbs, opacity } = gradient;
   
-  // Sort stops by position
-  const sortedStops = [...stops].sort((a, b) => a.position - b.position);
-  
-  let canvasGradient: CanvasGradient;
-  
-  if (type === 'radial') {
-    // Radial gradient from center
-    const cx = (radialCenter.x / 100) * width;
-    const cy = (radialCenter.y / 100) * height;
-    const radius = (radialSize / 100) * Math.max(width, height);
-    canvasGradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
-  } else {
-    // Linear gradient with angle
-    const rad = (angle * Math.PI) / 180;
-    const centerX = width / 2;
-    const centerY = height / 2;
-    const length = Math.max(width, height);
-    const x1 = centerX - Math.cos(rad) * length;
-    const y1 = centerY - Math.sin(rad) * length;
-    const x2 = centerX + Math.cos(rad) * length;
-    const y2 = centerY + Math.sin(rad) * length;
-    canvasGradient = ctx.createLinearGradient(x1, y1, x2, y2);
-  }
-
-  // Add color stops
-  for (const stop of sortedStops) {
-    canvasGradient.addColorStop(stop.position / 100, hexToRgba(stop.color, stop.opacity));
-  }
-
   ctx.globalAlpha = opacity;
-  ctx.fillStyle = canvasGradient;
-  ctx.fillRect(0, 0, width, height);
+  
+  if (type === 'orbs') {
+    // Render soft blurred light orbs
+    for (const orb of orbs) {
+      const cx = (orb.x / 100) * width;
+      const cy = (orb.y / 100) * height;
+      const baseRadius = (orb.size / 100) * Math.max(width, height) * 0.5;
+      
+      // Softness controls blur amount (higher = more blur)
+      const blurAmount = (orb.softness / 100) * baseRadius * 0.8;
+      
+      // Apply blur filter
+      ctx.save();
+      ctx.filter = `blur(${blurAmount}px)`;
+      
+      // Draw a solid filled circle that will be blurred
+      ctx.beginPath();
+      ctx.arc(cx, cy, baseRadius, 0, Math.PI * 2);
+      ctx.fillStyle = hexToRgba(orb.color, orb.opacity);
+      ctx.fill();
+      
+      ctx.restore();
+    }
+  } else {
+    // Sort stops by position
+    const sortedStops = [...stops].sort((a, b) => a.position - b.position);
+    
+    let canvasGradient: CanvasGradient;
+    
+    if (type === 'radial') {
+      // Radial gradient from center
+      const cx = (radialCenter.x / 100) * width;
+      const cy = (radialCenter.y / 100) * height;
+      const radius = (radialSize / 100) * Math.max(width, height);
+      canvasGradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
+    } else {
+      // Linear gradient with angle
+      const rad = (angle * Math.PI) / 180;
+      const centerX = width / 2;
+      const centerY = height / 2;
+      const length = Math.max(width, height);
+      const x1 = centerX - Math.cos(rad) * length;
+      const y1 = centerY - Math.sin(rad) * length;
+      const x2 = centerX + Math.cos(rad) * length;
+      const y2 = centerY + Math.sin(rad) * length;
+      canvasGradient = ctx.createLinearGradient(x1, y1, x2, y2);
+    }
+
+    // Add color stops
+    for (const stop of sortedStops) {
+      canvasGradient.addColorStop(stop.position / 100, hexToRgba(stop.color, stop.opacity));
+    }
+
+    ctx.fillStyle = canvasGradient;
+    ctx.fillRect(0, 0, width, height);
+  }
 
   return canvas;
 }
@@ -203,8 +222,8 @@ function compositeBackground(
   }
 
   const canvas = document.createElement('canvas');
-  canvas.width = 1024;
-  canvas.height = 1024;
+  canvas.width = 2048;
+  canvas.height = 2048;
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
 
@@ -251,6 +270,9 @@ function stopVideoLoop() {
 
 // Update media layer
 function updateMediaBackground() {
+  // Skip if not yet initialized (library already set initial background)
+  if (!backgroundInitialized.value) return;
+  
   const scene = getScene();
   if (!scene) return;
 
@@ -357,6 +379,9 @@ function updateMediaBackground() {
 
 // Update gradient layer
 function updateGradientOverlay() {
+  // Skip if not yet initialized (library already set initial background)
+  if (!backgroundInitialized.value) return;
+  
   // If video is playing, the video loop will handle compositing
   if (state.background.media.type === 'video' && videoElement) {
     return; // Video loop will handle it
@@ -371,97 +396,6 @@ function updateGradientOverlay() {
   // For solid or none, just recomposite
   compositeBackground();
 }
-
-// Main update function
-function updateBackground() {
-  updateMediaBackground();
-}
-
-// Watchers
-watch(
-  () => state.camera.fov,
-  (v) => {
-    const s = getScene();
-    if (s) {
-      s.camera.fov = v;
-      s.camera.updateProjectionMatrix();
-    }
-  },
-);
-watch(
-  () => state.camera.distance,
-  (v) => {
-    const s = getScene();
-    if (s) {
-      s.camera.position.z = v;
-      s.camera.lookAt(0, 0, 0);
-    }
-  },
-);
-// Helper to get the current renderer (blob or crystal)
-function getRenderer() {
-  const avatar = kwami.value?.avatar;
-  if (!avatar) return null;
-  const blob = avatar.getBlob();
-  if (blob) return { type: 'blob' as const, renderer: blob };
-  const crystal = avatar.getCrystal();
-  if (crystal) return { type: 'crystal' as const, renderer: crystal };
-  return null;
-}
-
-// Update avatar light position based on scene light intensities
-function updateAvatarLighting() {
-  const r = getRenderer();
-  if (!r) return;
-  
-  // Check if the method exists (library may need to be rebuilt)
-  if (typeof r.renderer.setLightPosition !== 'function') {
-    return;
-  }
-  
-  const { top, bottom, ambient } = state.lighting;
-  
-  // Combine light intensities to create a weighted light position
-  // Top light is at (0, 500, 2000), bottom is at (0, -500, 400)
-  const topWeight = top;
-  const bottomWeight = bottom;
-  const totalWeight = topWeight + bottomWeight + 0.01; // avoid division by zero
-  
-  // Interpolate Y position based on top/bottom balance
-  const y = ((topWeight * 500) - (bottomWeight * 500)) / totalWeight;
-  // Z is further when top is stronger
-  const z = ((topWeight * 2000) + (bottomWeight * 400)) / totalWeight;
-  // X stays centered
-  const x = 0;
-  
-  r.renderer.setLightPosition(x, y, z);
-}
-
-watch(
-  () => state.lighting.top,
-  (v) => {
-    const s = getScene();
-    if (s) s.lights.top.intensity = v;
-    updateAvatarLighting();
-  },
-);
-watch(
-  () => state.lighting.bottom,
-  (v) => {
-    const s = getScene();
-    if (s) s.lights.bottom.intensity = v;
-    updateAvatarLighting();
-  },
-);
-watch(
-  () => state.lighting.ambient,
-  (v) => {
-    const s = getScene();
-    if (s) s.lights.ambient.intensity = v;
-    // Ambient doesn't affect directional light position, but we could 
-    // potentially use it for overall intensity
-  },
-);
 
 // Media watchers
 watch(() => state.background.media.type, updateMediaBackground);
@@ -488,22 +422,23 @@ watch(() => state.background.gradient.angle, updateGradientOverlay);
 watch(() => state.background.gradient.radialCenter, updateGradientOverlay, { deep: true });
 watch(() => state.background.gradient.radialSize, updateGradientOverlay);
 watch(() => state.background.gradient.stops, updateGradientOverlay, { deep: true });
+watch(() => state.background.gradient.orbs, updateGradientOverlay, { deep: true });
 watch(() => state.background.gradient.opacity, updateGradientOverlay);
 watch(() => state.background.gradient.blendMode, updateGradientOverlay);
 
+// Track if panel has been initialized - don't update background on first load
+// since the library already set it up correctly with matching defaults
+const backgroundInitialized = ref(false);
+
 onMounted(() => {
   if (kwami.value) {
-    syncFromKwami();
-    updateBackground();
-    updateAvatarLighting();
+    nextTick(() => { backgroundInitialized.value = true; });
   } else {
     watch(
       kwami,
       (k) => {
         if (k) {
-          syncFromKwami();
-          updateBackground();
-          updateAvatarLighting();
+          nextTick(() => { backgroundInitialized.value = true; });
         }
       },
       { once: true },
@@ -530,8 +465,6 @@ onUnmounted(() => {
     </div>
 
     <div class="panel-body">
-      <SceneCamera v-model:camera="state.camera" />
-      <SceneLighting v-model:lighting="state.lighting" />
       <SceneBackground v-model:background="state.background" />
     </div>
   </div>

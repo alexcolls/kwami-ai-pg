@@ -15,8 +15,77 @@ export type { AvatarPreset };
 // Types
 export type SkinSubtype = 'poles' | 'donut' | 'vintage';
 export type CrystalFormation = 'constellation' | 'helix' | 'vortex';
+export type ParticlesFormationType = 'sphere' | 'disc' | 'ring' | 'cube';
+export type ParticlesDensity = 'uniform' | 'center-heavy' | 'edge-heavy';
 export type AvatarState = 'idle' | 'listening' | 'thinking' | 'speaking';
-export type RendererType = 'blob' | 'crystal';
+export type RendererType = 'blob' | 'crystal' | 'particles';
+
+// Interaction Types
+export type InteractionAction =
+  | 'none'
+  | 'toggleListening'
+  | 'startListening'
+  | 'stopListening'
+  | 'randomize'
+  | 'switchRenderer'
+  | 'cycleState'
+  | 'pulse'
+  | 'moveToClick';
+
+export interface InteractionConfig {
+  click: {
+    action: InteractionAction;
+    enabled: boolean;
+  };
+  doubleClick: {
+    action: InteractionAction;
+    enabled: boolean;
+  };
+  rightClick: {
+    action: InteractionAction;
+    enabled: boolean;
+  };
+  doubleRightClick: {
+    action: InteractionAction;
+    enabled: boolean;
+  };
+  drag: {
+    enabled: boolean;
+    sensitivity: number;
+    rotateOnDrag: boolean;
+  };
+  hover: {
+    enabled: boolean;
+    highlightOnHover: boolean;
+    cursorStyle: string;
+  };
+}
+
+const defaultInteractionConfig: InteractionConfig = {
+  click: { action: 'pulse', enabled: true },
+  doubleClick: { action: 'toggleListening', enabled: true },
+  rightClick: { action: 'randomize', enabled: true },
+  doubleRightClick: { action: 'switchRenderer', enabled: true },
+  drag: { enabled: true, sensitivity: 1.0, rotateOnDrag: true },
+  hover: { enabled: true, highlightOnHover: false, cursorStyle: 'pointer' },
+};
+
+export interface SceneConfig {
+  camera: {
+    fov: number;
+    distance: number;
+  };
+  lighting: {
+    top: number;
+    bottom: number;
+    ambient: number;
+  };
+}
+
+const defaultSceneConfig: SceneConfig = {
+  camera: { fov: 100, distance: 6 },
+  lighting: { top: 0.7, bottom: 0.4, ambient: 1.0 },
+};
 
 export interface BlobState {
   colors: { x: string; y: string; z: string };
@@ -38,6 +107,23 @@ export interface BlobState {
   maxTouchPoints: number;
   transitionSpeed: number;
   thinkingDuration: number;
+  interaction: InteractionConfig;
+  scene: SceneConfig;
+  audioEffects: {
+    enabled: boolean;
+    reactivity: number;
+    sensitivity: number;
+    breathing: number;
+    responseSpeed: number;
+    transientBoost: number;
+    bassSpike: number;
+    midSpike: number;
+    highSpike: number;
+    timeEnabled: boolean;
+    midTime: number;
+    highTime: number;
+    ultraTime: number;
+  };
 }
 
 export interface CrystalState {
@@ -51,12 +137,66 @@ export interface CrystalState {
   audioEffects: {
     enabled: boolean;
     reactivity: number;
-    bassOrbitBoost: number;
-    midRotationBoost: number;
-    highGlowBoost: number;
+    bassOrbitBoost: number; // bassSpike in UI
+    midRotationBoost: number; // midSpike in UI
+    highGlowBoost: number; // highSpike in UI
+    smoothing: number; // sensitivity in UI
   };
   transitionSpeed: number;
   thinkingDuration: number;
+  interaction: InteractionConfig;
+  scene: SceneConfig;
+}
+
+export interface ParticlesState {
+  particleCount: number;
+  formation: {
+    type: ParticlesFormationType;
+    radius: number;
+    density: ParticlesDensity;
+    noise: number;
+  };
+  visual: {
+    color: string;
+    glowColor: string;
+    particleSize: number;
+    sizeVariation: number;
+    opacity: number;
+    glowIntensity: number;
+    brightnessVariation: number;
+    sharpness: number;
+  };
+  physics: {
+    returnForce: number;
+    damping: number;
+    explosionForce: number;
+    explosionRadius: number;
+    leaderSpeed: number;
+    followDelay: number;
+    mouseInfluence: number;
+    mouseRepulsion: number;
+  };
+  animation: {
+    enabled: boolean;
+    breathing: { enabled: boolean; speed: number; intensity: number };
+    floating: { enabled: boolean; speed: number; amplitude: number };
+    rotation: { enabled: boolean; speedX: number; speedY: number; speedZ: number };
+    wave: { enabled: boolean; speed: number; amplitude: number };
+    turbulence: { enabled: boolean; intensity: number; speed: number };
+  };
+  audioEffects: {
+    enabled: boolean;
+    reactivity: number;
+    bassInfluence: number;
+    midInfluence: number;
+    highInfluence: number;
+    smoothing: number;
+    scalePulse: boolean;
+    movementIntensity: number;
+  };
+  scale: number;
+  interaction: InteractionConfig;
+  scene: SceneConfig;
 }
 
 // Default states
@@ -80,6 +220,23 @@ export function getDefaultBlobState(): BlobState {
     maxTouchPoints: 5,
     transitionSpeed: 0.05,
     thinkingDuration: 10000,
+    interaction: JSON.parse(JSON.stringify(defaultInteractionConfig)),
+    scene: JSON.parse(JSON.stringify(defaultSceneConfig)),
+    audioEffects: {
+      enabled: true,
+      reactivity: 1.9,
+      sensitivity: 0.075,
+      breathing: 0.035,
+      responseSpeed: 0.75,
+      transientBoost: 0.5,
+      bassSpike: 0.65,
+      midSpike: 0.5,
+      highSpike: 0.38,
+      timeEnabled: false,
+      midTime: 0.1,
+      highTime: 0.18,
+      ultraTime: 0.08,
+    }
   };
 }
 
@@ -98,9 +255,65 @@ export function getDefaultCrystalState(): CrystalState {
       bassOrbitBoost: 0.4,
       midRotationBoost: 0.6,
       highGlowBoost: 0.8,
+      smoothing: 0.075,
     },
     transitionSpeed: 0.05,
     thinkingDuration: 10000,
+    interaction: JSON.parse(JSON.stringify(defaultInteractionConfig)),
+    scene: JSON.parse(JSON.stringify(defaultSceneConfig)),
+  };
+}
+
+export function getDefaultParticlesState(): ParticlesState {
+  return {
+    particleCount: 6000,
+    formation: {
+      type: 'sphere',
+      radius: 2,
+      density: 'uniform',
+      noise: 0.03,
+    },
+    visual: {
+      color: '#ffffff',
+      glowColor: '#88ccff',
+      particleSize: 0.6,
+      sizeVariation: 0.5,
+      opacity: 0.95,
+      glowIntensity: 0.3,
+      brightnessVariation: 0.25,
+      sharpness: 0.7,
+    },
+    physics: {
+      returnForce: 0.04,
+      damping: 0.92,
+      explosionForce: 10,
+      explosionRadius: 2.5,
+      leaderSpeed: 0.015,
+      followDelay: 0.012,
+      mouseInfluence: 1.5,
+      mouseRepulsion: 0.4,
+    },
+    animation: {
+      enabled: true,
+      breathing: { enabled: true, speed: 1.0, intensity: 0.15 },
+      floating: { enabled: true, speed: 0.5, amplitude: 0.08 },
+      rotation: { enabled: true, speedX: 0, speedY: 0.1, speedZ: 0 },
+      wave: { enabled: false, speed: 1.5, amplitude: 0.1 },
+      turbulence: { enabled: true, intensity: 0.02, speed: 1.0 },
+    },
+    audioEffects: {
+      enabled: true,
+      reactivity: 1.5,
+      bassInfluence: 1.0,
+      midInfluence: 0.6,
+      highInfluence: 0.8,
+      smoothing: 0.7,
+      scalePulse: true,
+      movementIntensity: 0.5,
+    },
+    scale: 1,
+    interaction: JSON.parse(JSON.stringify(defaultInteractionConfig)),
+    scene: JSON.parse(JSON.stringify(defaultSceneConfig)),
   };
 }
 
@@ -111,12 +324,15 @@ export const useAvatarStore = defineStore('avatar', () => {
   // State
   const blob = reactive<BlobState>(getDefaultBlobState());
   const crystal = reactive<CrystalState>(getDefaultCrystalState());
+  const particles = reactive<ParticlesState>(getDefaultParticlesState());
   const activeState = ref<AvatarState>('idle');
   const rendererType = ref<RendererType>('blob');
 
   // Computed
   const currentState = computed(() => {
-    return rendererType.value === 'blob' ? blob : crystal;
+    if (rendererType.value === 'blob') return blob;
+    if (rendererType.value === 'crystal') return crystal;
+    return particles;
   });
 
   const presets = computed(() => avatarPresetsRef.value);
@@ -124,6 +340,16 @@ export const useAvatarStore = defineStore('avatar', () => {
   const blobPresets = computed(() => getBlobPresets());
 
   const crystalPresets = computed(() => getCrystalPresets());
+
+  // Particles presets (hardcoded for now)
+  const particlesPresets = computed(() => [
+    { id: 'particles-default', name: 'Default', icon: 'ph:circles-three-duotone' },
+    { id: 'particles-dense', name: 'Dense', icon: 'ph:dots-nine-duotone' },
+    { id: 'particles-sparse', name: 'Sparse', icon: 'ph:dots-three-duotone' },
+    { id: 'particles-reactive', name: 'Reactive', icon: 'ph:waveform-duotone' },
+    { id: 'particles-calm', name: 'Calm', icon: 'ph:moon-duotone' },
+    { id: 'particles-disc', name: 'Disc', icon: 'ph:circle-duotone' },
+  ]);
 
   // Actions
   function setRendererType(type: RendererType) {
@@ -142,6 +368,10 @@ export const useAvatarStore = defineStore('avatar', () => {
     Object.assign(crystal, updates);
   }
 
+  function updateParticles(updates: Partial<ParticlesState>) {
+    Object.assign(particles, updates);
+  }
+
   function resetBlob() {
     Object.assign(blob, getDefaultBlobState());
   }
@@ -150,15 +380,103 @@ export const useAvatarStore = defineStore('avatar', () => {
     Object.assign(crystal, getDefaultCrystalState());
   }
 
+  function resetParticles() {
+    Object.assign(particles, getDefaultParticlesState());
+  }
+
   function reset() {
     if (rendererType.value === 'blob') {
       resetBlob();
-    } else {
+    } else if (rendererType.value === 'crystal') {
       resetCrystal();
+    } else {
+      resetParticles();
     }
   }
 
   function applyPreset(presetId: string) {
+    // Handle particles presets (hardcoded)
+    if (presetId.startsWith('particles-')) {
+      rendererType.value = 'particles';
+      
+      switch (presetId) {
+        case 'particles-default':
+          Object.assign(particles, getDefaultParticlesState());
+          break;
+        case 'particles-dense':
+          Object.assign(particles, {
+            ...getDefaultParticlesState(),
+            particleCount: 15000,
+            visual: {
+              ...getDefaultParticlesState().visual,
+              particleSize: 1.8,
+              opacity: 0.85,
+            },
+          });
+          break;
+        case 'particles-sparse':
+          Object.assign(particles, {
+            ...getDefaultParticlesState(),
+            particleCount: 3000,
+            visual: {
+              ...getDefaultParticlesState().visual,
+              particleSize: 3.5,
+              brightnessVariation: 0.5,
+            },
+          });
+          break;
+        case 'particles-reactive':
+          Object.assign(particles, {
+            ...getDefaultParticlesState(),
+            audioEffects: {
+              enabled: true,
+              reactivity: 0.9,
+              bassInfluence: 0.6,
+              midInfluence: 0.3,
+              highInfluence: 0.7,
+              smoothing: 0.7,
+            },
+            physics: {
+              ...getDefaultParticlesState().physics,
+              explosionForce: 12,
+              returnForce: 0.05,
+            },
+          });
+          break;
+        case 'particles-calm':
+          Object.assign(particles, {
+            ...getDefaultParticlesState(),
+            audioEffects: {
+              enabled: true,
+              reactivity: 0.2,
+              bassInfluence: 0.1,
+              midInfluence: 0.1,
+              highInfluence: 0.2,
+              smoothing: 0.95,
+            },
+            physics: {
+              ...getDefaultParticlesState().physics,
+              damping: 0.96,
+              returnForce: 0.015,
+              leaderSpeed: 0.01,
+            },
+          });
+          break;
+        case 'particles-disc':
+          Object.assign(particles, {
+            ...getDefaultParticlesState(),
+            formation: {
+              type: 'disc' as ParticlesFormationType,
+              radius: 2,
+              density: 'uniform' as ParticlesDensity,
+              noise: 0.03,
+            },
+          });
+          break;
+      }
+      return true;
+    }
+
     const preset = getPresetById(presetId);
     if (!preset) return false;
 
@@ -186,6 +504,9 @@ export const useAvatarStore = defineStore('avatar', () => {
     lightIntensity: number;
     getWireframe: () => boolean;
     getCurrentSkinSubtype: () => string;
+    audioEffects?: any;
+    interaction?: any;
+    scene?: any;
   }) {
     const c = externalBlob.getColors();
     blob.colors = { x: c.x, y: c.y, z: c.z };
@@ -199,6 +520,15 @@ export const useAvatarStore = defineStore('avatar', () => {
     blob.lightIntensity = externalBlob.lightIntensity;
     blob.wireframe = externalBlob.getWireframe();
     blob.skin = externalBlob.getCurrentSkinSubtype() as SkinSubtype;
+    
+    // Sync audio effects if available
+    if (externalBlob.audioEffects) {
+      Object.assign(blob.audioEffects, externalBlob.audioEffects);
+    }
+    // Sync scene if available
+    if (externalBlob.scene) {
+      Object.assign(blob.scene, externalBlob.scene);
+    }
   }
 
   function syncCrystalFromExternal(externalCrystal: {
@@ -209,6 +539,8 @@ export const useAvatarStore = defineStore('avatar', () => {
     getCoreColors?: () => { inner: string; outer: string } | null;
     getGlowIntensity?: () => number;
     getShardCount?: () => number;
+    audioEffects?: any;
+    scene?: any;
   }) {
     try {
       crystal.formation = externalCrystal.getFormation().formation as CrystalFormation;
@@ -236,15 +568,34 @@ export const useAvatarStore = defineStore('avatar', () => {
           crystal.shardCount = shardCount;
         }
       }
+
+      // Sync audio effects if available
+      if (externalCrystal.audioEffects) {
+        // Map external format to internal state if needed, or direct assign
+      }
+      
+      // Sync scene if available
+      if (externalCrystal.scene) {
+        Object.assign(crystal.scene, externalCrystal.scene);
+      }
+
     } catch (e) {
       console.warn('Error syncing crystal state:', e);
     }
+  }
+
+  // Particles don't have getters yet, so we just sync basic state
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  function syncParticlesFromExternal(_externalParticles: unknown) {
+    // Currently particles don't expose getters, so we keep the store state as source of truth
+    // This could be enhanced when the Particles class exposes getter methods
   }
 
   return {
     // State
     blob,
     crystal,
+    particles,
     activeState,
     rendererType,
     // Computed
@@ -252,16 +603,20 @@ export const useAvatarStore = defineStore('avatar', () => {
     presets,
     blobPresets,
     crystalPresets,
+    particlesPresets,
     // Actions
     setRendererType,
     setActiveState,
     updateBlob,
     updateCrystal,
+    updateParticles,
     resetBlob,
     resetCrystal,
+    resetParticles,
     reset,
     applyPreset,
     syncBlobFromExternal,
     syncCrystalFromExternal,
+    syncParticlesFromExternal,
   };
 });

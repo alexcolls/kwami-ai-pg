@@ -25,6 +25,7 @@ const panelIcons: Record<string, string> = {
   transcription: 'ph:chat-circle-text-duotone',
   info: 'ph:info-duotone',
   account: 'ph:user-duotone',
+  theme: 'ph:palette-duotone',
   // Model Panels
   models: 'ph:cpu-duotone',
   llm: 'ph:brain-duotone',
@@ -152,7 +153,7 @@ function handlePanelClick(panel: string) {
     <div class="nav-group">
       <span class="switcher-label">Visual</span>
       <button
-        v-for="p in ['avatar', 'scene', 'interaction', 'audio']"
+        v-for="p in ['avatar', 'scene', 'theme']"
         :key="p"
         class="nav-btn"
         :class="{ active: uiStore.activePanel === p && uiStore.isPanelOpen }"

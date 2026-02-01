@@ -88,6 +88,7 @@ function toggle() {
 .panel-section {
   padding: 16px 20px;
   border-bottom: 1px solid var(--glass-border);
+  box-sizing: border-box;
 }
 
 .panel-section:last-child {
