@@ -5,24 +5,24 @@ import { useKwami } from '@/composables/useKwami';
 import { useAvatarStore, type AvatarState } from '@/stores/avatar';
 import { useBlobXyzStore, type SkinType } from '@/stores/avatar.blob-xyz';
 import { useOrbitalShardsStore, type OrbitalShardsFormation } from '@/stores/avatar.orbital-shards';
-import { useParticlesStore } from '@/stores/avatar.particles';
+import { useStarsGenesisStore } from '@/stores/avatar.stars-genesis';
 import { useCrystalBallStore, type CrystalBallStyle } from '@/stores/avatar.crystal-ball';
 import BasePanel from '@/components/ui/BasePanel.vue';
 import PanelSection from '@/components/ui/PanelSection.vue';
 import BlobXyzSettings from './BlobXyzSettings.vue';
 import OrbitalShardsSettings from './OrbitalShardsSettings.vue';
-import ParticlesSettings from './ParticlesSettings.vue';
+import StarsGenesisSettings from './StarsGenesisSettings.vue';
 import CrystalBallSettings from './CrystalBallSettings.vue';
 
 const { kwami, rendererType: kwamiRendererType, switchRenderer } = useKwami();
 const avatarStore = useAvatarStore();
 const blobStore = useBlobXyzStore();
 const orbitalShardsStore = useOrbitalShardsStore();
-const particlesStore = useParticlesStore();
+const starsGenesisStore = useStarsGenesisStore();
 const crystalBallStore = useCrystalBallStore();
 
 // Use store state
-const { rendererType, blobPresets, orbitalShardsPresets, particlesPresets, crystalBallPresets } = storeToRefs(avatarStore);
+const { rendererType, blobPresets, orbitalShardsPresets, starsGenesisPresets, crystalBallPresets } = storeToRefs(avatarStore);
 const { skin, shape, animation, cursorTouch, audio } = storeToRefs(blobStore);
 const { 
   appearance: orbitalShardsAppearance, 
@@ -32,13 +32,13 @@ const {
   audio: orbitalShardsAudio 
 } = storeToRefs(orbitalShardsStore);
 const { 
-  formation: particlesFormation, 
-  visual: particlesVisual, 
-  transform: particlesTransform, 
-  physics: particlesPhysics, 
-  animation: particlesAnimation, 
-  audio: particlesAudio 
-} = storeToRefs(particlesStore);
+  formation: starsGenesisFormation, 
+  visual: starsGenesisVisual, 
+  transform: starsGenesisTransform, 
+  physics: starsGenesisPhysics, 
+  animation: starsGenesisAnimation, 
+  audio: starsGenesisAudio 
+} = storeToRefs(starsGenesisStore);
 const {
   style: crystalBallStyle,
   colors: crystalBallColors,
@@ -53,7 +53,7 @@ const currentPresets = computed(() => {
   switch (rendererType.value) {
     case 'blob': return blobPresets.value;
     case 'orbital-shards': return orbitalShardsPresets.value;
-    case 'particles': return particlesPresets.value;
+    case 'stars-genesis': return starsGenesisPresets.value;
     case 'crystal-ball': return crystalBallPresets.value;
     default: return blobPresets.value;
   }
@@ -66,8 +66,8 @@ function getBlob() {
 function getOrbitalShards() {
   return kwami.value?.avatar.getOrbitalShards();
 }
-function getParticles() {
-  return kwami.value?.avatar.getParticles();
+function getStarsGenesis() {
+  return kwami.value?.avatar.getStarsGenesis();
 }
 function getCrystalBall() {
   return (kwami.value?.avatar as any)?.getCrystalBall?.();
@@ -87,9 +87,9 @@ function syncFromKwami() {
     orbitalShardsStore.syncFromKwami(orbitalShardsInstance);
   }
 
-  const particlesInstance = getParticles();
-  if (particlesInstance) {
-    particlesStore.syncFromKwami(particlesInstance as any);
+  const starsGenesisInstance = getStarsGenesis();
+  if (starsGenesisInstance) {
+    starsGenesisStore.syncFromKwami(starsGenesisInstance as any);
   }
 
   const crystalBallInstance = getCrystalBall();
@@ -98,7 +98,7 @@ function syncFromKwami() {
   }
   
   // Sync renderer type from kwami
-  avatarStore.setRendererType(kwamiRendererType.value as 'blob' | 'orbital-shards' | 'particles' | 'crystal-ball');
+  avatarStore.setRendererType(kwamiRendererType.value as 'blob' | 'orbital-shards' | 'stars-genesis' | 'crystal-ball');
 }
 
 // =====================================================
@@ -222,17 +222,17 @@ watch(
 // Sync Store to Kwami - Particles watchers (new structure)
 
 // FORMATION watchers
-watch(() => particlesFormation.value.type, (v) => getParticles()?.setFormation(v, true));
+watch(() => starsGenesisFormation.value.type, (v) => getStarsGenesis()?.setFormation(v, true));
 
 // VISUAL watchers
 watch(
-  () => particlesVisual.value,
+  () => starsGenesisVisual.value,
   (v) => {
-    const p = getParticles();
+    const p = getStarsGenesis();
     if (p) {
       p.setColors(v.color, v.glowColor);
       p.setOpacity(v.opacity);
-      p.setParticleSize(v.particleSize);
+      p.setStarSize(v.starSize);
       p.setGlowIntensity(v.glowIntensity);
       p.setSharpness(v.sharpness);
     }
@@ -241,27 +241,27 @@ watch(
 );
 
 // TRANSFORM watchers
-watch(() => particlesTransform.value.scale, (v) => getParticles()?.setScale(v));
+watch(() => starsGenesisTransform.value.scale, (v) => getStarsGenesis()?.setScale(v));
 
 // PHYSICS watchers
 watch(
-  () => particlesPhysics.value,
-  (v) => getParticles()?.setPhysics(v),
+  () => starsGenesisPhysics.value,
+  (v) => getStarsGenesis()?.setPhysics(v),
   { deep: true }
 );
 
 // ANIMATION watchers
 watch(
-  () => particlesAnimation.value,
-  (v) => getParticles()?.setAnimation(v),
+  () => starsGenesisAnimation.value,
+  (v) => getStarsGenesis()?.setAnimation(v),
   { deep: true }
 );
 
 // AUDIO watchers
 watch(
-  () => particlesAudio.value,
+  () => starsGenesisAudio.value,
   (v) => {
-    const p = getParticles();
+    const p = getStarsGenesis();
     if (p) {
       p.setAudioEffects({
         enabled: v.enabled,
@@ -333,7 +333,7 @@ watch(rendererType, (type) => {
 });
 
 // Actions
-function handleSwitchRenderer(type: 'blob' | 'orbital-shards' | 'particles' | 'crystal-ball') {
+function handleSwitchRenderer(type: 'blob' | 'orbital-shards' | 'stars-genesis' | 'crystal-ball') {
   avatarStore.setRendererType(type);
   switchRenderer(type as any);
 }
@@ -348,7 +348,7 @@ function handleReset() {
   avatarStore.reset();
   blobStore.resetAll();
   orbitalShardsStore.resetAll();
-  particlesStore.resetAll();
+  starsGenesisStore.resetAll();
   crystalBallStore.resetAll();
   
   // Apply defaults to kwami instance
@@ -381,27 +381,27 @@ function handleReset() {
       c.setScale(orbitalShardsAppearance.value.scale);
       c.setRotation(orbitalShardsAnimation.value.rotation.x, orbitalShardsAnimation.value.rotation.y, orbitalShardsAnimation.value.rotation.z);
     }
-  } else if (rendererType.value === 'particles') {
-    const p = getParticles();
+  } else if (rendererType.value === 'stars-genesis') {
+    const p = getStarsGenesis();
     if (p) {
-      p.setColors(particlesVisual.value.color, particlesVisual.value.glowColor);
-      p.setOpacity(particlesVisual.value.opacity);
-      p.setParticleSize(particlesVisual.value.particleSize);
-      p.setGlowIntensity(particlesVisual.value.glowIntensity);
-      p.setSharpness(particlesVisual.value.sharpness);
-      p.setScale(particlesTransform.value.scale);
-      p.setFormation(particlesFormation.value.type, false);
-      p.setPhysics(particlesPhysics.value);
-      p.setAnimation(particlesAnimation.value);
+      p.setColors(starsGenesisVisual.value.color, starsGenesisVisual.value.glowColor);
+      p.setOpacity(starsGenesisVisual.value.opacity);
+      p.setStarSize(starsGenesisVisual.value.starSize);
+      p.setGlowIntensity(starsGenesisVisual.value.glowIntensity);
+      p.setSharpness(starsGenesisVisual.value.sharpness);
+      p.setScale(starsGenesisTransform.value.scale);
+      p.setFormation(starsGenesisFormation.value.type, false);
+      p.setPhysics(starsGenesisPhysics.value);
+      p.setAnimation(starsGenesisAnimation.value);
       p.setAudioEffects({
-        enabled: particlesAudio.value.enabled,
-        reactivity: particlesAudio.value.reactivity,
-        smoothing: particlesAudio.value.smoothing,
-        scalePulse: particlesAudio.value.scalePulse,
-        movementIntensity: particlesAudio.value.movementIntensity,
-        bassInfluence: particlesAudio.value.frequencyInfluence.bass,
-        midInfluence: particlesAudio.value.frequencyInfluence.mid,
-        highInfluence: particlesAudio.value.frequencyInfluence.high,
+        enabled: starsGenesisAudio.value.enabled,
+        reactivity: starsGenesisAudio.value.reactivity,
+        smoothing: starsGenesisAudio.value.smoothing,
+        scalePulse: starsGenesisAudio.value.scalePulse,
+        movementIntensity: starsGenesisAudio.value.movementIntensity,
+        bassInfluence: starsGenesisAudio.value.frequencyInfluence.bass,
+        midInfluence: starsGenesisAudio.value.frequencyInfluence.mid,
+        highInfluence: starsGenesisAudio.value.frequencyInfluence.high,
       });
     }
   }
@@ -490,27 +490,27 @@ function handleApplyPreset(presetId: string) {
           c.audioEffects.highGlowBoost = orbitalShardsAudio.value.frequencyBoosts.high;
         }
       }
-    } else if (rendererType.value === 'particles') {
-      const p = getParticles();
+    } else if (rendererType.value === 'stars-genesis') {
+      const p = getStarsGenesis();
       if (p) {
-        p.setFormation(particlesFormation.value.type, false);
-        p.setColors(particlesVisual.value.color, particlesVisual.value.glowColor);
-        p.setOpacity(particlesVisual.value.opacity);
-        p.setParticleSize(particlesVisual.value.particleSize);
-        p.setGlowIntensity(particlesVisual.value.glowIntensity);
-        p.setSharpness(particlesVisual.value.sharpness);
-        p.setScale(particlesTransform.value.scale);
-        p.setPhysics(particlesPhysics.value);
-        p.setAnimation(particlesAnimation.value);
+        p.setFormation(starsGenesisFormation.value.type, false);
+        p.setColors(starsGenesisVisual.value.color, starsGenesisVisual.value.glowColor);
+        p.setOpacity(starsGenesisVisual.value.opacity);
+        p.setStarSize(starsGenesisVisual.value.starSize);
+        p.setGlowIntensity(starsGenesisVisual.value.glowIntensity);
+        p.setSharpness(starsGenesisVisual.value.sharpness);
+        p.setScale(starsGenesisTransform.value.scale);
+        p.setPhysics(starsGenesisPhysics.value);
+        p.setAnimation(starsGenesisAnimation.value);
         p.setAudioEffects({
-          enabled: particlesAudio.value.enabled,
-          reactivity: particlesAudio.value.reactivity,
-          smoothing: particlesAudio.value.smoothing,
-          scalePulse: particlesAudio.value.scalePulse,
-          movementIntensity: particlesAudio.value.movementIntensity,
-          bassInfluence: particlesAudio.value.frequencyInfluence.bass,
-          midInfluence: particlesAudio.value.frequencyInfluence.mid,
-          highInfluence: particlesAudio.value.frequencyInfluence.high,
+          enabled: starsGenesisAudio.value.enabled,
+          reactivity: starsGenesisAudio.value.reactivity,
+          smoothing: starsGenesisAudio.value.smoothing,
+          scalePulse: starsGenesisAudio.value.scalePulse,
+          movementIntensity: starsGenesisAudio.value.movementIntensity,
+          bassInfluence: starsGenesisAudio.value.frequencyInfluence.bass,
+          midInfluence: starsGenesisAudio.value.frequencyInfluence.mid,
+          highInfluence: starsGenesisAudio.value.frequencyInfluence.high,
         });
       }
     }
@@ -570,13 +570,13 @@ onUnmounted(() => {
           <iconify-icon icon="ph:diamond-duotone" class="renderer-icon"></iconify-icon>
           <span class="renderer-label">Orbital Shards</span>
         </label>
-        <label class="renderer-option" :class="{ active: rendererType === 'particles' }">
+        <label class="renderer-option" :class="{ active: rendererType === 'stars-genesis' }">
           <input
             type="radio"
             name="renderer"
-            value="particles"
-            :checked="rendererType === 'particles'"
-            @change="handleSwitchRenderer('particles')"
+            value="stars-genesis"
+            :checked="rendererType === 'stars-genesis'"
+            @change="handleSwitchRenderer('stars-genesis')"
           />
           <iconify-icon icon="ph:circles-three-plus-duotone" class="renderer-icon"></iconify-icon>
           <span class="renderer-label">Particles</span>
@@ -625,7 +625,7 @@ onUnmounted(() => {
     <!-- Sub-components -->
     <BlobXyzSettings v-if="rendererType === 'blob'" />
     <OrbitalShardsSettings v-if="rendererType === 'orbital-shards'" />
-    <ParticlesSettings v-if="rendererType === 'particles'" />
+    <StarsGenesisSettings v-if="rendererType === 'stars-genesis'" />
     <CrystalBallSettings v-if="rendererType === 'crystal-ball'" />
   </BasePanel>
 </template>

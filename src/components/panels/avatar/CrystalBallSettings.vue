@@ -90,7 +90,7 @@ function executeAction(action: InteractionAction) {
       break;
     case 'switchRenderer': {
       const renderer = kwami.value.avatar.getRendererType();
-      const renderers = ['blob', 'orbital-shards', 'particles', 'crystal-ball'] as const;
+      const renderers = ['blob', 'orbital-shards', 'stars-genesis', 'crystal-ball'] as const;
       const currentIdx = renderers.indexOf(renderer as typeof renderers[number]);
       const nextIdx = (currentIdx + 1) % renderers.length;
       switchRenderer(renderers[nextIdx] ?? 'blob');
