@@ -7,17 +7,17 @@
 import { shallowRef, type ShallowRef } from 'vue';
 import type { RendererType } from '../stores/avatar';
 import type { BlobXyzState } from '../stores/avatar.blob-xyz';
-import type { CrystalState } from '../stores/avatar.crystal';
+import type { OrbitalShardsState } from '../stores/avatar.orbital-shards';
 import type { ParticlesState } from '../stores/avatar.particles';
 import type { CrystalBallState } from '../stores/avatar.crystal-ball';
 import { blobPresetsData, type BlobXyzPreset } from './blob-xyz-presets';
-import { crystalPresetsData, type CrystalPreset } from './crystal-presets';
+import { orbitalShardsPresetsData, type OrbitalShardsPreset } from './orbital-shards-presets';
 import { particlesPresetsData, type ParticlesPreset } from './particles-presets';
 import { crystalBallPresetsData, type CrystalBallPreset } from './crystal-ball-presets';
 
 // Re-export preset types
 export type { BlobXyzPreset } from './blob-xyz-presets';
-export type { CrystalPreset } from './crystal-presets';
+export type { OrbitalShardsPreset } from './orbital-shards-presets';
 export type { ParticlesPreset } from './particles-presets';
 export type { CrystalBallPreset } from './crystal-ball-presets';
 
@@ -28,7 +28,7 @@ export interface AvatarPreset {
   icon: string;
   renderer: RendererType;
   blob?: Partial<BlobXyzState>;
-  crystal?: Partial<CrystalState>;
+  orbitalShards?: Partial<OrbitalShardsState>;
   particles?: Partial<ParticlesState>;
   crystalBall?: Partial<CrystalBallState>;
 }
@@ -44,13 +44,13 @@ function toBlobAvatarPreset(preset: BlobXyzPreset): AvatarPreset {
   };
 }
 
-function toCrystalAvatarPreset(preset: CrystalPreset): AvatarPreset {
+function toOrbitalShardsAvatarPreset(preset: OrbitalShardsPreset): AvatarPreset {
   return {
     id: preset.id,
     name: preset.name,
     icon: preset.icon,
-    renderer: 'crystal',
-    crystal: preset.crystal,
+    renderer: 'orbital-shards',
+    orbitalShards: preset.orbitalShards,
   };
 }
 
@@ -77,7 +77,7 @@ function toCrystalBallAvatarPreset(preset: CrystalBallPreset): AvatarPreset {
 // Combine all presets into a unified array
 const _avatarPresetsData: AvatarPreset[] = [
   ...blobPresetsData.map(toBlobAvatarPreset),
-  ...crystalPresetsData.map(toCrystalAvatarPreset),
+  ...orbitalShardsPresetsData.map(toOrbitalShardsAvatarPreset),
   ...particlesPresetsData.map(toParticlesAvatarPreset),
   ...crystalBallPresetsData.map(toCrystalBallAvatarPreset),
 ];
@@ -116,8 +116,8 @@ export function getBlobPresets(): AvatarPreset[] {
   return avatarPresetsRef.value.filter((p) => p.renderer === 'blob');
 }
 
-export function getCrystalPresets(): AvatarPreset[] {
-  return avatarPresetsRef.value.filter((p) => p.renderer === 'crystal');
+export function getOrbitalShardsPresets(): AvatarPreset[] {
+  return avatarPresetsRef.value.filter((p) => p.renderer === 'orbital-shards');
 }
 
 export function getParticlesPresets(): AvatarPreset[] {
@@ -130,5 +130,5 @@ export function getCrystalBallPresets(): AvatarPreset[] {
 
 // Direct access to typed preset data
 export { blobPresetsData } from './blob-xyz-presets';
-export { crystalPresetsData } from './crystal-presets';
+export { orbitalShardsPresetsData } from './orbital-shards-presets';
 export { particlesPresetsData } from './particles-presets';

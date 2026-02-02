@@ -11,7 +11,7 @@ declare global {
 
 // Singleton state
 const kwamiInstance = shallowRef<Kwami | null>(null);
-const rendererType = ref<'blob' | 'crystal' | 'particles' | 'crystal-ball'>('blob');
+const rendererType = ref<'blob' | 'orbital-shards' | 'particles' | 'crystal-ball'>('blob');
 const isConnected = ref(false);
 
 export function useKwami() {
@@ -21,7 +21,7 @@ export function useKwami() {
   // User ID from authenticated user, fallback to 'anonymous'
   const userId = computed(() => authStore.userId || 'anonymous');
 
-  function init(canvas: HTMLCanvasElement, renderer: 'blob' | 'crystal' | 'particles' | 'crystal-ball' = 'blob') {
+  function init(canvas: HTMLCanvasElement, renderer: 'blob' | 'orbital-shards' | 'particles' | 'crystal-ball' = 'blob') {
     rendererType.value = renderer;
 
     // Get voice config from store
@@ -29,7 +29,7 @@ export function useKwami() {
 
     // Background colors per renderer
     const getBackgroundColors = () => {
-      if (renderer === 'crystal') return ['#050510', '#0a0a20', '#050510'];
+      if (renderer === 'orbital-shards') return ['#050510', '#0a0a20', '#050510'];
       if (renderer === 'particles') return ['#000000', '#0a0a15', '#000000'];
       if (renderer === 'crystal-ball') return ['#0a0510', '#150a20', '#0a0510'];
       return ['#0a0a1a', '#1a1a3a', '#0a0a1a'];
@@ -37,13 +37,13 @@ export function useKwami() {
 
     const config = {
       avatar: {
-        renderer: renderer,
+        renderer: renderer === 'blob' ? 'blob-xyz' : renderer,
         blob: {
           colors: { x: '#ff0066', y: '#00ff66', z: '#6600ff' },
           spikes: { x: 0.3, y: 0.3, z: 0.3 },
           rotation: { x: 0.002, y: 0.003, z: 0.001 },
         },
-        crystal: {
+        orbitalShards: {
           formation: { formation: 'constellation' as 'constellation' | 'helix' | 'vortex' },
           colors: {
             primary: '#00e5ff',
@@ -90,8 +90,8 @@ export function useKwami() {
         crystalBall: {
           style: { style: 'mystical' as 'mystical' | 'nebula' | 'earth' | 'fire' | 'ocean' },
           colors: { primary: '#6b5b95', secondary: '#feb236' },
-          // Tutorial defaults: iterations: 48, depth: 0.6, smoothing: 0.2, displacement: 0.1, speed: 0.071
-          volume: { iterations: 48, depth: 0.6, smoothing: 0.2, noiseScale: 2.0 },
+          // Ultra-optimized for smooth 60fps
+          volume: { iterations: 16, depth: 0.6, smoothing: 0.25, noiseScale: 2.0 },
           animation: {
             displacementSpeed: 0.071,
             displacementStrength: 0.1,
@@ -144,7 +144,7 @@ export function useKwami() {
       },
     };
 
-    kwamiInstance.value = new Kwami(canvas, config);
+    kwamiInstance.value = new Kwami(canvas, config as any);
 
     // Track connection state changes
     kwamiInstance.value.agent.onStateChange((state) => {
@@ -231,14 +231,15 @@ export function useKwami() {
     }
   }
 
-  function switchRenderer(newRenderer: 'blob' | 'crystal' | 'particles' | 'crystal-ball') {
+  function switchRenderer(newRenderer: 'blob' | 'orbital-shards' | 'particles' | 'crystal-ball') {
     if (!kwamiInstance.value) {
       console.warn('Cannot switch renderer: Kwami not initialized');
       return;
     }
 
     // Use the Avatar's built-in switchRenderer method
-    kwamiInstance.value.avatar.switchRenderer(newRenderer);
+    const targetRenderer = newRenderer === 'blob' ? 'blob-xyz' : newRenderer;
+    kwamiInstance.value.avatar.switchRenderer(targetRenderer as any);
     rendererType.value = newRenderer;
 
     // Dispatch event for UI sync

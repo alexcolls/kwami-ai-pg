@@ -4,14 +4,14 @@ import {
   avatarPresets,
   avatarPresetsRef,
   getBlobPresets,
-  getCrystalPresets,
+  getOrbitalShardsPresets,
   getParticlesPresets,
   getCrystalBallPresets,
   getPresetById,
   type AvatarPreset,
 } from '../templates/avatar-templates';
 import { useBlobXyzStore } from './avatar.blob-xyz';
-import { useCrystalStore } from './avatar.crystal';
+import { useOrbitalShardsStore } from './avatar.orbital-shards';
 import { useParticlesStore } from './avatar.particles';
 import { useCrystalBallStore } from './avatar.crystal-ball';
 
@@ -20,11 +20,11 @@ export type { AvatarPreset };
 
 // Types
 export type SkinSubtype = 'poles' | 'donut' | 'vintage';
-export type CrystalFormation = 'constellation' | 'helix' | 'vortex';
+export type OrbitalShardsFormation = 'constellation' | 'helix' | 'vortex';
 export type ParticlesFormationType = 'sphere' | 'disc' | 'ring' | 'cube';
 export type ParticlesDensity = 'uniform' | 'center-heavy' | 'edge-heavy';
 export type AvatarState = 'idle' | 'listening' | 'thinking' | 'speaking';
-export type RendererType = 'blob' | 'crystal' | 'particles' | 'crystal-ball';
+export type RendererType = 'blob' | 'orbital-shards' | 'particles' | 'crystal-ball';
 export type CrystalBallStyleType = 'mystical' | 'nebula' | 'earth' | 'fire' | 'ocean';
 
 // Interaction Types
@@ -135,8 +135,8 @@ export interface BlobState {
   };
 }
 
-export interface CrystalState {
-  formation: CrystalFormation;
+export interface OrbitalShardsState {
+  formation: OrbitalShardsFormation;
   colors: { primary: string; secondary: string; accent: string };
   coreColors: { inner: string; outer: string };
   glowIntensity: number;
@@ -284,7 +284,7 @@ export function getDefaultBlobState(): BlobState {
   };
 }
 
-export function getDefaultCrystalState(): CrystalState {
+export function getDefaultOrbitalShardsState(): OrbitalShardsState {
   return {
     formation: 'constellation',
     colors: { primary: '#00e5ff', secondary: '#7c4dff', accent: '#ff4081' },
@@ -361,15 +361,15 @@ export function getDefaultParticlesState(): ParticlesState {
   };
 }
 
-// Tutorial defaults: iterations: 48, depth: 0.6, smoothing: 0.2, displacement: 0.1, speed: 0.071
+// Ultra-optimized for smooth 60fps
 export function getDefaultCrystalBallState(): CrystalBallState {
   return {
     style: 'mystical',
     colors: { primary: '#6b5b95', secondary: '#feb236' },
     volume: {
-      iterations: 48,
+      iterations: 16,
       depth: 0.6,
-      smoothing: 0.2,
+      smoothing: 0.25,
       noiseScale: 2.0,
     },
     animation: {
@@ -404,7 +404,7 @@ export const AVATAR_PRESETS = avatarPresets;
 export const useAvatarStore = defineStore('avatar', () => {
   // State
   const blob = reactive<BlobState>(getDefaultBlobState());
-  const crystal = reactive<CrystalState>(getDefaultCrystalState());
+  const orbitalShards = reactive<OrbitalShardsState>(getDefaultOrbitalShardsState());
   const particles = reactive<ParticlesState>(getDefaultParticlesState());
   const crystalBall = reactive<CrystalBallState>(getDefaultCrystalBallState());
   const activeState = ref<AvatarState>('idle');
@@ -413,7 +413,7 @@ export const useAvatarStore = defineStore('avatar', () => {
   // Computed
   const currentState = computed(() => {
     if (rendererType.value === 'blob') return blob;
-    if (rendererType.value === 'crystal') return crystal;
+    if (rendererType.value === 'orbital-shards') return orbitalShards;
     if (rendererType.value === 'crystal-ball') return crystalBall;
     return particles;
   });
@@ -422,7 +422,7 @@ export const useAvatarStore = defineStore('avatar', () => {
 
   const blobPresets = computed(() => getBlobPresets());
 
-  const crystalPresets = computed(() => getCrystalPresets());
+  const orbitalShardsPresets = computed(() => getOrbitalShardsPresets());
 
   const particlesPresets = computed(() => getParticlesPresets());
 
@@ -441,8 +441,8 @@ export const useAvatarStore = defineStore('avatar', () => {
     Object.assign(blob, updates);
   }
 
-  function updateCrystal(updates: Partial<CrystalState>) {
-    Object.assign(crystal, updates);
+  function updateOrbitalShards(updates: Partial<OrbitalShardsState>) {
+    Object.assign(orbitalShards, updates);
   }
 
   function updateParticles(updates: Partial<ParticlesState>) {
@@ -457,8 +457,8 @@ export const useAvatarStore = defineStore('avatar', () => {
     Object.assign(blob, getDefaultBlobState());
   }
 
-  function resetCrystal() {
-    Object.assign(crystal, getDefaultCrystalState());
+  function resetOrbitalShards() {
+    Object.assign(orbitalShards, getDefaultOrbitalShardsState());
   }
 
   function resetParticles() {
@@ -472,8 +472,8 @@ export const useAvatarStore = defineStore('avatar', () => {
   function reset() {
     if (rendererType.value === 'blob') {
       resetBlob();
-    } else if (rendererType.value === 'crystal') {
-      resetCrystal();
+    } else if (rendererType.value === 'orbital-shards') {
+      resetOrbitalShards();
     } else if (rendererType.value === 'crystal-ball') {
       resetCrystalBall();
     } else {
@@ -491,10 +491,10 @@ export const useAvatarStore = defineStore('avatar', () => {
       // Use the new blob store for presets
       const blobStore = useBlobXyzStore();
       blobStore.importState(preset.blob as Parameters<typeof blobStore.importState>[0]);
-    } else if (preset.renderer === 'crystal' && preset.crystal) {
-      // Use the new crystal store for presets
-      const crystalStore = useCrystalStore();
-      crystalStore.importState(preset.crystal as Parameters<typeof crystalStore.importState>[0]);
+    } else if (preset.renderer === 'orbital-shards' && preset.orbitalShards) {
+      // Use the new orbital shards store for presets
+      const orbitalShardsStore = useOrbitalShardsStore();
+      orbitalShardsStore.importState(preset.orbitalShards as Parameters<typeof orbitalShardsStore.importState>[0]);
     } else if (preset.renderer === 'particles' && preset.particles) {
       // Use the new particles store for presets
       const particlesStore = useParticlesStore();
@@ -548,7 +548,7 @@ export const useAvatarStore = defineStore('avatar', () => {
     }
   }
 
-  function syncCrystalFromExternal(externalCrystal: {
+  function syncOrbitalShardsFromExternal(externalOrbitalShards: {
     getFormation: () => { formation: string };
     getColors: () => { primary: string; secondary: string; accent: string };
     getScale: () => number;
@@ -560,44 +560,44 @@ export const useAvatarStore = defineStore('avatar', () => {
     scene?: any;
   }) {
     try {
-      crystal.formation = externalCrystal.getFormation().formation as CrystalFormation;
-      crystal.colors = externalCrystal.getColors();
-      crystal.scale = externalCrystal.getScale();
-      crystal.rotation = externalCrystal.getRotation();
+      orbitalShards.formation = externalOrbitalShards.getFormation().formation as OrbitalShardsFormation;
+      orbitalShards.colors = externalOrbitalShards.getColors();
+      orbitalShards.scale = externalOrbitalShards.getScale();
+      orbitalShards.rotation = externalOrbitalShards.getRotation();
 
-      if (typeof externalCrystal.getCoreColors === 'function') {
-        const coreColors = externalCrystal.getCoreColors();
+      if (typeof externalOrbitalShards.getCoreColors === 'function') {
+        const coreColors = externalOrbitalShards.getCoreColors();
         if (coreColors) {
-          crystal.coreColors = { inner: coreColors.inner, outer: coreColors.outer };
+          orbitalShards.coreColors = { inner: coreColors.inner, outer: coreColors.outer };
         }
       }
 
-      if (typeof externalCrystal.getGlowIntensity === 'function') {
-        const glowIntensity = externalCrystal.getGlowIntensity();
+      if (typeof externalOrbitalShards.getGlowIntensity === 'function') {
+        const glowIntensity = externalOrbitalShards.getGlowIntensity();
         if (typeof glowIntensity === 'number') {
-          crystal.glowIntensity = glowIntensity;
+          orbitalShards.glowIntensity = glowIntensity;
         }
       }
 
-      if (typeof externalCrystal.getShardCount === 'function') {
-        const shardCount = externalCrystal.getShardCount();
+      if (typeof externalOrbitalShards.getShardCount === 'function') {
+        const shardCount = externalOrbitalShards.getShardCount();
         if (typeof shardCount === 'number') {
-          crystal.shardCount = shardCount;
+          orbitalShards.shardCount = shardCount;
         }
       }
 
       // Sync audio effects if available
-      if (externalCrystal.audioEffects) {
+      if (externalOrbitalShards.audioEffects) {
         // Map external format to internal state if needed, or direct assign
       }
 
       // Sync scene if available
-      if (externalCrystal.scene) {
-        Object.assign(crystal.scene, externalCrystal.scene);
+      if (externalOrbitalShards.scene) {
+        Object.assign(orbitalShards.scene, externalOrbitalShards.scene);
       }
 
     } catch (e) {
-      console.warn('Error syncing crystal state:', e);
+      console.warn('Error syncing orbital shards state:', e);
     }
   }
 
@@ -633,7 +633,7 @@ export const useAvatarStore = defineStore('avatar', () => {
   return {
     // State
     blob,
-    crystal,
+    orbitalShards,
     particles,
     crystalBall,
     activeState,
@@ -642,24 +642,24 @@ export const useAvatarStore = defineStore('avatar', () => {
     currentState,
     presets,
     blobPresets,
-    crystalPresets,
+    orbitalShardsPresets,
     particlesPresets,
     crystalBallPresets,
     // Actions
     setRendererType,
     setActiveState,
     updateBlob,
-    updateCrystal,
+    updateOrbitalShards,
     updateParticles,
     updateCrystalBall,
     resetBlob,
-    resetCrystal,
+    resetOrbitalShards,
     resetParticles,
     resetCrystalBall,
     reset,
     applyPreset,
     syncBlobFromExternal,
-    syncCrystalFromExternal,
+    syncOrbitalShardsFromExternal,
     syncParticlesFromExternal,
     syncCrystalBallFromExternal,
   };
