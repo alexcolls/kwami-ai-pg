@@ -7,6 +7,7 @@ import {
   type ThemeMode,
   type SidebarPosition
 } from '@/stores/theme';
+import { useUIStore, type PanelSizePreset } from '@/stores/ui';
 import BasePanel from '@/components/ui/BasePanel.vue';
 import PanelSection from '@/components/ui/PanelSection.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
@@ -14,6 +15,7 @@ import BaseSlider from '@/components/ui/BaseSlider.vue';
 import BaseToggle from '@/components/ui/BaseToggle.vue';
 
 const themeStore = useThemeStore();
+const uiStore = useUIStore();
 
 // Theme mode options
 const themeModes: { value: ThemeMode; label: string; icon: string }[] = [
@@ -27,6 +29,13 @@ const themeModes: { value: ThemeMode; label: string; icon: string }[] = [
 const sidebarPositions: { value: SidebarPosition; label: string; icon: string }[] = [
   { value: 'left', label: 'Left', icon: 'ph:sidebar-duotone' },
   { value: 'right', label: 'Right', icon: 'ph:sidebar-simple-duotone' },
+];
+
+// Panel size tabs
+const sizeTabs: { value: PanelSizePreset; label: string; icon: string }[] = [
+  { value: 'small', label: 'Small', icon: 'ph:rectangle-duotone' },
+  { value: 'medium', label: 'Medium', icon: 'ph:square-duotone' },
+  { value: 'large', label: 'Large', icon: 'ph:selection-duotone' },
 ];
 
 // Current time for Auto mode display
@@ -321,9 +330,70 @@ function handleFileImport(event: Event) {
             </button>
           </div>
         </div>
+
+        <!-- Panel Size Presets -->
+        <div class="option-group" style="margin-top: 14px;">
+          <span class="option-label">Panel Size</span>
+          <div class="size-tabs">
+            <button
+              v-for="tab in sizeTabs"
+              :key="tab.value"
+              class="size-tab"
+              :class="{ active: uiStore.activeSizePreset === tab.value }"
+              @click="uiStore.setSizePreset(tab.value)"
+            >
+              <iconify-icon :icon="tab.icon"></iconify-icon>
+              {{ tab.label }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Size preset configuration -->
+        <div class="size-preset-config">
+          <div 
+            v-for="tab in sizeTabs" 
+            :key="tab.value"
+            class="size-preset-row"
+            :class="{ active: uiStore.activeSizePreset === tab.value }"
+          >
+            <div class="preset-info">
+              <iconify-icon :icon="tab.icon" class="preset-icon-small"></iconify-icon>
+              <span class="preset-label">{{ tab.label }}</span>
+            </div>
+            <div class="preset-controls">
+              <div class="width-input-group">
+                <input
+                  type="number"
+                  class="width-input"
+                  :value="uiStore.sizePresets[tab.value].width"
+                  :min="uiStore.MIN_PANEL_WIDTH"
+                  :max="uiStore.MAX_PANEL_WIDTH"
+                  @input="uiStore.setPresetWidth(tab.value, parseInt(($event.target as HTMLInputElement).value) || uiStore.MIN_PANEL_WIDTH)"
+                />
+                <span class="width-unit">px</span>
+              </div>
+              <span class="shortcut-badge">{{ uiStore.sizePresets[tab.value].shortcut }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Custom Resize Toggle -->
+        <div class="toggle-group" style="margin-top: 14px;">
+          <BaseToggle
+            label="Allow Custom Resize"
+            :modelValue="uiStore.allowCustomResize"
+            @update:modelValue="uiStore.setAllowCustomResize($event)"
+          />
+        </div>
+
         <p class="layout-hint">
           <iconify-icon icon="ph:info-duotone"></iconify-icon>
-          Drag the panel edge to resize
+          <template v-if="uiStore.allowCustomResize">
+            Drag the panel edge to resize
+          </template>
+          <template v-else>
+            Custom resize disabled, use size presets
+          </template>
         </p>
       </PanelSection>
 
@@ -935,6 +1005,159 @@ function handleFileImport(event: Event) {
 .layout-hint iconify-icon {
   font-size: 14px;
   color: var(--accent-primary);
+}
+
+/* Size Tabs */
+.size-tabs {
+  display: flex;
+  gap: 4px;
+  background: var(--surface-1);
+  border-radius: var(--radius-md);
+  padding: 3px;
+}
+
+.size-tab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px 10px;
+  background: transparent;
+  border: none;
+  border-radius: calc(var(--radius-md) - 2px);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--duration-fast) ease;
+}
+
+.size-tab iconify-icon {
+  font-size: 14px;
+}
+
+.size-tab:hover {
+  background: var(--surface-2);
+  color: var(--text-primary);
+}
+
+.size-tab.active {
+  background: var(--accent-glow);
+  color: var(--accent-primary);
+}
+
+/* Size Preset Configuration */
+.size-preset-config {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.size-preset-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  background: var(--surface-1);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  transition: all var(--duration-fast) ease;
+}
+
+.size-preset-row.active {
+  border-color: var(--accent-primary);
+  background: var(--accent-glow);
+}
+
+.preset-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.preset-icon-small {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.size-preset-row.active .preset-icon-small {
+  color: var(--accent-primary);
+}
+
+.preset-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.size-preset-row.active .preset-label {
+  color: var(--text-primary);
+}
+
+.preset-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.width-input-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+}
+
+.width-input {
+  width: 50px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  text-align: right;
+}
+
+.width-input:focus {
+  outline: none;
+}
+
+.width-input::-webkit-inner-spin-button,
+.width-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.width-input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+.width-unit {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.shortcut-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 6px;
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  font-size: 9px;
+  font-weight: 600;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.size-preset-row.active .shortcut-badge {
+  background: var(--accent-primary);
+  color: var(--bg-primary);
 }
 
 /* Action Buttons */
