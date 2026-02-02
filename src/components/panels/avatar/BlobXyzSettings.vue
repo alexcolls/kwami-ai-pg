@@ -2,7 +2,7 @@
 import { ref, computed, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useKwami } from '@/composables/useKwami';
-import { useBlobStore, type InteractionAction, type SkinType } from '@/stores/avatar.blob';
+import { useBlobXyzStore, type InteractionAction, type SkinType } from '@/stores/avatar.blob-xyz';
 import PanelSection from '@/components/ui/PanelSection.vue';
 import BaseSlider from '@/components/ui/BaseSlider.vue';
 import BaseToggle from '@/components/ui/BaseToggle.vue';
@@ -12,7 +12,7 @@ import AudioVisualizer from '../audio/AudioVisualizer.vue';
 import MicrophoneControl from '../audio/MicrophoneControl.vue';
 
 const { kwami, switchRenderer } = useKwami();
-const blobStore = useBlobStore();
+const blobStore = useBlobXyzStore();
 const { skin, shape, animation, clickEvents, cursorTouch, audio } = storeToRefs(blobStore);
 
 // Link toggles for XYZ controls

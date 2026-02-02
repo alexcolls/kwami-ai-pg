@@ -5,16 +5,16 @@
  * Uses the new 6-section blob state structure.
  */
 
-import type { BlobState } from '../stores/avatar.blob';
+import type { BlobXyzState } from '../stores/avatar.blob-xyz';
 
-export interface BlobPreset {
+export interface BlobXyzPreset {
   id: string;
   name: string;
   icon: string;
-  blob: Partial<BlobState>;
+  blob: Partial<BlobXyzState>;
 }
 
-export const blobPresetsData: BlobPreset[] = [
+export const blobPresetsData: BlobXyzPreset[] = [
   {
     id: 'rgb-pulse',
     name: 'RGB Pulse',

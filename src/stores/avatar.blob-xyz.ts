@@ -1,5 +1,5 @@
 /**
- * Blob Avatar Store
+ * BlobXyz Avatar Store
  * 
  * Dedicated store for blob renderer state with organized sections:
  * - SKIN: Visual appearance (skin type, colors, material properties)
@@ -37,7 +37,7 @@ export type CursorStyle = 'pointer' | 'grab' | 'crosshair' | 'default';
 // =====================================================
 
 /** SKIN: Visual appearance settings */
-export interface BlobSkin {
+export interface BlobXyzSkin {
   type: SkinType;
   colors: {
     x: string;
@@ -53,7 +53,7 @@ export interface BlobSkin {
 }
 
 /** SHAPE: Geometry and deformation */
-export interface BlobShape {
+export interface BlobXyzShape {
   scale: number;
   position: {
     x: number;
@@ -73,7 +73,7 @@ export interface BlobShape {
 }
 
 /** ANIMATION: Motion and movement */
-export interface BlobAnimation {
+export interface BlobXyzAnimation {
   time: {
     x: number;
     y: number;
@@ -88,7 +88,7 @@ export interface BlobAnimation {
 }
 
 /** CLICK EVENTS: Click interaction callbacks */
-export interface BlobClickEvents {
+export interface BlobXyzClickEvents {
   click: {
     enabled: boolean;
     action: InteractionAction;
@@ -108,7 +108,7 @@ export interface BlobClickEvents {
 }
 
 /** CURSOR & TOUCH: Input behavior */
-export interface BlobCursorTouch {
+export interface BlobXyzCursorTouch {
   hover: {
     enabled: boolean;
     highlightOnHover: boolean;
@@ -126,7 +126,7 @@ export interface BlobCursorTouch {
 }
 
 /** AUDIO: Audio reactivity settings */
-export interface BlobAudio {
+export interface BlobXyzAudio {
   enabled: boolean;
   reactivity: number;
   sensitivity: number;
@@ -146,20 +146,20 @@ export interface BlobAudio {
 }
 
 /** Complete blob state */
-export interface BlobState {
-  skin: BlobSkin;
-  shape: BlobShape;
-  animation: BlobAnimation;
-  clickEvents: BlobClickEvents;
-  cursorTouch: BlobCursorTouch;
-  audio: BlobAudio;
+export interface BlobXyzState {
+  skin: BlobXyzSkin;
+  shape: BlobXyzShape;
+  animation: BlobXyzAnimation;
+  clickEvents: BlobXyzClickEvents;
+  cursorTouch: BlobXyzCursorTouch;
+  audio: BlobXyzAudio;
 }
 
 // =====================================================
 // DEFAULT VALUES
 // =====================================================
 
-export function getDefaultSkin(): BlobSkin {
+export function getDefaultSkin(): BlobXyzSkin {
   return {
     type: 'poles',
     colors: {
@@ -176,7 +176,7 @@ export function getDefaultSkin(): BlobSkin {
   };
 }
 
-export function getDefaultShape(): BlobShape {
+export function getDefaultShape(): BlobXyzShape {
   return {
     scale: 3.2,
     position: {
@@ -197,7 +197,7 @@ export function getDefaultShape(): BlobShape {
   };
 }
 
-export function getDefaultAnimation(): BlobAnimation {
+export function getDefaultAnimation(): BlobXyzAnimation {
   return {
     time: {
       x: 1,
@@ -213,7 +213,7 @@ export function getDefaultAnimation(): BlobAnimation {
   };
 }
 
-export function getDefaultClickEvents(): BlobClickEvents {
+export function getDefaultClickEvents(): BlobXyzClickEvents {
   return {
     click: {
       enabled: true,
@@ -234,7 +234,7 @@ export function getDefaultClickEvents(): BlobClickEvents {
   };
 }
 
-export function getDefaultCursorTouch(): BlobCursorTouch {
+export function getDefaultCursorTouch(): BlobXyzCursorTouch {
   return {
     hover: {
       enabled: true,
@@ -253,7 +253,7 @@ export function getDefaultCursorTouch(): BlobCursorTouch {
   };
 }
 
-export function getDefaultAudio(): BlobAudio {
+export function getDefaultAudio(): BlobXyzAudio {
   return {
     enabled: true,
     reactivity: 1.9,
@@ -274,7 +274,7 @@ export function getDefaultAudio(): BlobAudio {
   };
 }
 
-export function getDefaultBlobState(): BlobState {
+export function getDefaultBlobXyzState(): BlobXyzState {
   return {
     skin: getDefaultSkin(),
     shape: getDefaultShape(),
@@ -289,14 +289,14 @@ export function getDefaultBlobState(): BlobState {
 // STORE
 // =====================================================
 
-export const useBlobStore = defineStore('blob', () => {
+export const useBlobXyzStore = defineStore('blob-xyz', () => {
   // State organized by sections
-  const skin = reactive<BlobSkin>(getDefaultSkin());
-  const shape = reactive<BlobShape>(getDefaultShape());
-  const animation = reactive<BlobAnimation>(getDefaultAnimation());
-  const clickEvents = reactive<BlobClickEvents>(getDefaultClickEvents());
-  const cursorTouch = reactive<BlobCursorTouch>(getDefaultCursorTouch());
-  const audio = reactive<BlobAudio>(getDefaultAudio());
+  const skin = reactive<BlobXyzSkin>(getDefaultSkin());
+  const shape = reactive<BlobXyzShape>(getDefaultShape());
+  const animation = reactive<BlobXyzAnimation>(getDefaultAnimation());
+  const clickEvents = reactive<BlobXyzClickEvents>(getDefaultClickEvents());
+  const cursorTouch = reactive<BlobXyzCursorTouch>(getDefaultCursorTouch());
+  const audio = reactive<BlobXyzAudio>(getDefaultAudio());
 
   // =====================================================
   // SECTION RESET ACTIONS
@@ -339,27 +339,27 @@ export const useBlobStore = defineStore('blob', () => {
   // SECTION UPDATE ACTIONS
   // =====================================================
 
-  function updateSkin(updates: Partial<BlobSkin>) {
+  function updateSkin(updates: Partial<BlobXyzSkin>) {
     Object.assign(skin, updates);
   }
 
-  function updateShape(updates: Partial<BlobShape>) {
+  function updateShape(updates: Partial<BlobXyzShape>) {
     Object.assign(shape, updates);
   }
 
-  function updateAnimation(updates: Partial<BlobAnimation>) {
+  function updateAnimation(updates: Partial<BlobXyzAnimation>) {
     Object.assign(animation, updates);
   }
 
-  function updateClickEvents(updates: Partial<BlobClickEvents>) {
+  function updateClickEvents(updates: Partial<BlobXyzClickEvents>) {
     Object.assign(clickEvents, updates);
   }
 
-  function updateCursorTouch(updates: Partial<BlobCursorTouch>) {
+  function updateCursorTouch(updates: Partial<BlobXyzCursorTouch>) {
     Object.assign(cursorTouch, updates);
   }
 
-  function updateAudio(updates: Partial<BlobAudio>) {
+  function updateAudio(updates: Partial<BlobXyzAudio>) {
     Object.assign(audio, updates);
   }
 
@@ -489,7 +489,7 @@ export const useBlobStore = defineStore('blob', () => {
   // EXPORT STATE (for presets)
   // =====================================================
 
-  function exportState(): BlobState {
+  function exportState(): BlobXyzState {
     return {
       skin: { ...skin },
       shape: { ...shape },
@@ -508,7 +508,7 @@ export const useBlobStore = defineStore('blob', () => {
       if (Object.prototype.hasOwnProperty.call(source, key)) {
         const sourceValue = source[key];
         const targetValue = target[key];
-        
+
         if (
           sourceValue !== null &&
           typeof sourceValue === 'object' &&
@@ -527,7 +527,7 @@ export const useBlobStore = defineStore('blob', () => {
     }
   }
 
-  function importState(state: Partial<BlobState>) {
+  function importState(state: Partial<BlobXyzState>) {
     if (state.skin) deepMerge(skin, state.skin);
     if (state.shape) deepMerge(shape, state.shape);
     if (state.animation) deepMerge(animation, state.animation);
