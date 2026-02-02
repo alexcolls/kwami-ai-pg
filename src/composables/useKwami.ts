@@ -11,7 +11,7 @@ declare global {
 
 // Singleton state
 const kwamiInstance = shallowRef<Kwami | null>(null);
-const rendererType = ref<'blob' | 'orbital-shards' | 'stars-genesis' | 'crystal-ball'>('blob');
+const rendererType = ref<'blob-xyz' | 'orbital-shards' | 'stars-genesis' | 'crystal-ball'>('blob-xyz');
 const isConnected = ref(false);
 
 export function useKwami() {
@@ -21,7 +21,7 @@ export function useKwami() {
   // User ID from authenticated user, fallback to 'anonymous'
   const userId = computed(() => authStore.userId || 'anonymous');
 
-  function init(canvas: HTMLCanvasElement, renderer: 'blob' | 'orbital-shards' | 'stars-genesis' | 'crystal-ball' = 'blob') {
+  function init(canvas: HTMLCanvasElement, renderer: 'blob-xyz' | 'orbital-shards' | 'stars-genesis' | 'crystal-ball' = 'blob-xyz') {
     rendererType.value = renderer;
 
     // Get voice config from store
@@ -37,8 +37,8 @@ export function useKwami() {
 
     const config = {
       avatar: {
-        renderer: renderer === 'blob' ? 'blob-xyz' : renderer,
-        blob: {
+        renderer: renderer,
+        blobXyz: {
           colors: { x: '#ff0066', y: '#00ff66', z: '#6600ff' },
           spikes: { x: 0.3, y: 0.3, z: 0.3 },
           rotation: { x: 0.002, y: 0.003, z: 0.001 },
@@ -231,15 +231,14 @@ export function useKwami() {
     }
   }
 
-  function switchRenderer(newRenderer: 'blob' | 'orbital-shards' | 'stars-genesis' | 'crystal-ball') {
+  function switchRenderer(newRenderer: 'blob-xyz' | 'orbital-shards' | 'stars-genesis' | 'crystal-ball') {
     if (!kwamiInstance.value) {
       console.warn('Cannot switch renderer: Kwami not initialized');
       return;
     }
 
     // Use the Avatar's built-in switchRenderer method
-    const targetRenderer = newRenderer === 'blob' ? 'blob-xyz' : newRenderer;
-    kwamiInstance.value.avatar.switchRenderer(targetRenderer as any);
+    kwamiInstance.value.avatar.switchRenderer(newRenderer as any);
     rendererType.value = newRenderer;
 
     // Dispatch event for UI sync

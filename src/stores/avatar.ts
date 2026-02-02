@@ -3,17 +3,19 @@ import { ref, reactive, computed } from 'vue';
 import {
   avatarPresets,
   avatarPresetsRef,
-  getBlobPresets,
+  getBlobXyzPresets,
   getOrbitalShardsPresets,
   getStarsGenesisPresets,
   getCrystalBallPresets,
+  getBlackHolePresets,
   getPresetById,
   type AvatarPreset,
-} from '../templates/avatar-templates';
+} from '@/presets/avatar/avatar-presets';
 import { useBlobXyzStore } from './avatar.blob-xyz';
 import { useOrbitalShardsStore } from './avatar.orbital-shards';
 import { useStarsGenesisStore } from './avatar.stars-genesis';
 import { useCrystalBallStore } from './avatar.crystal-ball';
+import { useBlackHoleStore } from './avatar.black-hole';
 
 // Re-export AvatarPreset for backwards compatibility
 export type { AvatarPreset };
@@ -24,7 +26,7 @@ export type OrbitalShardsFormation = 'constellation' | 'helix' | 'vortex';
 export type StarsGenesisFormationType = 'sphere' | 'disc' | 'ring' | 'cube';
 export type StarsGenesisDensity = 'uniform' | 'center-heavy' | 'edge-heavy';
 export type AvatarState = 'idle' | 'listening' | 'thinking' | 'speaking';
-export type RendererType = 'blob' | 'orbital-shards' | 'stars-genesis' | 'crystal-ball';
+export type RendererType = 'blob-xyz' | 'orbital-shards' | 'stars-genesis' | 'crystal-ball' | 'black-hole';
 export type CrystalBallStyleType = 'mystical' | 'nebula' | 'earth' | 'fire' | 'ocean';
 
 // Interaction Types
@@ -242,6 +244,62 @@ export interface CrystalBallState {
   scene: SceneConfig;
 }
 
+export type BlackHoleColorScheme = 'classic' | 'fire' | 'ice' | 'nebula' | 'void';
+
+export interface BlackHoleState {
+  colorScheme: BlackHoleColorScheme;
+  colors: {
+    hot: string;
+    mid1: string;
+    mid2: string;
+    mid3: string;
+    outer: string;
+  };
+  core: {
+    radius: number;
+    glowIntensity: number;
+    pulseSpeed: number;
+  };
+  disk: {
+    innerRadius: number;
+    outerRadius: number;
+    tiltAngle: number;
+    flowSpeed: number;
+    noiseScale: number;
+    density: number;
+  };
+  stars: {
+    count: number;
+    fieldRadius: number;
+    twinkleSpeed: number;
+  };
+  animation: {
+    autoRotate: boolean;
+    autoRotateSpeed: number;
+    diskRotationSpeed: number;
+    starsRotationSpeed: number;
+  };
+  effects: {
+    bloomIntensity: number;
+    bloomThreshold: number;
+    bloomRadius: number;
+    lensingStrength: number;
+    lensingRadius: number;
+    chromaticAberration: number;
+  };
+  audioEffects: {
+    enabled: boolean;
+    reactivity: number;
+    smoothing: number;
+    bassDiskGlow: number;
+    midDiskSpeed: number;
+    highStarTwinkle: number;
+  };
+  scale: number;
+  interaction: InteractionConfig;
+  scene: SceneConfig;
+}
+
 // Default states
 export function getDefaultBlobState(): BlobState {
   return {
@@ -398,6 +456,62 @@ export function getDefaultCrystalBallState(): CrystalBallState {
   };
 }
 
+export function getDefaultBlackHoleState(): BlackHoleState {
+  return {
+    colorScheme: 'classic',
+    colors: {
+      hot: '#ffffff',
+      mid1: '#ff7733',
+      mid2: '#ff4477',
+      mid3: '#7744ff',
+      outer: '#4477ff',
+    },
+    core: {
+      radius: 1.3,
+      glowIntensity: 1.0,
+      pulseSpeed: 2.5,
+    },
+    disk: {
+      innerRadius: 0.2,
+      outerRadius: 8.0,
+      tiltAngle: Math.PI / 3.0,
+      flowSpeed: 0.22,
+      noiseScale: 2.5,
+      density: 1.3,
+    },
+    stars: {
+      count: 150000,
+      fieldRadius: 2000,
+      twinkleSpeed: 2.5,
+    },
+    animation: {
+      autoRotate: false,
+      autoRotateSpeed: 0.1,
+      diskRotationSpeed: 0.005,
+      starsRotationSpeed: 0.003,
+    },
+    effects: {
+      bloomIntensity: 0.8,
+      bloomThreshold: 0.8,
+      bloomRadius: 0.7,
+      lensingStrength: 0.12,
+      lensingRadius: 0.3,
+      chromaticAberration: 0.005,
+    },
+    audioEffects: {
+      enabled: true,
+      reactivity: 1.0,
+      smoothing: 0.8,
+      bassDiskGlow: 0.5,
+      midDiskSpeed: 0.3,
+      highStarTwinkle: 0.4,
+    },
+    scale: 1.0,
+    interaction: JSON.parse(JSON.stringify(defaultInteractionConfig)),
+    scene: JSON.parse(JSON.stringify(defaultSceneConfig)),
+  };
+}
+
 // Re-export for backwards compatibility
 export const AVATAR_PRESETS = avatarPresets;
 
@@ -407,26 +521,30 @@ export const useAvatarStore = defineStore('avatar', () => {
   const orbitalShards = reactive<OrbitalShardsState>(getDefaultOrbitalShardsState());
   const starsGenesis = reactive<StarsGenesisState>(getDefaultStarsGenesisState());
   const crystalBall = reactive<CrystalBallState>(getDefaultCrystalBallState());
+  const blackHole = reactive<BlackHoleState>(getDefaultBlackHoleState());
   const activeState = ref<AvatarState>('idle');
-  const rendererType = ref<RendererType>('blob');
+  const rendererType = ref<RendererType>('blob-xyz');
 
   // Computed
   const currentState = computed(() => {
-    if (rendererType.value === 'blob') return blob;
+    if (rendererType.value === 'blob-xyz') return blob;
     if (rendererType.value === 'orbital-shards') return orbitalShards;
     if (rendererType.value === 'crystal-ball') return crystalBall;
+    if (rendererType.value === 'black-hole') return blackHole;
     return starsGenesis;
   });
 
   const presets = computed(() => avatarPresetsRef.value);
 
-  const blobPresets = computed(() => getBlobPresets());
+  const blobXyzPresets = computed(() => getBlobXyzPresets());
 
   const orbitalShardsPresets = computed(() => getOrbitalShardsPresets());
 
   const starsGenesisPresets = computed(() => getStarsGenesisPresets());
 
   const crystalBallPresets = computed(() => getCrystalBallPresets());
+
+  const blackHolePresets = computed(() => getBlackHolePresets());
 
   // Actions
   function setRendererType(type: RendererType) {
@@ -453,6 +571,10 @@ export const useAvatarStore = defineStore('avatar', () => {
     Object.assign(crystalBall, updates);
   }
 
+  function updateBlackHole(updates: Partial<BlackHoleState>) {
+    Object.assign(blackHole, updates);
+  }
+
   function resetBlob() {
     Object.assign(blob, getDefaultBlobState());
   }
@@ -469,13 +591,19 @@ export const useAvatarStore = defineStore('avatar', () => {
     Object.assign(crystalBall, getDefaultCrystalBallState());
   }
 
+  function resetBlackHole() {
+    Object.assign(blackHole, getDefaultBlackHoleState());
+  }
+
   function reset() {
-    if (rendererType.value === 'blob') {
+    if (rendererType.value === 'blob-xyz') {
       resetBlob();
     } else if (rendererType.value === 'orbital-shards') {
       resetOrbitalShards();
     } else if (rendererType.value === 'crystal-ball') {
       resetCrystalBall();
+    } else if (rendererType.value === 'black-hole') {
+      resetBlackHole();
     } else {
       resetStarsGenesis();
     }
@@ -487,10 +615,10 @@ export const useAvatarStore = defineStore('avatar', () => {
 
     rendererType.value = preset.renderer;
 
-    if (preset.renderer === 'blob' && preset.blob) {
+    if (preset.renderer === 'blob-xyz' && preset.blobXyz) {
       // Use the new blob store for presets
       const blobStore = useBlobXyzStore();
-      blobStore.importState(preset.blob as Parameters<typeof blobStore.importState>[0]);
+      blobStore.importState(preset.blobXyz  as Parameters<typeof blobStore.importState>[0]);
     } else if (preset.renderer === 'orbital-shards' && preset.orbitalShards) {
       // Use the new orbital shards store for presets
       const orbitalShardsStore = useOrbitalShardsStore();
@@ -503,6 +631,10 @@ export const useAvatarStore = defineStore('avatar', () => {
       // Use the new crystal ball store for presets
       const crystalBallStore = useCrystalBallStore();
       crystalBallStore.importState(preset.crystalBall as Parameters<typeof crystalBallStore.importState>[0]);
+    } else if (preset.renderer === 'black-hole' && preset.blackHole) {
+      // Use the new black hole store for presets
+      const blackHoleStore = useBlackHoleStore();
+      blackHoleStore.importState(preset.blackHole as Parameters<typeof blackHoleStore.importState>[0]);
     }
 
     return true;
@@ -630,21 +762,49 @@ export const useAvatarStore = defineStore('avatar', () => {
     }
   }
 
+  // Sync from external source (kwami instance) - Black Hole
+  function syncBlackHoleFromExternal(externalBlackHole: {
+    getColorScheme: () => { scheme: string };
+    getColors: () => { hot: string; mid1: string; mid2: string; mid3: string; outer: string };
+    getScale: () => number;
+    getConfig: () => any;
+    audioEffects?: any;
+  }) {
+    try {
+      blackHole.colorScheme = externalBlackHole.getColorScheme().scheme as BlackHoleColorScheme;
+      const bhColors = externalBlackHole.getColors();
+      blackHole.colors.hot = bhColors.hot;
+      blackHole.colors.mid1 = bhColors.mid1;
+      blackHole.colors.mid2 = bhColors.mid2;
+      blackHole.colors.mid3 = bhColors.mid3;
+      blackHole.colors.outer = bhColors.outer;
+      blackHole.scale = externalBlackHole.getScale();
+
+      if (externalBlackHole.audioEffects) {
+        Object.assign(blackHole.audioEffects, externalBlackHole.audioEffects);
+      }
+    } catch (e) {
+      console.warn('Error syncing black hole state:', e);
+    }
+  }
+
   return {
     // State
     blob,
     orbitalShards,
     starsGenesis,
     crystalBall,
+    blackHole,
     activeState,
     rendererType,
     // Computed
     currentState,
-    presets,
-    blobPresets,
+    avatarPresets,
+    blobXyzPresets,
     orbitalShardsPresets,
     starsGenesisPresets,
     crystalBallPresets,
+    blackHolePresets,
     // Actions
     setRendererType,
     setActiveState,
@@ -652,15 +812,18 @@ export const useAvatarStore = defineStore('avatar', () => {
     updateOrbitalShards,
     updateStarsGenesis,
     updateCrystalBall,
+    updateBlackHole,
     resetBlob,
     resetOrbitalShards,
     resetStarsGenesis,
     resetCrystalBall,
+    resetBlackHole,
     reset,
     applyPreset,
     syncBlobFromExternal,
     syncOrbitalShardsFromExternal,
     syncStarsGenesisFromExternal,
     syncCrystalBallFromExternal,
+    syncBlackHoleFromExternal,
   };
 });
