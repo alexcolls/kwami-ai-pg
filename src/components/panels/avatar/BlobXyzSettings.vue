@@ -87,10 +87,10 @@ function executeAction(action: InteractionAction) {
       break;
     case 'switchRenderer': {
       const renderer = kwami.value.avatar.getRendererType();
-      const renderers = ['blob', 'orbital-shards', 'stars-genesis'] as const;
-      const currentIdx = renderers.findIndex(r => r === renderer || (r === 'blob' && renderer === 'blob-xyz'));
+      const renderers = ['blob-xyz', 'orbital-shards', 'stars-genesis'] as const;
+      const currentIdx = renderers.findIndex(r => r === renderer);
       const nextIdx = (currentIdx + 1) % renderers.length;
-      switchRenderer(renderers[nextIdx] ?? 'blob');
+      switchRenderer(renderers[nextIdx] ?? 'blob-xyz');
       break;
     }
     case 'cycleState': {
