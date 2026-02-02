@@ -6,12 +6,14 @@ import {
   getBlobPresets,
   getCrystalPresets,
   getParticlesPresets,
+  getCrystalBallPresets,
   getPresetById,
   type AvatarPreset,
 } from '../templates/avatar-templates';
-import { useBlobStore } from './avatar.blob';
+import { useBlobXyzStore } from './avatar.blob-xyz';
 import { useCrystalStore } from './avatar.crystal';
 import { useParticlesStore } from './avatar.particles';
+import { useCrystalBallStore } from './avatar.crystal-ball';
 
 // Re-export AvatarPreset for backwards compatibility
 export type { AvatarPreset };
@@ -22,7 +24,8 @@ export type CrystalFormation = 'constellation' | 'helix' | 'vortex';
 export type ParticlesFormationType = 'sphere' | 'disc' | 'ring' | 'cube';
 export type ParticlesDensity = 'uniform' | 'center-heavy' | 'edge-heavy';
 export type AvatarState = 'idle' | 'listening' | 'thinking' | 'speaking';
-export type RendererType = 'blob' | 'crystal' | 'particles';
+export type RendererType = 'blob' | 'crystal' | 'particles' | 'crystal-ball';
+export type CrystalBallStyleType = 'mystical' | 'nebula' | 'earth' | 'fire' | 'ocean';
 
 // Interaction Types
 export type InteractionAction =
@@ -205,6 +208,40 @@ export interface ParticlesState {
   scene: SceneConfig;
 }
 
+export interface CrystalBallState {
+  style: CrystalBallStyleType;
+  colors: { primary: string; secondary: string };
+  volume: {
+    iterations: number;
+    depth: number;
+    smoothing: number;
+    noiseScale: number;
+  };
+  animation: {
+    displacementSpeed: number;
+    displacementStrength: number;
+    pulseSpeed: number;
+    pulseIntensity: number;
+    rotation: { x: number; y: number; z: number };
+  };
+  surface: {
+    scale: number;
+    roughness: number;
+    metalness: number;
+    envMapIntensity: number;
+  };
+  audioEffects: {
+    enabled: boolean;
+    reactivity: number;
+    smoothing: number;
+    bassDisplacement: number;
+    midColorBoost: number;
+    highGlowBoost: number;
+  };
+  interaction: InteractionConfig;
+  scene: SceneConfig;
+}
+
 // Default states
 export function getDefaultBlobState(): BlobState {
   return {
@@ -324,6 +361,43 @@ export function getDefaultParticlesState(): ParticlesState {
   };
 }
 
+// Tutorial defaults: iterations: 48, depth: 0.6, smoothing: 0.2, displacement: 0.1, speed: 0.071
+export function getDefaultCrystalBallState(): CrystalBallState {
+  return {
+    style: 'mystical',
+    colors: { primary: '#6b5b95', secondary: '#feb236' },
+    volume: {
+      iterations: 48,
+      depth: 0.6,
+      smoothing: 0.2,
+      noiseScale: 2.0,
+    },
+    animation: {
+      displacementSpeed: 0.071,
+      displacementStrength: 0.1,
+      pulseSpeed: 1.0,
+      pulseIntensity: 0.02,
+      rotation: { x: 0, y: 0.001, z: 0 },
+    },
+    surface: {
+      scale: 4.0,
+      roughness: 0.1,
+      metalness: 0.0,
+      envMapIntensity: 0.8,
+    },
+    audioEffects: {
+      enabled: true,
+      reactivity: 1.0,
+      smoothing: 0.85,
+      bassDisplacement: 0.5,
+      midColorBoost: 0.3,
+      highGlowBoost: 0.4,
+    },
+    interaction: JSON.parse(JSON.stringify(defaultInteractionConfig)),
+    scene: JSON.parse(JSON.stringify(defaultSceneConfig)),
+  };
+}
+
 // Re-export for backwards compatibility
 export const AVATAR_PRESETS = avatarPresets;
 
@@ -332,6 +406,7 @@ export const useAvatarStore = defineStore('avatar', () => {
   const blob = reactive<BlobState>(getDefaultBlobState());
   const crystal = reactive<CrystalState>(getDefaultCrystalState());
   const particles = reactive<ParticlesState>(getDefaultParticlesState());
+  const crystalBall = reactive<CrystalBallState>(getDefaultCrystalBallState());
   const activeState = ref<AvatarState>('idle');
   const rendererType = ref<RendererType>('blob');
 
@@ -339,6 +414,7 @@ export const useAvatarStore = defineStore('avatar', () => {
   const currentState = computed(() => {
     if (rendererType.value === 'blob') return blob;
     if (rendererType.value === 'crystal') return crystal;
+    if (rendererType.value === 'crystal-ball') return crystalBall;
     return particles;
   });
 
@@ -349,6 +425,8 @@ export const useAvatarStore = defineStore('avatar', () => {
   const crystalPresets = computed(() => getCrystalPresets());
 
   const particlesPresets = computed(() => getParticlesPresets());
+
+  const crystalBallPresets = computed(() => getCrystalBallPresets());
 
   // Actions
   function setRendererType(type: RendererType) {
@@ -371,6 +449,10 @@ export const useAvatarStore = defineStore('avatar', () => {
     Object.assign(particles, updates);
   }
 
+  function updateCrystalBall(updates: Partial<CrystalBallState>) {
+    Object.assign(crystalBall, updates);
+  }
+
   function resetBlob() {
     Object.assign(blob, getDefaultBlobState());
   }
@@ -383,11 +465,17 @@ export const useAvatarStore = defineStore('avatar', () => {
     Object.assign(particles, getDefaultParticlesState());
   }
 
+  function resetCrystalBall() {
+    Object.assign(crystalBall, getDefaultCrystalBallState());
+  }
+
   function reset() {
     if (rendererType.value === 'blob') {
       resetBlob();
     } else if (rendererType.value === 'crystal') {
       resetCrystal();
+    } else if (rendererType.value === 'crystal-ball') {
+      resetCrystalBall();
     } else {
       resetParticles();
     }
@@ -401,7 +489,7 @@ export const useAvatarStore = defineStore('avatar', () => {
 
     if (preset.renderer === 'blob' && preset.blob) {
       // Use the new blob store for presets
-      const blobStore = useBlobStore();
+      const blobStore = useBlobXyzStore();
       blobStore.importState(preset.blob as Parameters<typeof blobStore.importState>[0]);
     } else if (preset.renderer === 'crystal' && preset.crystal) {
       // Use the new crystal store for presets
@@ -411,6 +499,10 @@ export const useAvatarStore = defineStore('avatar', () => {
       // Use the new particles store for presets
       const particlesStore = useParticlesStore();
       particlesStore.importState(preset.particles as Parameters<typeof particlesStore.importState>[0]);
+    } else if (preset.renderer === 'crystal-ball' && preset.crystalBall) {
+      // Use the new crystal ball store for presets
+      const crystalBallStore = useCrystalBallStore();
+      crystalBallStore.importState(preset.crystalBall as Parameters<typeof crystalBallStore.importState>[0]);
     }
 
     return true;
@@ -445,7 +537,7 @@ export const useAvatarStore = defineStore('avatar', () => {
     blob.lightIntensity = externalBlob.lightIntensity;
     blob.wireframe = externalBlob.getWireframe();
     blob.skin = externalBlob.getCurrentSkinSubtype() as SkinSubtype;
-    
+
     // Sync audio effects if available
     if (externalBlob.audioEffects) {
       Object.assign(blob.audioEffects, externalBlob.audioEffects);
@@ -498,7 +590,7 @@ export const useAvatarStore = defineStore('avatar', () => {
       if (externalCrystal.audioEffects) {
         // Map external format to internal state if needed, or direct assign
       }
-      
+
       // Sync scene if available
       if (externalCrystal.scene) {
         Object.assign(crystal.scene, externalCrystal.scene);
@@ -516,11 +608,34 @@ export const useAvatarStore = defineStore('avatar', () => {
     // This could be enhanced when the Particles class exposes getter methods
   }
 
+  // Sync from external source (kwami instance) - Crystal Ball
+  function syncCrystalBallFromExternal(externalCrystalBall: {
+    getStyle: () => { style: string };
+    getColors: () => { primary: string; secondary: string };
+    getScale: () => number;
+    getRotation: () => { x: number; y: number; z: number };
+    audioEffects?: any;
+  }) {
+    try {
+      crystalBall.style = externalCrystalBall.getStyle().style as CrystalBallStyleType;
+      crystalBall.colors = externalCrystalBall.getColors();
+      crystalBall.surface.scale = externalCrystalBall.getScale();
+      crystalBall.animation.rotation = externalCrystalBall.getRotation();
+
+      if (externalCrystalBall.audioEffects) {
+        Object.assign(crystalBall.audioEffects, externalCrystalBall.audioEffects);
+      }
+    } catch (e) {
+      console.warn('Error syncing crystal ball state:', e);
+    }
+  }
+
   return {
     // State
     blob,
     crystal,
     particles,
+    crystalBall,
     activeState,
     rendererType,
     // Computed
@@ -529,19 +644,23 @@ export const useAvatarStore = defineStore('avatar', () => {
     blobPresets,
     crystalPresets,
     particlesPresets,
+    crystalBallPresets,
     // Actions
     setRendererType,
     setActiveState,
     updateBlob,
     updateCrystal,
     updateParticles,
+    updateCrystalBall,
     resetBlob,
     resetCrystal,
     resetParticles,
+    resetCrystalBall,
     reset,
     applyPreset,
     syncBlobFromExternal,
     syncCrystalFromExternal,
     syncParticlesFromExternal,
+    syncCrystalBallFromExternal,
   };
 });

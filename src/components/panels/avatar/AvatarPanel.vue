@@ -1,25 +1,28 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, watch } from 'vue';
+import { onMounted, onUnmounted, watch, computed } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useKwami } from '@/composables/useKwami';
 import { useAvatarStore, type AvatarState } from '@/stores/avatar';
-import { useBlobStore, type SkinType } from '@/stores/avatar.blob';
+import { useBlobXyzStore, type SkinType } from '@/stores/avatar.blob-xyz';
 import { useCrystalStore, type CrystalFormation } from '@/stores/avatar.crystal';
 import { useParticlesStore } from '@/stores/avatar.particles';
+import { useCrystalBallStore, type CrystalBallStyle } from '@/stores/avatar.crystal-ball';
 import BasePanel from '@/components/ui/BasePanel.vue';
 import PanelSection from '@/components/ui/PanelSection.vue';
-import BlobSettings from './BlobSettings.vue';
+import BlobXyzSettings from './BlobXyzSettings.vue';
 import CrystalSettings from './CrystalSettings.vue';
 import ParticlesSettings from './ParticlesSettings.vue';
+import CrystalBallSettings from './CrystalBallSettings.vue';
 
 const { kwami, rendererType: kwamiRendererType, switchRenderer } = useKwami();
 const avatarStore = useAvatarStore();
-const blobStore = useBlobStore();
+const blobStore = useBlobXyzStore();
 const crystalStore = useCrystalStore();
 const particlesStore = useParticlesStore();
+const crystalBallStore = useCrystalBallStore();
 
 // Use store state
-const { rendererType, blobPresets, crystalPresets, particlesPresets } = storeToRefs(avatarStore);
+const { rendererType, blobPresets, crystalPresets, particlesPresets, crystalBallPresets } = storeToRefs(avatarStore);
 const { skin, shape, animation, cursorTouch, audio } = storeToRefs(blobStore);
 const { 
   appearance: crystalAppearance, 
@@ -36,6 +39,25 @@ const {
   animation: particlesAnimation, 
   audio: particlesAudio 
 } = storeToRefs(particlesStore);
+const {
+  style: crystalBallStyle,
+  colors: crystalBallColors,
+  volume: crystalBallVolume,
+  animation: crystalBallAnimation,
+  surface: crystalBallSurface,
+  audio: crystalBallAudio
+} = storeToRefs(crystalBallStore);
+
+// Computed: get the presets for the current renderer
+const currentPresets = computed(() => {
+  switch (rendererType.value) {
+    case 'blob': return blobPresets.value;
+    case 'crystal': return crystalPresets.value;
+    case 'particles': return particlesPresets.value;
+    case 'crystal-ball': return crystalBallPresets.value;
+    default: return blobPresets.value;
+  }
+});
 
 // Helpers
 function getBlob() {
@@ -46,6 +68,9 @@ function getCrystal() {
 }
 function getParticles() {
   return kwami.value?.avatar.getParticles();
+}
+function getCrystalBall() {
+  return (kwami.value?.avatar as any)?.getCrystalBall?.();
 }
 
 // Sync from Kwami to Store
@@ -64,11 +89,16 @@ function syncFromKwami() {
 
   const particlesInstance = getParticles();
   if (particlesInstance) {
-    particlesStore.syncFromKwami(particlesInstance);
+    particlesStore.syncFromKwami(particlesInstance as any);
+  }
+
+  const crystalBallInstance = getCrystalBall();
+  if (crystalBallInstance) {
+    crystalBallStore.syncFromKwami(crystalBallInstance as any);
   }
   
   // Sync renderer type from kwami
-  avatarStore.setRendererType(kwamiRendererType.value as 'blob' | 'crystal' | 'particles');
+  avatarStore.setRendererType(kwamiRendererType.value as 'blob' | 'crystal' | 'particles' | 'crystal-ball');
 }
 
 // =====================================================
@@ -248,17 +278,64 @@ watch(
   { deep: true }
 );
 
+// =====================================================
+// Sync Store to Kwami - Crystal Ball watchers
+// =====================================================
+
+// STYLE watchers
+watch(() => crystalBallStyle.value.preset, (v) => getCrystalBall()?.setStyle({ style: v as CrystalBallStyle }));
+
+// COLORS watchers
+watch(
+  () => crystalBallColors.value,
+  (v) => getCrystalBall()?.setColors(v.primary, v.secondary),
+  { deep: true }
+);
+
+// VOLUME watchers
+watch(() => crystalBallVolume.value.iterations, (v) => getCrystalBall()?.setIterations(v));
+watch(() => crystalBallVolume.value.depth, (v) => getCrystalBall()?.setDepth(v));
+watch(() => crystalBallVolume.value.smoothing, (v) => getCrystalBall()?.setSmoothing(v));
+watch(() => crystalBallVolume.value.noiseScale, (v) => getCrystalBall()?.setNoiseScale(v));
+
+// ANIMATION watchers
+watch(() => crystalBallAnimation.value.displacementSpeed, (v) => getCrystalBall()?.setDisplacementSpeed(v));
+watch(() => crystalBallAnimation.value.displacementStrength, (v) => getCrystalBall()?.setDisplacementStrength(v));
+watch(() => crystalBallAnimation.value.pulseSpeed, (v) => getCrystalBall()?.setPulseSpeed(v));
+watch(() => crystalBallAnimation.value.pulseIntensity, (v) => getCrystalBall()?.setPulseIntensity(v));
+watch(
+  () => crystalBallAnimation.value.rotation,
+  (v) => getCrystalBall()?.setRotation(v.x, v.y, v.z),
+  { deep: true }
+);
+
+// SURFACE watchers
+watch(() => crystalBallSurface.value.scale, (v) => getCrystalBall()?.setScale(v));
+
+// AUDIO watchers
+watch(
+  () => crystalBallAudio.value,
+  (v) => {
+    const cb = getCrystalBall();
+    if (cb) {
+      cb.setAudioEnabled(v.enabled);
+      cb.setAudioReactivity(v.reactivity);
+    }
+  },
+  { deep: true }
+);
+
 // Sync renderer type changes
 watch(rendererType, (type) => {
   if (kwamiRendererType.value !== type) {
-    switchRenderer(type);
+    switchRenderer(type as any);
   }
 });
 
 // Actions
-function handleSwitchRenderer(type: 'blob' | 'crystal' | 'particles') {
+function handleSwitchRenderer(type: 'blob' | 'crystal' | 'particles' | 'crystal-ball') {
   avatarStore.setRendererType(type);
-  switchRenderer(type);
+  switchRenderer(type as any);
 }
 
 function handleRandomize() {
@@ -272,6 +349,7 @@ function handleReset() {
   blobStore.resetAll();
   crystalStore.resetAll();
   particlesStore.resetAll();
+  crystalBallStore.resetAll();
   
   // Apply defaults to kwami instance
   if (rendererType.value === 'blob') {
@@ -334,7 +412,7 @@ function handleApplyPreset(presetId: string) {
   if (success) {
     // Switch renderer if needed
     if (kwamiRendererType.value !== rendererType.value) {
-      switchRenderer(rendererType.value);
+      switchRenderer(rendererType.value as any);
     }
     
     // Manually sync preset to kwami instance (watchers may not fire for all nested changes)
@@ -503,6 +581,17 @@ onUnmounted(() => {
           <iconify-icon icon="ph:circles-three-plus-duotone" class="renderer-icon"></iconify-icon>
           <span class="renderer-label">Particles</span>
         </label>
+        <label class="renderer-option" :class="{ active: rendererType === 'crystal-ball' }">
+          <input
+            type="radio"
+            name="renderer"
+            value="crystal-ball"
+            :checked="rendererType === 'crystal-ball'"
+            @change="handleSwitchRenderer('crystal-ball')"
+          />
+          <iconify-icon icon="ph:globe-simple-duotone" class="renderer-icon"></iconify-icon>
+          <span class="renderer-label">Crystal Ball</span>
+        </label>
       </div>
     </PanelSection>
 
@@ -511,7 +600,7 @@ onUnmounted(() => {
       <p class="section-desc">Apply pre-configured looks or randomize</p>
       <div class="presets-grid">
         <button
-          v-for="preset in (rendererType === 'blob' ? blobPresets : rendererType === 'crystal' ? crystalPresets : particlesPresets)"
+          v-for="preset in currentPresets"
           :key="preset.id"
           class="preset-btn"
           @click="handleApplyPreset(preset.id)"
@@ -534,9 +623,10 @@ onUnmounted(() => {
     </PanelSection>
 
     <!-- Sub-components -->
-    <BlobSettings v-if="rendererType === 'blob'" />
+    <BlobXyzSettings v-if="rendererType === 'blob'" />
     <CrystalSettings v-if="rendererType === 'crystal'" />
     <ParticlesSettings v-if="rendererType === 'particles'" />
+    <CrystalBallSettings v-if="rendererType === 'crystal-ball'" />
   </BasePanel>
 </template>
 

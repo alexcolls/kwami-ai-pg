@@ -1,22 +1,25 @@
 /**
  * Avatar Templates for the Kwami AI Playground
  *
- * Central export for all avatar renderer presets (blob, crystal, particles).
+ * Central export for all avatar renderer presets (blob, crystal, particles, crystal-ball).
  */
 
 import { shallowRef, type ShallowRef } from 'vue';
 import type { RendererType } from '../stores/avatar';
-import type { BlobState } from '../stores/avatar.blob';
+import type { BlobXyzState } from '../stores/avatar.blob-xyz';
 import type { CrystalState } from '../stores/avatar.crystal';
 import type { ParticlesState } from '../stores/avatar.particles';
-import { blobPresetsData, type BlobPreset } from './blob-presets';
+import type { CrystalBallState } from '../stores/avatar.crystal-ball';
+import { blobPresetsData, type BlobXyzPreset } from './blob-xyz-presets';
 import { crystalPresetsData, type CrystalPreset } from './crystal-presets';
 import { particlesPresetsData, type ParticlesPreset } from './particles-presets';
+import { crystalBallPresetsData, type CrystalBallPreset } from './crystal-ball-presets';
 
 // Re-export preset types
-export type { BlobPreset } from './blob-presets';
+export type { BlobXyzPreset } from './blob-xyz-presets';
 export type { CrystalPreset } from './crystal-presets';
 export type { ParticlesPreset } from './particles-presets';
+export type { CrystalBallPreset } from './crystal-ball-presets';
 
 // Unified preset interface for backwards compatibility
 export interface AvatarPreset {
@@ -24,13 +27,14 @@ export interface AvatarPreset {
   name: string;
   icon: string;
   renderer: RendererType;
-  blob?: Partial<BlobState>;
+  blob?: Partial<BlobXyzState>;
   crystal?: Partial<CrystalState>;
   particles?: Partial<ParticlesState>;
+  crystalBall?: Partial<CrystalBallState>;
 }
 
 // Convert specific presets to unified format
-function toBlobAvatarPreset(preset: BlobPreset): AvatarPreset {
+function toBlobAvatarPreset(preset: BlobXyzPreset): AvatarPreset {
   return {
     id: preset.id,
     name: preset.name,
@@ -60,11 +64,22 @@ function toParticlesAvatarPreset(preset: ParticlesPreset): AvatarPreset {
   };
 }
 
+function toCrystalBallAvatarPreset(preset: CrystalBallPreset): AvatarPreset {
+  return {
+    id: preset.id,
+    name: preset.name,
+    icon: preset.icon,
+    renderer: 'crystal-ball',
+    crystalBall: preset.crystalBall,
+  };
+}
+
 // Combine all presets into a unified array
 const _avatarPresetsData: AvatarPreset[] = [
   ...blobPresetsData.map(toBlobAvatarPreset),
   ...crystalPresetsData.map(toCrystalAvatarPreset),
   ...particlesPresetsData.map(toParticlesAvatarPreset),
+  ...crystalBallPresetsData.map(toCrystalBallAvatarPreset),
 ];
 
 // Persist reactive ref across HMR updates using import.meta.hot.data
@@ -109,7 +124,11 @@ export function getParticlesPresets(): AvatarPreset[] {
   return avatarPresetsRef.value.filter((p) => p.renderer === 'particles');
 }
 
+export function getCrystalBallPresets(): AvatarPreset[] {
+  return avatarPresetsRef.value.filter((p) => p.renderer === 'crystal-ball');
+}
+
 // Direct access to typed preset data
-export { blobPresetsData } from './blob-presets';
+export { blobPresetsData } from './blob-xyz-presets';
 export { crystalPresetsData } from './crystal-presets';
 export { particlesPresetsData } from './particles-presets';
