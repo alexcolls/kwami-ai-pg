@@ -5,7 +5,7 @@
  * Uses the new section-based orbital shards state structure.
  */
 
-import type { OrbitalShardsState } from '../stores/avatar.orbital-shards';
+import type { OrbitalShardsState } from '../../stores/avatar.orbital-shards';
 
 export interface OrbitalShardsPreset {
   id: string;

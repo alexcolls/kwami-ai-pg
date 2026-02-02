@@ -20,7 +20,7 @@ export interface EmotionalTraits {
   adaptability?: number;
 }
 
-export interface PersonaTemplate {
+export interface PersonaPreset {
   id: string;
   name: string;
   personality: string;
@@ -36,7 +36,7 @@ export interface PersonaTemplate {
   color: string;
 }
 
-export const personaTemplates: PersonaTemplate[] = [
+export const personaPresets: PersonaPreset[] = [
   // ============ POSITIVE CATEGORY ============
   {
     id: 'friendly',
@@ -607,12 +607,12 @@ export const personaTemplates: PersonaTemplate[] = [
 ];
 
 // Helper functions
-export function getTemplateById(id: string): PersonaTemplate | undefined {
-  return personaTemplates.find(t => t.id === id);
+export function getTemplateById(id: string): PersonaPreset | undefined {
+  return personaPresets.find(t => t.id === id);
 }
 
-export function getTemplatesByCategory(category: PersonaTemplate['category']): PersonaTemplate[] {
-  return personaTemplates.filter(t => t.category === category);
+export function getTemplatesByCategory(category: PersonaPreset['category']): PersonaPreset[] {
+  return personaPresets.filter(t => t.category === category);
 }
 
 export const templateCategories = [

@@ -4,7 +4,7 @@
  * Preset configurations for the crystal ball (magical marble) avatar renderer.
  */
 
-import type { CrystalBallState } from '../stores/avatar.crystal-ball';
+import type { CrystalBallState } from '../../stores/avatar.crystal-ball';
 
 export interface CrystalBallPreset {
   id: string;

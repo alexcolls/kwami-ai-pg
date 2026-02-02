@@ -5,7 +5,7 @@
  * Uses the new 6-section blob state structure.
  */
 
-import type { BlobXyzState } from '../stores/avatar.blob-xyz';
+import type { BlobXyzState } from '../../stores/avatar.blob-xyz';
 
 export interface BlobXyzPreset {
   id: string;
