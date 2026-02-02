@@ -92,8 +92,11 @@ function executeAction(action: InteractionAction) {
       break;
     case 'switchRenderer': {
       const renderer = kwami.value.avatar.getRendererType();
-      const renderers = ['blob', 'crystal', 'particles'] as const;
-      const currentIdx = renderers.indexOf(renderer as typeof renderers[number]);
+      const renderers = ['blob', 'orbital-shards', 'particles'] as const;
+      // Map blob-xyz to blob for the check if needed, or handle it
+      // Note: We need to match what kwami returns. If it returns blob-xyz, and we use blob, standard matching fails.
+      // But we just need a cycle index.
+      const currentIdx = renderers.findIndex(r => r === renderer || (r === 'blob' && renderer === 'blob-xyz'));
       const nextIdx = (currentIdx + 1) % renderers.length;
       switchRenderer(renderers[nextIdx] ?? 'blob');
       break;

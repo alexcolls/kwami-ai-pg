@@ -4,33 +4,33 @@ import { storeToRefs } from 'pinia';
 import { useKwami } from '@/composables/useKwami';
 import { useAvatarStore, type AvatarState } from '@/stores/avatar';
 import { useBlobXyzStore, type SkinType } from '@/stores/avatar.blob-xyz';
-import { useCrystalStore, type CrystalFormation } from '@/stores/avatar.crystal';
+import { useOrbitalShardsStore, type OrbitalShardsFormation } from '@/stores/avatar.orbital-shards';
 import { useParticlesStore } from '@/stores/avatar.particles';
 import { useCrystalBallStore, type CrystalBallStyle } from '@/stores/avatar.crystal-ball';
 import BasePanel from '@/components/ui/BasePanel.vue';
 import PanelSection from '@/components/ui/PanelSection.vue';
 import BlobXyzSettings from './BlobXyzSettings.vue';
-import CrystalSettings from './CrystalSettings.vue';
+import OrbitalShardsSettings from './OrbitalShardsSettings.vue';
 import ParticlesSettings from './ParticlesSettings.vue';
 import CrystalBallSettings from './CrystalBallSettings.vue';
 
 const { kwami, rendererType: kwamiRendererType, switchRenderer } = useKwami();
 const avatarStore = useAvatarStore();
 const blobStore = useBlobXyzStore();
-const crystalStore = useCrystalStore();
+const orbitalShardsStore = useOrbitalShardsStore();
 const particlesStore = useParticlesStore();
 const crystalBallStore = useCrystalBallStore();
 
 // Use store state
-const { rendererType, blobPresets, crystalPresets, particlesPresets, crystalBallPresets } = storeToRefs(avatarStore);
+const { rendererType, blobPresets, orbitalShardsPresets, particlesPresets, crystalBallPresets } = storeToRefs(avatarStore);
 const { skin, shape, animation, cursorTouch, audio } = storeToRefs(blobStore);
 const { 
-  appearance: crystalAppearance, 
-  colors: crystalColors, 
-  glow: crystalGlow, 
-  animation: crystalAnimation, 
-  audio: crystalAudio 
-} = storeToRefs(crystalStore);
+  appearance: orbitalShardsAppearance, 
+  colors: orbitalShardsColors, 
+  glow: orbitalShardsGlow, 
+  animation: orbitalShardsAnimation, 
+  audio: orbitalShardsAudio 
+} = storeToRefs(orbitalShardsStore);
 const { 
   formation: particlesFormation, 
   visual: particlesVisual, 
@@ -52,7 +52,7 @@ const {
 const currentPresets = computed(() => {
   switch (rendererType.value) {
     case 'blob': return blobPresets.value;
-    case 'crystal': return crystalPresets.value;
+    case 'orbital-shards': return orbitalShardsPresets.value;
     case 'particles': return particlesPresets.value;
     case 'crystal-ball': return crystalBallPresets.value;
     default: return blobPresets.value;
@@ -63,8 +63,8 @@ const currentPresets = computed(() => {
 function getBlob() {
   return kwami.value?.avatar.getBlob();
 }
-function getCrystal() {
-  return kwami.value?.avatar.getCrystal();
+function getOrbitalShards() {
+  return kwami.value?.avatar.getOrbitalShards();
 }
 function getParticles() {
   return kwami.value?.avatar.getParticles();
@@ -82,9 +82,9 @@ function syncFromKwami() {
     blobStore.syncFromKwami(blobInstance);
   }
 
-  const crystalInstance = getCrystal();
-  if (crystalInstance) {
-    crystalStore.syncFromKwami(crystalInstance);
+  const orbitalShardsInstance = getOrbitalShards();
+  if (orbitalShardsInstance) {
+    orbitalShardsStore.syncFromKwami(orbitalShardsInstance);
   }
 
   const particlesInstance = getParticles();
@@ -98,7 +98,7 @@ function syncFromKwami() {
   }
   
   // Sync renderer type from kwami
-  avatarStore.setRendererType(kwamiRendererType.value as 'blob' | 'crystal' | 'particles' | 'crystal-ball');
+  avatarStore.setRendererType(kwamiRendererType.value as 'blob' | 'orbital-shards' | 'particles' | 'crystal-ball');
 }
 
 // =====================================================
@@ -173,40 +173,40 @@ watch(
   { deep: true }
 );
 
-// Sync Store to Kwami - Crystal watchers (new structure)
+// Sync Store to Kwami - Orbital Shards watchers (new structure)
 
 // APPEARANCE watchers
-watch(() => crystalAppearance.value.formation, (v) => getCrystal()?.setFormation({ formation: v as CrystalFormation }));
-watch(() => crystalAppearance.value.shardCount, (v) => getCrystal()?.setShardCount(v));
-watch(() => crystalAppearance.value.scale, (v) => getCrystal()?.setScale(v));
+watch(() => orbitalShardsAppearance.value.formation, (v) => getOrbitalShards()?.setFormation({ formation: v as OrbitalShardsFormation }));
+watch(() => orbitalShardsAppearance.value.shardCount, (v) => getOrbitalShards()?.setShardCount(v));
+watch(() => orbitalShardsAppearance.value.scale, (v) => getOrbitalShards()?.setScale(v));
 
 // COLORS watchers
 watch(
-  () => ({ primary: crystalColors.value.primary, secondary: crystalColors.value.secondary, accent: crystalColors.value.accent }),
-  (v) => getCrystal()?.setColors(v.primary, v.secondary, v.accent),
+  () => ({ primary: orbitalShardsColors.value.primary, secondary: orbitalShardsColors.value.secondary, accent: orbitalShardsColors.value.accent }),
+  (v) => (getOrbitalShards() as any)?.setOrbitalShardsColors(v.primary, v.secondary, v.accent),
   { deep: true }
 );
 watch(
-  () => crystalColors.value.core,
-  (v) => getCrystal()?.setCoreColors(v.inner, v.outer),
+  () => orbitalShardsColors.value.core,
+  (v) => getOrbitalShards()?.setCoreColors(v.inner, v.outer),
   { deep: true }
 );
 
 // GLOW watchers
-watch(() => crystalGlow.value.intensity, (v) => getCrystal()?.setGlowIntensity(v));
+watch(() => orbitalShardsGlow.value.intensity, (v) => getOrbitalShards()?.setGlowIntensity(v));
 
 // ANIMATION watchers
 watch(
-  () => crystalAnimation.value.rotation,
-  (v) => getCrystal()?.setRotation(v.x, v.y, v.z),
+  () => orbitalShardsAnimation.value.rotation,
+  (v) => getOrbitalShards()?.setRotation(v.x, v.y, v.z),
   { deep: true }
 );
 
 // AUDIO watchers
 watch(
-  () => crystalAudio.value,
+  () => orbitalShardsAudio.value,
   (v) => {
-    const c = getCrystal();
+    const c = getOrbitalShards();
     if (c && c.audioEffects) {
       c.audioEffects.enabled = v.enabled;
       c.audioEffects.reactivity = v.reactivity;
@@ -333,7 +333,7 @@ watch(rendererType, (type) => {
 });
 
 // Actions
-function handleSwitchRenderer(type: 'blob' | 'crystal' | 'particles' | 'crystal-ball') {
+function handleSwitchRenderer(type: 'blob' | 'orbital-shards' | 'particles' | 'crystal-ball') {
   avatarStore.setRendererType(type);
   switchRenderer(type as any);
 }
@@ -347,7 +347,7 @@ function handleReset() {
   // Reset store state
   avatarStore.reset();
   blobStore.resetAll();
-  crystalStore.resetAll();
+  orbitalShardsStore.resetAll();
   particlesStore.resetAll();
   crystalBallStore.resetAll();
   
@@ -370,16 +370,16 @@ function handleReset() {
       b.setTime(animation.value.time.x, animation.value.time.y, animation.value.time.z);
       kwami.value.avatar.setRotation(animation.value.rotation.x, animation.value.rotation.y, animation.value.rotation.z);
     }
-  } else if (rendererType.value === 'crystal') {
-    const c = getCrystal();
+  } else if (rendererType.value === 'orbital-shards') {
+    const c = getOrbitalShards();
     if (c) {
-      c.setFormation({ formation: crystalAppearance.value.formation as CrystalFormation });
-      c.setColors(crystalColors.value.primary, crystalColors.value.secondary, crystalColors.value.accent);
-      c.setCoreColors(crystalColors.value.core.inner, crystalColors.value.core.outer);
-      c.setGlowIntensity(crystalGlow.value.intensity);
-      c.setShardCount(crystalAppearance.value.shardCount);
-      c.setScale(crystalAppearance.value.scale);
-      c.setRotation(crystalAnimation.value.rotation.x, crystalAnimation.value.rotation.y, crystalAnimation.value.rotation.z);
+      c.setFormation({ formation: orbitalShardsAppearance.value.formation as OrbitalShardsFormation });
+      (c as any).setOrbitalShardsColors(orbitalShardsColors.value.primary, orbitalShardsColors.value.secondary, orbitalShardsColors.value.accent);
+      c.setCoreColors(orbitalShardsColors.value.core.inner, orbitalShardsColors.value.core.outer);
+      c.setGlowIntensity(orbitalShardsGlow.value.intensity);
+      c.setShardCount(orbitalShardsAppearance.value.shardCount);
+      c.setScale(orbitalShardsAppearance.value.scale);
+      c.setRotation(orbitalShardsAnimation.value.rotation.x, orbitalShardsAnimation.value.rotation.y, orbitalShardsAnimation.value.rotation.z);
     }
   } else if (rendererType.value === 'particles') {
     const p = getParticles();
@@ -469,25 +469,25 @@ function handleApplyPreset(presetId: string) {
           b.audioEffects.ultraTime = audio.value.timeModulation.ultra;
         }
       }
-    } else if (rendererType.value === 'crystal') {
-      const c = getCrystal();
+    } else if (rendererType.value === 'orbital-shards') {
+      const c = getOrbitalShards();
       if (c) {
-        c.setFormation({ formation: crystalAppearance.value.formation as CrystalFormation });
-        c.setColors(crystalColors.value.primary, crystalColors.value.secondary, crystalColors.value.accent);
-        c.setCoreColors(crystalColors.value.core.inner, crystalColors.value.core.outer);
-        c.setGlowIntensity(crystalGlow.value.intensity);
-        c.setShardCount(crystalAppearance.value.shardCount);
-        c.setScale(crystalAppearance.value.scale);
-        c.setRotation(crystalAnimation.value.rotation.x, crystalAnimation.value.rotation.y, crystalAnimation.value.rotation.z);
+        c.setFormation({ formation: orbitalShardsAppearance.value.formation as OrbitalShardsFormation });
+        (c as any).setOrbitalShardsColors(orbitalShardsColors.value.primary, orbitalShardsColors.value.secondary, orbitalShardsColors.value.accent);
+        c.setCoreColors(orbitalShardsColors.value.core.inner, orbitalShardsColors.value.core.outer);
+        c.setGlowIntensity(orbitalShardsGlow.value.intensity);
+        c.setShardCount(orbitalShardsAppearance.value.shardCount);
+        c.setScale(orbitalShardsAppearance.value.scale);
+        c.setRotation(orbitalShardsAnimation.value.rotation.x, orbitalShardsAnimation.value.rotation.y, orbitalShardsAnimation.value.rotation.z);
         
         // Audio
         if (c.audioEffects) {
-          c.audioEffects.enabled = crystalAudio.value.enabled;
-          c.audioEffects.reactivity = crystalAudio.value.reactivity;
-          c.audioEffects.smoothing = crystalAudio.value.smoothing;
-          c.audioEffects.bassOrbitBoost = crystalAudio.value.frequencyBoosts.bass;
-          c.audioEffects.midRotationBoost = crystalAudio.value.frequencyBoosts.mid;
-          c.audioEffects.highGlowBoost = crystalAudio.value.frequencyBoosts.high;
+          c.audioEffects.enabled = orbitalShardsAudio.value.enabled;
+          c.audioEffects.reactivity = orbitalShardsAudio.value.reactivity;
+          c.audioEffects.smoothing = orbitalShardsAudio.value.smoothing;
+          c.audioEffects.bassOrbitBoost = orbitalShardsAudio.value.frequencyBoosts.bass;
+          c.audioEffects.midRotationBoost = orbitalShardsAudio.value.frequencyBoosts.mid;
+          c.audioEffects.highGlowBoost = orbitalShardsAudio.value.frequencyBoosts.high;
         }
       }
     } else if (rendererType.value === 'particles') {
@@ -559,16 +559,16 @@ onUnmounted(() => {
           <iconify-icon icon="ph:circle-wavy-duotone" class="renderer-icon"></iconify-icon>
           <span class="renderer-label">Blob</span>
         </label>
-        <label class="renderer-option" :class="{ active: rendererType === 'crystal' }">
+        <label class="renderer-option" :class="{ active: rendererType === 'orbital-shards' }">
           <input
             type="radio"
             name="renderer"
-            value="crystal"
-            :checked="rendererType === 'crystal'"
-            @change="handleSwitchRenderer('crystal')"
+            value="orbital-shards"
+            :checked="rendererType === 'orbital-shards'"
+            @change="handleSwitchRenderer('orbital-shards')"
           />
           <iconify-icon icon="ph:diamond-duotone" class="renderer-icon"></iconify-icon>
-          <span class="renderer-label">Crystal</span>
+          <span class="renderer-label">Orbital Shards</span>
         </label>
         <label class="renderer-option" :class="{ active: rendererType === 'particles' }">
           <input
@@ -624,7 +624,7 @@ onUnmounted(() => {
 
     <!-- Sub-components -->
     <BlobXyzSettings v-if="rendererType === 'blob'" />
-    <CrystalSettings v-if="rendererType === 'crystal'" />
+    <OrbitalShardsSettings v-if="rendererType === 'orbital-shards'" />
     <ParticlesSettings v-if="rendererType === 'particles'" />
     <CrystalBallSettings v-if="rendererType === 'crystal-ball'" />
   </BasePanel>

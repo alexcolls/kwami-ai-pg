@@ -90,7 +90,7 @@ function executeAction(action: InteractionAction) {
       break;
     case 'switchRenderer': {
       const renderer = kwami.value.avatar.getRendererType();
-      const renderers = ['blob', 'crystal', 'particles', 'crystal-ball'] as const;
+      const renderers = ['blob', 'orbital-shards', 'particles', 'crystal-ball'] as const;
       const currentIdx = renderers.indexOf(renderer as typeof renderers[number]);
       const nextIdx = (currentIdx + 1) % renderers.length;
       switchRenderer(renderers[nextIdx] ?? 'blob');
@@ -134,11 +134,11 @@ function randomizeColors() {
   colors.value.secondary = randomHex();
 }
 
-// Volume (tutorial: iterations 48, depth 0.6, smoothing 0.2)
+// Volume (ultra-optimized for smooth 60fps)
 function randomizeVolume() {
-  volume.value.iterations = Math.floor(randomInRange(32, 64, 4));
+  volume.value.iterations = Math.floor(randomInRange(12, 24, 4));
   volume.value.noiseScale = randomInRange(1.5, 4, 0.1);
-  volume.value.smoothing = randomInRange(0.1, 0.4, 0.02);
+  volume.value.smoothing = randomInRange(0.15, 0.4, 0.05);
   volume.value.depth = randomInRange(0.4, 0.8, 0.05);
 }
 
@@ -243,23 +243,23 @@ watch(clickEvents, (config) => {
     <p class="section-desc">Visual style preset for the crystal ball</p>
     <div class="style-selector">
       <label
-        v-for="s in (['mystical', 'nebula', 'earth', 'fire', 'ocean'] as const)"
-        :key="s"
+        v-for="option in styleOptions"
+        :key="option.value"
         class="style-option"
-        :class="{ active: style.preset === s }"
+        :class="{ active: style.preset === option.value }"
       >
-        <input type="radio" :value="s" v-model="style.preset" />
+        <input type="radio" :value="option.value" v-model="style.preset" />
         <iconify-icon
           :icon="
-            s === 'mystical' ? 'ph:sparkle-duotone' :
-            s === 'nebula' ? 'ph:planet-duotone' :
-            s === 'earth' ? 'ph:globe-duotone' :
-            s === 'fire' ? 'ph:fire-duotone' :
+            option.value === 'mystical' ? 'ph:sparkle-duotone' :
+            option.value === 'nebula' ? 'ph:planet-duotone' :
+            option.value === 'earth' ? 'ph:globe-duotone' :
+            option.value === 'fire' ? 'ph:fire-duotone' :
             'ph:wave-duotone'
           "
           class="style-icon"
         ></iconify-icon>
-        <span class="style-label">{{ s.charAt(0).toUpperCase() + s.slice(1) }}</span>
+        <span class="style-label">{{ option.label }}</span>
       </label>
     </div>
   </PanelSection>
@@ -298,7 +298,7 @@ watch(clickEvents, (config) => {
     </template>
     <p class="section-desc">Internal volumetric effect parameters</p>
     <div class="slider-group">
-      <BaseSlider label="Iterations" :min="16" :max="64" :step="4" v-model="volume.iterations" />
+      <BaseSlider label="Iterations" :min="8" :max="32" :step="4" v-model="volume.iterations" />
       <BaseSlider label="Depth" :min="0.3" :max="1" :step="0.05" v-model="volume.depth" />
       <BaseSlider label="Smoothing" :min="0.05" :max="0.5" :step="0.01" v-model="volume.smoothing" />
       <BaseSlider label="Noise Scale" :min="1" :max="5" :step="0.1" v-model="volume.noiseScale" />

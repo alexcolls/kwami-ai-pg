@@ -87,8 +87,8 @@ function executeAction(action: InteractionAction) {
       break;
     case 'switchRenderer': {
       const renderer = kwami.value.avatar.getRendererType();
-      const renderers = ['blob', 'crystal', 'particles'] as const;
-      const currentIdx = renderers.indexOf(renderer as typeof renderers[number]);
+      const renderers = ['blob', 'orbital-shards', 'particles'] as const;
+      const currentIdx = renderers.findIndex(r => r === renderer || (r === 'blob' && renderer === 'blob-xyz'));
       const nextIdx = (currentIdx + 1) % renderers.length;
       switchRenderer(renderers[nextIdx] ?? 'blob');
       break;
@@ -111,7 +111,8 @@ function executeAction(action: InteractionAction) {
     case 'moveToClick': {
       const blob = getBlob();
       if (blob) {
-        blob.moveToPosition(0.2 + Math.random() * 0.6, 0.2 + Math.random() * 0.6);
+        // Cast to any because the type definition might be missing moveToPosition
+        (blob as any).moveToPosition(0.2 + Math.random() * 0.6, 0.2 + Math.random() * 0.6);
       }
       break;
     }
