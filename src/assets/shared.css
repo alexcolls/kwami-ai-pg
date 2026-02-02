@@ -4,11 +4,14 @@
    ===================================================== */
 
 /* =====================================================
-   PANEL BASE
+   PANEL BASE (Legacy fallback - prefer using BasePanel component)
    ===================================================== */
 
 .panel-inner {
   animation: fadeIn 0.2s var(--ease-out);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 
 .panel-header {
@@ -31,6 +34,8 @@
   font-weight: 600;
   letter-spacing: 0.3px;
   color: var(--text-primary);
+  margin: 0;
+  flex: 1;
 }
 
 .panel-body {
@@ -58,12 +63,6 @@
 .panel-body::-webkit-scrollbar-thumb {
   background: var(--surface-3);
   border-radius: 3px;
-}
-
-.panel-inner {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
 }
 
 /* =====================================================
