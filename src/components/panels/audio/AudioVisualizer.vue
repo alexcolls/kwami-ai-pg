@@ -47,7 +47,7 @@ function drawVisualizer() {
     const barHeight = value * height * 0.9;
 
     const hue =
-      rendererType.value === 'crystal' ? 180 + (i / barCount) * 60 : 260 + (i / barCount) * 60;
+      rendererType.value === 'orbital-shards' ? 180 + (i / barCount) * 60 : 260 + (i / barCount) * 60;
     ctx.fillStyle = `hsla(${hue}, 70%, 60%, ${0.5 + value * 0.5})`;
 
     const x = i * (barWidth + 2);

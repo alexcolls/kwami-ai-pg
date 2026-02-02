@@ -69,7 +69,7 @@ function initializeKwami() {
   // Console info
   console.log('🎮 Kwami Playground (🫧 blob renderer)');
   console.log('Shortcuts: R=randomize, L=listening, T=thinking, I=idle, P=toggle panel');
-  console.log('Renderer: B=blob, C=crystal');
+  console.log('Renderer: B=blob, O|C=orbital-shards');
   console.log('Access kwami via window.kwami in console');
 }
 
@@ -115,7 +115,7 @@ onMounted(() => {
     }
     // Renderer switch shortcuts
     if (e.key === 'b' || e.key === 'B') switchRenderer('blob');
-    if (e.key === 'c' || e.key === 'C') switchRenderer('crystal');
+    if (e.key === 'c' || e.key === 'C' || e.key === 'o' || e.key === 'O') switchRenderer('orbital-shards');
     // Avatar state shortcuts
     if (e.key === 'r') {
       kwami.value?.avatar.randomize();

@@ -48,10 +48,10 @@ function updateRotation() {
           rotationZ.value = normalizeAngle(radToDeg(mesh.rotation.z));
         }
       }
-    } else if (rendererType.value === 'crystal') {
-      const crystal = kwami.value.avatar.getCrystal();
-      if (crystal) {
-        const group = crystal.getMesh();
+    } else if (rendererType.value === 'orbital-shards') {
+      const orbitalShards = (kwami.value.avatar as any).getOrbitalShards();
+      if (orbitalShards) {
+        const group = orbitalShards.getMesh();
         if (group) {
           rotationX.value = normalizeAngle(radToDeg(group.rotation.x));
           rotationY.value = normalizeAngle(radToDeg(group.rotation.y));
