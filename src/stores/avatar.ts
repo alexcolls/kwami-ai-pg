@@ -5,14 +5,14 @@ import {
   avatarPresetsRef,
   getBlobPresets,
   getOrbitalShardsPresets,
-  getParticlesPresets,
+  getStarsGenesisPresets,
   getCrystalBallPresets,
   getPresetById,
   type AvatarPreset,
 } from '../templates/avatar-templates';
 import { useBlobXyzStore } from './avatar.blob-xyz';
 import { useOrbitalShardsStore } from './avatar.orbital-shards';
-import { useParticlesStore } from './avatar.particles';
+import { useStarsGenesisStore } from './avatar.stars-genesis';
 import { useCrystalBallStore } from './avatar.crystal-ball';
 
 // Re-export AvatarPreset for backwards compatibility
@@ -21,10 +21,10 @@ export type { AvatarPreset };
 // Types
 export type SkinSubtype = 'poles' | 'donut' | 'vintage';
 export type OrbitalShardsFormation = 'constellation' | 'helix' | 'vortex';
-export type ParticlesFormationType = 'sphere' | 'disc' | 'ring' | 'cube';
-export type ParticlesDensity = 'uniform' | 'center-heavy' | 'edge-heavy';
+export type StarsGenesisFormationType = 'sphere' | 'disc' | 'ring' | 'cube';
+export type StarsGenesisDensity = 'uniform' | 'center-heavy' | 'edge-heavy';
 export type AvatarState = 'idle' | 'listening' | 'thinking' | 'speaking';
-export type RendererType = 'blob' | 'orbital-shards' | 'particles' | 'crystal-ball';
+export type RendererType = 'blob' | 'orbital-shards' | 'stars-genesis' | 'crystal-ball';
 export type CrystalBallStyleType = 'mystical' | 'nebula' | 'earth' | 'fire' | 'ocean';
 
 // Interaction Types
@@ -157,18 +157,18 @@ export interface OrbitalShardsState {
   scene: SceneConfig;
 }
 
-export interface ParticlesState {
-  particleCount: number;
+export interface StarsGenesisState {
+  starCount: number;
   formation: {
-    type: ParticlesFormationType;
+    type: StarsGenesisFormationType;
     radius: number;
-    density: ParticlesDensity;
+    density: StarsGenesisDensity;
     noise: number;
   };
   visual: {
     color: string;
     glowColor: string;
-    particleSize: number;
+    starSize: number;
     sizeVariation: number;
     opacity: number;
     glowIntensity: number;
@@ -308,9 +308,9 @@ export function getDefaultOrbitalShardsState(): OrbitalShardsState {
   };
 }
 
-export function getDefaultParticlesState(): ParticlesState {
+export function getDefaultStarsGenesisState(): StarsGenesisState {
   return {
-    particleCount: 6000,
+    starCount: 6000,
     formation: {
       type: 'sphere',
       radius: 2,
@@ -320,7 +320,7 @@ export function getDefaultParticlesState(): ParticlesState {
     visual: {
       color: '#ffffff',
       glowColor: '#88ccff',
-      particleSize: 0.6,
+      starSize: 0.6,
       sizeVariation: 0.5,
       opacity: 0.95,
       glowIntensity: 0.3,
@@ -405,7 +405,7 @@ export const useAvatarStore = defineStore('avatar', () => {
   // State
   const blob = reactive<BlobState>(getDefaultBlobState());
   const orbitalShards = reactive<OrbitalShardsState>(getDefaultOrbitalShardsState());
-  const particles = reactive<ParticlesState>(getDefaultParticlesState());
+  const starsGenesis = reactive<StarsGenesisState>(getDefaultStarsGenesisState());
   const crystalBall = reactive<CrystalBallState>(getDefaultCrystalBallState());
   const activeState = ref<AvatarState>('idle');
   const rendererType = ref<RendererType>('blob');
@@ -415,7 +415,7 @@ export const useAvatarStore = defineStore('avatar', () => {
     if (rendererType.value === 'blob') return blob;
     if (rendererType.value === 'orbital-shards') return orbitalShards;
     if (rendererType.value === 'crystal-ball') return crystalBall;
-    return particles;
+    return starsGenesis;
   });
 
   const presets = computed(() => avatarPresetsRef.value);
@@ -424,7 +424,7 @@ export const useAvatarStore = defineStore('avatar', () => {
 
   const orbitalShardsPresets = computed(() => getOrbitalShardsPresets());
 
-  const particlesPresets = computed(() => getParticlesPresets());
+  const starsGenesisPresets = computed(() => getStarsGenesisPresets());
 
   const crystalBallPresets = computed(() => getCrystalBallPresets());
 
@@ -445,8 +445,8 @@ export const useAvatarStore = defineStore('avatar', () => {
     Object.assign(orbitalShards, updates);
   }
 
-  function updateParticles(updates: Partial<ParticlesState>) {
-    Object.assign(particles, updates);
+  function updateStarsGenesis(updates: Partial<StarsGenesisState>) {
+    Object.assign(starsGenesis, updates);
   }
 
   function updateCrystalBall(updates: Partial<CrystalBallState>) {
@@ -461,8 +461,8 @@ export const useAvatarStore = defineStore('avatar', () => {
     Object.assign(orbitalShards, getDefaultOrbitalShardsState());
   }
 
-  function resetParticles() {
-    Object.assign(particles, getDefaultParticlesState());
+  function resetStarsGenesis() {
+    Object.assign(starsGenesis, getDefaultStarsGenesisState());
   }
 
   function resetCrystalBall() {
@@ -477,7 +477,7 @@ export const useAvatarStore = defineStore('avatar', () => {
     } else if (rendererType.value === 'crystal-ball') {
       resetCrystalBall();
     } else {
-      resetParticles();
+      resetStarsGenesis();
     }
   }
 
@@ -495,10 +495,10 @@ export const useAvatarStore = defineStore('avatar', () => {
       // Use the new orbital shards store for presets
       const orbitalShardsStore = useOrbitalShardsStore();
       orbitalShardsStore.importState(preset.orbitalShards as Parameters<typeof orbitalShardsStore.importState>[0]);
-    } else if (preset.renderer === 'particles' && preset.particles) {
-      // Use the new particles store for presets
-      const particlesStore = useParticlesStore();
-      particlesStore.importState(preset.particles as Parameters<typeof particlesStore.importState>[0]);
+    } else if (preset.renderer === 'stars-genesis' && preset.starsGenesis) {
+      // Use the new stars genesis store for presets
+      const starsGenesisStore = useStarsGenesisStore();
+      starsGenesisStore.importState(preset.starsGenesis as Parameters<typeof starsGenesisStore.importState>[0]);
     } else if (preset.renderer === 'crystal-ball' && preset.crystalBall) {
       // Use the new crystal ball store for presets
       const crystalBallStore = useCrystalBallStore();
@@ -603,8 +603,8 @@ export const useAvatarStore = defineStore('avatar', () => {
 
   // Particles don't have getters yet, so we just sync basic state
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  function syncParticlesFromExternal(_externalParticles: unknown) {
-    // Currently particles don't expose getters, so we keep the store state as source of truth
+  function syncStarsGenesisFromExternal(_externalParticles: unknown) {
+    // Currently stars don't expose getters, so we keep the store state as source of truth
     // This could be enhanced when the Particles class exposes getter methods
   }
 
@@ -634,7 +634,7 @@ export const useAvatarStore = defineStore('avatar', () => {
     // State
     blob,
     orbitalShards,
-    particles,
+    starsGenesis,
     crystalBall,
     activeState,
     rendererType,
@@ -643,24 +643,24 @@ export const useAvatarStore = defineStore('avatar', () => {
     presets,
     blobPresets,
     orbitalShardsPresets,
-    particlesPresets,
+    starsGenesisPresets,
     crystalBallPresets,
     // Actions
     setRendererType,
     setActiveState,
     updateBlob,
     updateOrbitalShards,
-    updateParticles,
+    updateStarsGenesis,
     updateCrystalBall,
     resetBlob,
     resetOrbitalShards,
-    resetParticles,
+    resetStarsGenesis,
     resetCrystalBall,
     reset,
     applyPreset,
     syncBlobFromExternal,
     syncOrbitalShardsFromExternal,
-    syncParticlesFromExternal,
+    syncStarsGenesisFromExternal,
     syncCrystalBallFromExternal,
   };
 });

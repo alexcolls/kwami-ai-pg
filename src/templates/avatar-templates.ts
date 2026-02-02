@@ -1,24 +1,24 @@
 /**
  * Avatar Templates for the Kwami AI Playground
  *
- * Central export for all avatar renderer presets (blob, crystal, particles, crystal-ball).
+ * Central export for all avatar renderer presets (blob, crystal, stars-genesis, crystal-ball).
  */
 
 import { shallowRef, type ShallowRef } from 'vue';
 import type { RendererType } from '../stores/avatar';
 import type { BlobXyzState } from '../stores/avatar.blob-xyz';
 import type { OrbitalShardsState } from '../stores/avatar.orbital-shards';
-import type { ParticlesState } from '../stores/avatar.particles';
+import type { StarsGenesisState } from '../stores/avatar.stars-genesis';
 import type { CrystalBallState } from '../stores/avatar.crystal-ball';
 import { blobPresetsData, type BlobXyzPreset } from './blob-xyz-presets';
 import { orbitalShardsPresetsData, type OrbitalShardsPreset } from './orbital-shards-presets';
-import { particlesPresetsData, type ParticlesPreset } from './particles-presets';
+import { starsGenesisPresetsData, type StarsGenesisPreset } from './stars-genesis-presets';
 import { crystalBallPresetsData, type CrystalBallPreset } from './crystal-ball-presets';
 
 // Re-export preset types
 export type { BlobXyzPreset } from './blob-xyz-presets';
 export type { OrbitalShardsPreset } from './orbital-shards-presets';
-export type { ParticlesPreset } from './particles-presets';
+export type { StarsGenesisPreset } from './stars-genesis-presets';
 export type { CrystalBallPreset } from './crystal-ball-presets';
 
 // Unified preset interface for backwards compatibility
@@ -29,7 +29,7 @@ export interface AvatarPreset {
   renderer: RendererType;
   blob?: Partial<BlobXyzState>;
   orbitalShards?: Partial<OrbitalShardsState>;
-  particles?: Partial<ParticlesState>;
+  starsGenesis?: Partial<StarsGenesisState>;
   crystalBall?: Partial<CrystalBallState>;
 }
 
@@ -54,13 +54,13 @@ function toOrbitalShardsAvatarPreset(preset: OrbitalShardsPreset): AvatarPreset 
   };
 }
 
-function toParticlesAvatarPreset(preset: ParticlesPreset): AvatarPreset {
+function toStarsGenesisAvatarPreset(preset: StarsGenesisPreset): AvatarPreset {
   return {
     id: preset.id,
     name: preset.name,
     icon: preset.icon,
-    renderer: 'particles',
-    particles: preset.particles,
+    renderer: 'stars-genesis',
+    starsGenesis: preset.starsGenesis,
   };
 }
 
@@ -78,7 +78,7 @@ function toCrystalBallAvatarPreset(preset: CrystalBallPreset): AvatarPreset {
 const _avatarPresetsData: AvatarPreset[] = [
   ...blobPresetsData.map(toBlobAvatarPreset),
   ...orbitalShardsPresetsData.map(toOrbitalShardsAvatarPreset),
-  ...particlesPresetsData.map(toParticlesAvatarPreset),
+  ...starsGenesisPresetsData.map(toStarsGenesisAvatarPreset),
   ...crystalBallPresetsData.map(toCrystalBallAvatarPreset),
 ];
 
@@ -120,8 +120,8 @@ export function getOrbitalShardsPresets(): AvatarPreset[] {
   return avatarPresetsRef.value.filter((p) => p.renderer === 'orbital-shards');
 }
 
-export function getParticlesPresets(): AvatarPreset[] {
-  return avatarPresetsRef.value.filter((p) => p.renderer === 'particles');
+export function getStarsGenesisPresets(): AvatarPreset[] {
+  return avatarPresetsRef.value.filter((p) => p.renderer === 'stars-genesis');
 }
 
 export function getCrystalBallPresets(): AvatarPreset[] {
@@ -131,4 +131,4 @@ export function getCrystalBallPresets(): AvatarPreset[] {
 // Direct access to typed preset data
 export { blobPresetsData } from './blob-xyz-presets';
 export { orbitalShardsPresetsData } from './orbital-shards-presets';
-export { particlesPresetsData } from './particles-presets';
+export { starsGenesisPresetsData } from './stars-genesis-presets';
