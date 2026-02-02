@@ -2,6 +2,7 @@
 import { reactive, ref, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { useKwami } from '@/composables/useKwami';
 import * as THREE from 'three';
+import BasePanel from '@/components/ui/BasePanel.vue';
 import SceneBackground, { type BackgroundConfig } from './SceneBackground.vue';
 
 const { kwami } = useKwami();
@@ -458,14 +459,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="panel-inner">
-    <div class="panel-header">
-      <iconify-icon icon="ph:mountains-duotone" class="panel-icon"></iconify-icon>
-      <h2>Scene</h2>
-    </div>
-
-    <div class="panel-body">
-      <SceneBackground v-model:background="state.background" />
-    </div>
-  </div>
+  <BasePanel icon="ph:mountains-duotone" title="Scene">
+    <SceneBackground v-model:background="state.background" />
+  </BasePanel>
 </template>

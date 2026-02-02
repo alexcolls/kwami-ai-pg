@@ -7,6 +7,7 @@ import {
   type ThemeMode,
   type SidebarPosition
 } from '@/stores/theme';
+import BasePanel from '@/components/ui/BasePanel.vue';
 import PanelSection from '@/components/ui/PanelSection.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
 import BaseSlider from '@/components/ui/BaseSlider.vue';
@@ -91,33 +92,25 @@ function handleFileImport(event: Event) {
 </script>
 
 <template>
-  <div class="panel-inner">
-    <div class="panel-header">
-      <div class="header-left">
-        <iconify-icon icon="ph:palette-duotone" class="panel-icon"></iconify-icon>
-        <h2>Theme</h2>
-      </div>
-      <div class="header-actions">
-        <button
-          class="icon-btn"
-          :disabled="!themeStore.canUndo"
-          title="Undo (Ctrl+Z)"
-          @click="themeStore.undo"
-        >
-          <iconify-icon icon="ph:arrow-counter-clockwise-duotone"></iconify-icon>
-        </button>
-        <button
-          class="icon-btn"
-          :disabled="!themeStore.canRedo"
-          title="Redo (Ctrl+Y)"
-          @click="themeStore.redo"
-        >
-          <iconify-icon icon="ph:arrow-clockwise-duotone"></iconify-icon>
-        </button>
-      </div>
-    </div>
-
-    <div class="panel-body">
+  <BasePanel icon="ph:palette-duotone" title="Theme">
+    <template #actions>
+      <button
+        class="icon-btn"
+        :disabled="!themeStore.canUndo"
+        title="Undo (Ctrl+Z)"
+        @click="themeStore.undo"
+      >
+        <iconify-icon icon="ph:arrow-counter-clockwise-duotone"></iconify-icon>
+      </button>
+      <button
+        class="icon-btn"
+        :disabled="!themeStore.canRedo"
+        title="Redo (Ctrl+Y)"
+        @click="themeStore.redo"
+      >
+        <iconify-icon icon="ph:arrow-clockwise-duotone"></iconify-icon>
+      </button>
+    </template>
       <!-- Theme Presets -->
       <PanelSection title="Presets" icon="ph:stack-duotone" collapsible>
         <div class="preset-grid">
@@ -476,7 +469,6 @@ function handleFileImport(event: Event) {
           Reset to Default
         </BaseButton>
       </PanelSection>
-    </div>
 
     <!-- Import Dialog -->
     <Teleport to="body">
@@ -517,28 +509,11 @@ function handleFileImport(event: Event) {
         </div>
       </Transition>
     </Teleport>
-  </div>
+  </BasePanel>
 </template>
 
 <style scoped>
-/* Header with undo/redo */
-.panel-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.header-actions {
-  display: flex;
-  gap: 4px;
-}
-
+/* Undo/Redo Buttons */
 .icon-btn {
   display: flex;
   align-items: center;

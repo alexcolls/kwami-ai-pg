@@ -418,9 +418,8 @@ const gradientPreviewStyle = computed(() => {
 </script>
 
 <template>
-  <div>
-    <!-- MEDIA LAYER (BACK) -->
-    <PanelSection title="Media Background" icon="ph:image-duotone">
+  <!-- MEDIA LAYER (BACK) -->
+  <PanelSection title="Media Background" icon="ph:image-duotone" collapsible>
       <div class="bg-type-selector">
         <label class="bg-option" :class="{ active: background.media.type === 'none' }">
           <input type="radio" value="none" v-model="background.media.type" />
@@ -446,7 +445,7 @@ const gradientPreviewStyle = computed(() => {
     </PanelSection>
 
     <!-- Solid Color Settings -->
-    <PanelSection v-if="background.media.type === 'solid'" title="Solid Color">
+    <PanelSection v-if="background.media.type === 'solid'" title="Solid Color" collapsible>
       <BaseColorPicker label="Color" v-model="background.media.solidColor" />
       <div style="margin-top: 12px">
         <BaseSlider
@@ -460,7 +459,7 @@ const gradientPreviewStyle = computed(() => {
     </PanelSection>
 
     <!-- Image Settings -->
-    <PanelSection v-if="background.media.type === 'image'" title="Image Settings">
+    <PanelSection v-if="background.media.type === 'image'" title="Image Settings" collapsible>
       <div class="media-upload">
         <input
           ref="imageFileInput"
@@ -500,7 +499,7 @@ const gradientPreviewStyle = computed(() => {
     </PanelSection>
 
     <!-- Video Settings -->
-    <PanelSection v-if="background.media.type === 'video'" title="Video Settings">
+    <PanelSection v-if="background.media.type === 'video'" title="Video Settings" collapsible>
       <div class="media-upload">
         <input
           ref="videoFileInput"
@@ -550,7 +549,7 @@ const gradientPreviewStyle = computed(() => {
     </PanelSection>
 
     <!-- GRADIENT LAYER (FRONT OVERLAY) -->
-    <PanelSection title="Gradient Overlay" icon="ph:gradient-duotone">
+    <PanelSection title="Gradient Overlay" icon="ph:gradient-duotone" collapsible>
       <div class="gradient-header">
         <div class="gradient-toggle">
           <label class="toggle-switch">
@@ -572,7 +571,7 @@ const gradientPreviewStyle = computed(() => {
     </PanelSection>
 
     <!-- Gradient Type & Position -->
-    <PanelSection v-if="background.gradient.enabled" title="Gradient Type">
+    <PanelSection v-if="background.gradient.enabled" title="Gradient Type" collapsible>
       <div class="section-header-row">
         <div class="gradient-type-selector">
           <label class="gradient-type-option" :class="{ active: background.gradient.type === 'radial' }">
@@ -640,7 +639,7 @@ const gradientPreviewStyle = computed(() => {
     </PanelSection>
 
     <!-- Orbs Settings -->
-    <PanelSection v-if="background.gradient.enabled && background.gradient.type === 'orbs'" title="Gradient Orbs">
+    <PanelSection v-if="background.gradient.enabled && background.gradient.type === 'orbs'" title="Gradient Orbs" collapsible>
       <template #actions>
         <button class="dice-btn" @click="randomizeOrbs" title="Randomize Orbs">
           <iconify-icon icon="ph:dice-four-duotone"></iconify-icon>
@@ -722,7 +721,7 @@ const gradientPreviewStyle = computed(() => {
     </PanelSection>
 
     <!-- Gradient Colors / Stops (not for orbs) -->
-    <PanelSection v-if="background.gradient.enabled && background.gradient.type !== 'orbs'" title="Color Stops">
+    <PanelSection v-if="background.gradient.enabled && background.gradient.type !== 'orbs'" title="Color Stops" collapsible>
       <template #actions>
         <button class="dice-btn" @click="randomizeColors" title="Randomize Colors">
           <iconify-icon icon="ph:dice-four-duotone"></iconify-icon>
@@ -770,7 +769,7 @@ const gradientPreviewStyle = computed(() => {
     </PanelSection>
 
     <!-- Gradient Global Settings -->
-    <PanelSection v-if="background.gradient.enabled" title="Gradient Settings">
+    <PanelSection v-if="background.gradient.enabled" title="Gradient Settings" collapsible>
       <BaseSlider
         label="Overall Opacity"
         v-model="background.gradient.opacity"
@@ -788,7 +787,7 @@ const gradientPreviewStyle = computed(() => {
     </PanelSection>
 
     <!-- Gradient Presets (not for orbs) -->
-    <PanelSection v-if="background.gradient.type !== 'orbs'" title="Gradient Presets">
+    <PanelSection v-if="background.gradient.type !== 'orbs'" title="Gradient Presets" collapsible>
       <div class="preset-grid">
         <button
           v-for="(preset, name) in gradientPresets"
@@ -808,7 +807,6 @@ const gradientPreviewStyle = computed(() => {
         </button>
       </div>
     </PanelSection>
-  </div>
 </template>
 
 <style scoped>
