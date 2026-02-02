@@ -56,7 +56,7 @@ function initializeKwami() {
   if (isInitialized.value || !canvasRef.value) return;
 
   // Default to blob renderer
-  const rendererType = 'blob';
+  const rendererType = 'blob-xyz';
 
   init(canvasRef.value, rendererType);
   isInitialized.value = true;
@@ -109,12 +109,26 @@ onMounted(() => {
     const target = e.target as HTMLElement;
     if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
 
+    // Panel size shortcuts (Alt+1/2/3)
+    if (e.altKey && e.key === '1') {
+      e.preventDefault();
+      uiStore.setSizePreset('small');
+    }
+    if (e.altKey && e.key === '2') {
+      e.preventDefault();
+      uiStore.setSizePreset('medium');
+    }
+    if (e.altKey && e.key === '3') {
+      e.preventDefault();
+      uiStore.setSizePreset('large');
+    }
+
     // Panel toggle
     if (e.key === 'p' || e.key === 'P') {
       uiStore.togglePanel();
     }
     // Renderer switch shortcuts
-    if (e.key === 'b' || e.key === 'B') switchRenderer('blob');
+    if (e.key === 'b' || e.key === 'B') switchRenderer('blob-xyz');
     if (e.key === 'c' || e.key === 'C' || e.key === 'o' || e.key === 'O') switchRenderer('orbital-shards');
     // Avatar state shortcuts
     if (e.key === 'r') {

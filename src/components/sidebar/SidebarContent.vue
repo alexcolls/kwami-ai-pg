@@ -12,7 +12,10 @@ const startX = ref(0);
 const startWidth = ref(0);
 
 // Computed to check if resizing is allowed
-const canResize = computed(() => !themeStore.compactMode);
+const canResize = computed(() => !themeStore.compactMode && uiStore.allowCustomResize);
+
+// Computed to check if sidebar is on the right
+const isRightSidebar = computed(() => themeStore.sidebarPosition === 'right');
 
 // Dynamic panel width style
 const panelStyle = computed(() => {
@@ -84,7 +87,7 @@ onUnmounted(() => {
     <div
       v-if="canResize"
       class="resize-handle"
-      :class="{ resizing: isResizing }"
+      :class="{ resizing: isResizing, 'handle-left': isRightSidebar }"
       @mousedown.prevent="startResize"
       @dblclick="resetWidth"
     >
@@ -173,8 +176,8 @@ onUnmounted(() => {
   justify-content: center;
 }
 
-/* Right sidebar - handle on left (use parent class instead of body) */
-:global(.sidebar-right) .resize-handle {
+/* Right sidebar - handle on left */
+.resize-handle.handle-left {
   right: auto;
   left: -4px;
 }

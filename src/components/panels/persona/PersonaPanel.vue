@@ -8,7 +8,7 @@ import BaseInput from '@/components/ui/BaseInput.vue';
 import BaseSelect from '@/components/ui/BaseSelect.vue';
 import BaseSlider from '@/components/ui/BaseSlider.vue';
 import BaseTagInput from '@/components/ui/BaseTagInput.vue';
-import { personaTemplates, templateCategories, type PersonaTemplate } from '@/templates/persona-templates';
+import { personaPresets, templateCategories, type PersonaPreset } from '@/presets/agent/persona-presets';
 
 const toast = useToast();
 
@@ -19,15 +19,15 @@ const selectedCategory = ref<string | null>(null);
 const selectedTemplateId = ref<string | null>(null);
 
 const filteredTemplates = computed(() => {
-  if (!selectedCategory.value) return personaTemplates;
-  return personaTemplates.filter(t => t.category === selectedCategory.value);
+  if (!selectedCategory.value) return personaPresets;
+  return personaPresets.filter(t => t.category === selectedCategory.value);
 });
 
 function selectCategory(categoryId: string | null) {
   selectedCategory.value = selectedCategory.value === categoryId ? null : categoryId;
 }
 
-function applyTemplate(template: PersonaTemplate) {
+function applyTemplate(template: PersonaPreset) {
   if (!kwami.value) return;
   
   selectedTemplateId.value = template.id;

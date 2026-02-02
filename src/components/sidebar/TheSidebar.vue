@@ -9,53 +9,48 @@ const uiStore = useUIStore();
 const themeStore = useThemeStore();
 
 const sidebarRef = ref<HTMLElement | null>(null);
-const sidebarWidth = ref(0);
-const windowWidth = ref(window.innerWidth);
-
-// Update measurements
-function updateMeasurements() {
-  windowWidth.value = window.innerWidth;
-  if (sidebarRef.value) {
-    sidebarWidth.value = sidebarRef.value.offsetWidth;
-  }
-}
 
 // Computed class for sidebar position
 const isRight = computed(() => themeStore.sidebarPosition === 'right');
 
-// Computed style for smooth transform-based animation
-const sidebarStyle = computed(() => {
-  if (isRight.value) {
-    // Calculate how much to move right: viewport width - sidebar width - (left padding + right padding)
-    const translateX = windowWidth.value - sidebarWidth.value - 40; // 20px padding on each side
-    return {
-      transform: `translateX(${translateX}px)`
-    };
-  }
-  return {
-    transform: 'translateX(0)'
-  };
+// Computed style (empty - we manipulate the element directly for FLIP)
+const sidebarStyle = computed(() => ({}));
+
+// FLIP animation for position changes
+watch(() => themeStore.sidebarPosition, async (newPos, oldPos) => {
+  if (!sidebarRef.value || oldPos === undefined) return;
+  
+  const sidebar = sidebarRef.value;
+  
+  // FIRST: Capture current position
+  const firstRect = sidebar.getBoundingClientRect();
+  
+  // Wait for Vue to update the DOM (class change)
+  await nextTick();
+  
+  // LAST: Get the new position after class change
+  const lastRect = sidebar.getBoundingClientRect();
+  
+  // INVERT: Calculate the difference
+  const deltaX = firstRect.left - lastRect.left;
+  
+  if (deltaX === 0) return;
+  
+  // Disable transition temporarily
+  sidebar.style.transition = 'none';
+  // Apply inverse transform to make it appear at the old position
+  sidebar.style.transform = `translateX(${deltaX}px)`;
+  
+  // Force browser reflow
+  sidebar.offsetHeight;
+  
+  // PLAY: Re-enable transition and animate to final position
+  sidebar.style.transition = '';
+  sidebar.style.transform = '';
 });
 
-// Watch for panel state changes to update measurements
-watch([() => uiStore.isPanelOpen, () => uiStore.panelWidth], () => {
-  // Wait for DOM update then measure
-  nextTick(() => {
-    // Small delay for CSS transitions to complete
-    setTimeout(updateMeasurements, 400);
-  });
-});
-
-onMounted(() => {
-  updateMeasurements();
-  window.addEventListener('resize', updateMeasurements);
-  // Update width after initial render
-  requestAnimationFrame(updateMeasurements);
-});
-
-onUnmounted(() => {
-  window.removeEventListener('resize', updateMeasurements);
-});
+onMounted(() => {});
+onUnmounted(() => {});
 </script>
 
 <template>
@@ -85,12 +80,15 @@ onUnmounted(() => {
   gap: 12px;
   z-index: 1000;
   pointer-events: none;
-  /* Smooth transform animation */
+  /* Smooth transform animation for position changes */
   transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
 }
 
-/* Right sidebar - reverse the flex direction for proper ordering */
+/* Right sidebar - anchor to right edge and reverse flex direction */
 .sidebar.sidebar-right {
+  left: auto;
+  right: 20px;
   flex-direction: row-reverse;
 }
 

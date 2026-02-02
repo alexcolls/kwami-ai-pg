@@ -17,7 +17,7 @@ export interface WelcomeAnimationOptions {
   autoRotate?: boolean;
 }
 
-export interface BlobLike {
+export interface BlobXyzLike {
   setScale: (value: number) => void;
   getScale: () => number;
   setSpikes: (x: number, y: number, z: number) => void;
@@ -49,8 +49,8 @@ export function useWelcomeAnimation(options: WelcomeAnimationOptions = {}) {
 
   const isPlaying = ref(false);
   const isComplete = ref(false);
-  
-  let blob: BlobLike | null = null;
+
+  let blobXyz: BlobXyzLike | null = null;
   let rafScale: number | null = null;
   let rafRotate: number | null = null;
   let destroyed = false;
@@ -58,25 +58,25 @@ export function useWelcomeAnimation(options: WelcomeAnimationOptions = {}) {
   const resolvedInitialScale = finalScale * initialScaleRatio;
 
   function animateScaleAndSpikes() {
-    if (!blob) return;
-    
+    if (!blobXyz) return;
+
     const start = performance.now();
 
     // Start fully spherical and small
-    blob.setSpikes(0, 0, 0);
-    blob.setScale(resolvedInitialScale);
+    blobXyz.setSpikes(0, 0, 0);
+    blobXyz.setScale(resolvedInitialScale);
 
     const tick = (now: number) => {
-      if (destroyed || !isPlaying.value || !blob) return;
+      if (destroyed || !isPlaying.value || !blobXyz) return;
 
       const tScale = Math.min(1, (now - start) / scaleDurationMs);
       const tSpikes = Math.min(1, (now - start) / spikesDurationMs);
 
       const s = lerp(resolvedInitialScale, finalScale, easeOutCubic(tScale));
-      blob.setScale(s);
+      blobXyz.setScale(s);
 
       const k = easeInOutQuad(tSpikes);
-      blob.setSpikes(targetSpikes.x * k, targetSpikes.y * k, targetSpikes.z * k);
+      blobXyz.setSpikes(targetSpikes.x * k, targetSpikes.y * k, targetSpikes.z * k);
 
       if (tScale < 1 || tSpikes < 1) {
         rafScale = requestAnimationFrame(tick);
@@ -90,11 +90,11 @@ export function useWelcomeAnimation(options: WelcomeAnimationOptions = {}) {
   }
 
   function animateRotation() {
-    if (!autoRotate || !blob) return;
+    if (!autoRotate || !blobXyz) return;
 
-    const mesh = blob.getMesh();
+    const mesh = blobXyz.getMesh();
     const tick = () => {
-      if (destroyed || !isPlaying.value || !blob) return;
+      if (destroyed || !isPlaying.value || !blobXyz) return;
       mesh.rotation.y += rotation.y;
       mesh.rotation.x += rotation.x;
       if (rotation.z) mesh.rotation.z += rotation.z;
@@ -104,20 +104,20 @@ export function useWelcomeAnimation(options: WelcomeAnimationOptions = {}) {
     rafRotate = requestAnimationFrame(tick);
   }
 
-  function start(blobInstance: BlobLike) {
+  function start(blobXyzInstance: BlobXyzLike) {
     if (destroyed || isPlaying.value) return;
-    
-    blob = blobInstance;
+
+    blobXyz = blobXyzInstance;
     isPlaying.value = true;
     isComplete.value = false;
-    
+
     animateScaleAndSpikes();
     animateRotation();
   }
 
   function stop() {
     isPlaying.value = false;
-    
+
     if (rafScale != null) {
       cancelAnimationFrame(rafScale);
       rafScale = null;
@@ -132,7 +132,7 @@ export function useWelcomeAnimation(options: WelcomeAnimationOptions = {}) {
     if (destroyed) return;
     destroyed = true;
     stop();
-    blob = null;
+    blobXyz = null;
   }
 
   onUnmounted(() => {

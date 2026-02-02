@@ -38,7 +38,7 @@ function updateRotation() {
   }
 
   try {
-    if (rendererType.value === 'blob') {
+    if (rendererType.value === 'blob-xyz') {
       const blob = kwami.value.avatar.getBlob();
       if (blob) {
         const mesh = blob.getMesh();
