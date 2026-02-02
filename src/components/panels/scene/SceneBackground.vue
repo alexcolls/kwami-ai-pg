@@ -5,6 +5,8 @@ import BaseColorPicker from '@/components/ui/BaseColorPicker.vue';
 import BaseSelect from '@/components/ui/BaseSelect.vue';
 import BaseSlider from '@/components/ui/BaseSlider.vue';
 import BaseInput from '@/components/ui/BaseInput.vue';
+import { sceneImagePresets, type SceneImagePreset } from '@/presets/scene/image-presets';
+import { sceneVideoPresets, type SceneVideoPreset } from '@/presets/scene/video-presets';
 
 type MediaType = 'none' | 'solid' | 'image' | 'video';
 type MediaFit = 'cover' | 'contain' | 'stretch';
@@ -182,6 +184,28 @@ function triggerImageUpload() {
 
 function triggerVideoUpload() {
   videoFileInput.value?.click();
+}
+
+// Preset selection
+function selectImagePreset(preset: SceneImagePreset) {
+  if (background.value?.media?.image) {
+    background.value.media.image.url = preset.url;
+  }
+}
+
+function selectVideoPreset(preset: SceneVideoPreset) {
+  if (background.value?.media?.video) {
+    background.value.media.video.url = preset.url;
+  }
+}
+
+// Check if a preset is selected
+function isImagePresetSelected(preset: SceneImagePreset): boolean {
+  return background.value?.media?.image?.url === preset.url;
+}
+
+function isVideoPresetSelected(preset: SceneVideoPreset): boolean {
+  return background.value?.media?.video?.url === preset.url;
 }
 
 // Gradient stop management
@@ -458,6 +482,23 @@ const gradientPreviewStyle = computed(() => {
       </div>
     </PanelSection>
 
+    <!-- Image Gallery -->
+    <PanelSection v-if="background.media.type === 'image'" title="Image Gallery" icon="ph:images-duotone" collapsible>
+      <div class="preset-gallery">
+        <div
+          v-for="preset in sceneImagePresets"
+          :key="preset.id"
+          class="preset-item"
+          :class="{ selected: isImagePresetSelected(preset) }"
+          @click="selectImagePreset(preset)"
+          :title="preset.name"
+        >
+          <img :src="preset.url" :alt="preset.name" loading="lazy" />
+          <span class="preset-name">{{ preset.name }}</span>
+        </div>
+      </div>
+    </PanelSection>
+
     <!-- Image Settings -->
     <PanelSection v-if="background.media.type === 'image'" title="Image Settings" collapsible>
       <div class="media-upload">
@@ -473,7 +514,7 @@ const gradientPreviewStyle = computed(() => {
           <span>Upload Image</span>
         </button>
         <BaseInput
-          label="Or enter URL"
+          label="Or enter URL (Custom)"
           v-model="background.media.image.url"
           placeholder="https://..."
         />
@@ -498,6 +539,23 @@ const gradientPreviewStyle = computed(() => {
       </div>
     </PanelSection>
 
+    <!-- Video Gallery -->
+    <PanelSection v-if="background.media.type === 'video'" title="Video Gallery" icon="ph:video-duotone" collapsible>
+      <div class="preset-gallery">
+        <div
+          v-for="preset in sceneVideoPresets"
+          :key="preset.id"
+          class="preset-item"
+          :class="{ selected: isVideoPresetSelected(preset) }"
+          @click="selectVideoPreset(preset)"
+          :title="preset.name"
+        >
+          <video :src="preset.url" muted loop preload="metadata" @mouseenter="($event.target as HTMLVideoElement).play()" @mouseleave="($event.target as HTMLVideoElement).pause()"></video>
+          <span class="preset-name">{{ preset.name }}</span>
+        </div>
+      </div>
+    </PanelSection>
+
     <!-- Video Settings -->
     <PanelSection v-if="background.media.type === 'video'" title="Video Settings" collapsible>
       <div class="media-upload">
@@ -513,7 +571,7 @@ const gradientPreviewStyle = computed(() => {
           <span>Upload Video</span>
         </button>
         <BaseInput
-          label="Or enter URL"
+          label="Or enter URL (Custom)"
           v-model="background.media.video.url"
           placeholder="https://..."
         />
@@ -810,6 +868,75 @@ const gradientPreviewStyle = computed(() => {
 </template>
 
 <style scoped>
+/* Preset Gallery */
+.preset-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 8px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--surface-3) transparent;
+}
+
+.preset-gallery::-webkit-scrollbar {
+  width: 6px;
+}
+
+.preset-gallery::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.preset-gallery::-webkit-scrollbar-thumb {
+  background: var(--surface-3);
+  border-radius: 3px;
+}
+
+.preset-item {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: all 0.2s ease;
+  background: var(--surface-1);
+}
+
+.preset-item:hover {
+  border-color: var(--accent-primary);
+  transform: scale(1.02);
+}
+
+.preset-item.selected {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px var(--accent-glow);
+}
+
+.preset-item img,
+.preset-item video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.preset-item .preset-name {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 4px 6px;
+  font-size: 10px;
+  font-weight: 500;
+  color: white;
+  background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
 /* Dice Buttons */
 .dice-btn {
   width: 24px;

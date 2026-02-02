@@ -3,6 +3,9 @@ import { reactive, ref, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { useKwami } from '@/composables/useKwami';
 import * as THREE from 'three';
 import BasePanel from '@/components/ui/BasePanel.vue';
+import PanelSection from '@/components/ui/PanelSection.vue';
+import BaseSlider from '@/components/ui/BaseSlider.vue';
+import BaseToggle from '@/components/ui/BaseToggle.vue';
 import SceneBackground, { type BackgroundConfig } from './SceneBackground.vue';
 
 const { kwami } = useKwami();
@@ -18,11 +21,27 @@ function generateOrbId(): string {
   return Math.random().toString(36).substring(2, 9);
 }
 
+interface StarFieldState {
+  enabled: boolean;
+  count: number;
+  fieldRadius: number;
+  twinkleSpeed: number;
+  rotationSpeed: number;
+}
+
 interface ScenePanelState {
   background: BackgroundConfig;
+  starField: StarFieldState;
 }
 
 const state = reactive<ScenePanelState>({
+  starField: {
+    enabled: false,
+    count: 8000,
+    fieldRadius: 500,
+    twinkleSpeed: 1.5,
+    rotationSpeed: 0.0003,
+  },
   background: {
     media: {
       type: 'none',
@@ -67,6 +86,46 @@ const state = reactive<ScenePanelState>({
 function getScene() {
   return kwami.value?.avatar.getScene();
 }
+
+// Star field controls
+function updateStarField() {
+  const scene = getScene();
+  if (!scene) return;
+  
+  scene.setStarFieldEnabled(state.starField.enabled);
+  scene.setStarFieldConfig({
+    count: state.starField.count,
+    fieldRadius: state.starField.fieldRadius,
+    twinkleSpeed: state.starField.twinkleSpeed,
+    rotationSpeed: state.starField.rotationSpeed,
+  });
+}
+
+// Star field watchers
+watch(() => state.starField.enabled, (enabled) => {
+  const scene = getScene();
+  if (scene) scene.setStarFieldEnabled(enabled);
+});
+
+watch(() => state.starField.count, (count) => {
+  const scene = getScene();
+  if (scene) scene.setStarFieldConfig({ count });
+});
+
+watch(() => state.starField.fieldRadius, (fieldRadius) => {
+  const scene = getScene();
+  if (scene) scene.setStarFieldConfig({ fieldRadius });
+});
+
+watch(() => state.starField.twinkleSpeed, (twinkleSpeed) => {
+  const scene = getScene();
+  if (scene) scene.setStarFieldConfig({ twinkleSpeed });
+});
+
+watch(() => state.starField.rotationSpeed, (rotationSpeed) => {
+  const scene = getScene();
+  if (scene) scene.setStarFieldConfig({ rotationSpeed });
+});
 
 // Helper to convert hex color + opacity to rgba string
 function hexToRgba(hex: string, opacity: number): string {
@@ -460,6 +519,64 @@ onUnmounted(() => {
 
 <template>
   <BasePanel icon="ph:mountains-duotone" title="Scene">
+    <!-- 3D Scene Effects -->
+    <PanelSection title="Star Field" icon="ph:star-duotone" collapsible>
+      <div class="toggle-group">
+        <BaseToggle
+          label="Enable Star Field"
+          v-model="state.starField.enabled"
+        />
+      </div>
+      <template v-if="state.starField.enabled">
+        <div class="settings-group" style="margin-top: 12px;">
+          <BaseSlider
+            label="Star Count"
+            v-model="state.starField.count"
+            :min="1000"
+            :max="20000"
+            :step="1000"
+          />
+          <BaseSlider
+            label="Field Radius"
+            v-model="state.starField.fieldRadius"
+            :min="200"
+            :max="1000"
+            :step="50"
+          />
+          <BaseSlider
+            label="Twinkle Speed"
+            v-model="state.starField.twinkleSpeed"
+            :min="0.5"
+            :max="5"
+            :step="0.25"
+            unit="x"
+          />
+          <BaseSlider
+            label="Rotation Speed"
+            v-model="state.starField.rotationSpeed"
+            :min="0"
+            :max="0.002"
+            :step="0.0001"
+          />
+        </div>
+      </template>
+    </PanelSection>
+
+    <!-- Background Controls -->
     <SceneBackground v-model:background="state.background" />
   </BasePanel>
 </template>
+
+<style scoped>
+.toggle-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.settings-group {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+</style>
