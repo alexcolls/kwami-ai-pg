@@ -152,12 +152,12 @@ export function getDefaultColors(): CrystalBallColors {
   };
 }
 
-// Tutorial defaults: iterations: 48, depth: 0.6, smoothing: 0.2, displacement: 0.1, speed: 0.071
+// Ultra-optimized for smooth 60fps
 export function getDefaultVolume(): CrystalBallVolume {
   return {
-    iterations: 48,
+    iterations: 16,
     depth: 0.6,
-    smoothing: 0.2,
+    smoothing: 0.25,
     noiseScale: 2.0,
   };
 }
