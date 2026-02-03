@@ -13,6 +13,8 @@ import PanelSection from '@/components/ui/PanelSection.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
 import BaseSlider from '@/components/ui/BaseSlider.vue';
 import BaseToggle from '@/components/ui/BaseToggle.vue';
+import BaseTooltip from '@/components/ui/BaseTooltip.vue';
+import BaseColorPicker from '@/components/ui/BaseColorPicker.vue';
 
 const themeStore = useThemeStore();
 const uiStore = useUIStore();
@@ -103,36 +105,42 @@ function handleFileImport(event: Event) {
 <template>
   <BasePanel icon="ph:palette-duotone" title="Theme">
     <template #actions>
-      <button
-        class="icon-btn"
-        :disabled="!themeStore.canUndo"
-        title="Undo (Ctrl+Z)"
-        @click="themeStore.undo"
-      >
-        <iconify-icon icon="ph:arrow-counter-clockwise-duotone"></iconify-icon>
-      </button>
-      <button
-        class="icon-btn"
-        :disabled="!themeStore.canRedo"
-        title="Redo (Ctrl+Y)"
-        @click="themeStore.redo"
-      >
-        <iconify-icon icon="ph:arrow-clockwise-duotone"></iconify-icon>
-      </button>
+      <BaseTooltip text="Undo (Ctrl+Z)" position="bottom">
+        <button
+          class="icon-btn"
+          :disabled="!themeStore.canUndo"
+          @click="themeStore.undo"
+        >
+          <iconify-icon icon="ph:arrow-counter-clockwise-duotone"></iconify-icon>
+        </button>
+      </BaseTooltip>
+      <BaseTooltip text="Redo (Ctrl+Y)" position="bottom">
+        <button
+          class="icon-btn"
+          :disabled="!themeStore.canRedo"
+          @click="themeStore.redo"
+        >
+          <iconify-icon icon="ph:arrow-clockwise-duotone"></iconify-icon>
+        </button>
+      </BaseTooltip>
     </template>
       <!-- Theme Presets -->
       <PanelSection title="Presets" icon="ph:stack-duotone" collapsible>
         <div class="preset-grid">
-          <button
+          <BaseTooltip
             v-for="preset in themePresets"
             :key="preset.name"
-            class="preset-card"
-            @click="themeStore.applyPreset(preset)"
+            :text="preset.description"
+            position="top"
           >
-            <iconify-icon :icon="preset.icon" class="preset-icon"></iconify-icon>
-            <span class="preset-name">{{ preset.name }}</span>
-            <span class="preset-desc">{{ preset.description }}</span>
-          </button>
+            <button
+              class="preset-card"
+              @click="themeStore.applyPreset(preset)"
+            >
+              <iconify-icon :icon="preset.icon" class="preset-icon"></iconify-icon>
+              <span class="preset-name">{{ preset.name }}</span>
+            </button>
+          </BaseTooltip>
         </div>
       </PanelSection>
 
@@ -188,47 +196,41 @@ function handleFileImport(event: Event) {
       <!-- Accent Color Presets -->
       <PanelSection title="Accent Presets" icon="ph:paint-brush-duotone" collapsible>
         <div class="accent-grid">
-          <button
+          <BaseTooltip
             v-for="preset in accentPresets"
             :key="preset.name"
-            class="accent-btn"
-            :class="{ active: themeStore.accentPrimary === preset.primary }"
-            :title="preset.name"
-            @click="selectAccent(preset)"
+            :text="preset.name"
+            position="top"
           >
-            <span 
-              class="accent-preview" 
-              :style="{ background: `linear-gradient(var(--gradient-direction, 135deg), ${preset.primary} 0%, ${preset.secondary} 100%)` }"
-            ></span>
-          </button>
+            <button
+              class="accent-btn"
+              :class="{ active: themeStore.accentPrimary === preset.primary }"
+              @click="selectAccent(preset)"
+            >
+              <span 
+                class="accent-preview" 
+                :style="{ background: `linear-gradient(var(--gradient-direction, 135deg), ${preset.primary} 0%, ${preset.secondary} 100%)` }"
+              ></span>
+            </button>
+          </BaseTooltip>
         </div>
       </PanelSection>
 
       <!-- Custom Accent Color -->
       <PanelSection title="Custom Colors" icon="ph:eyedropper-duotone" collapsible>
         <div class="color-pickers">
-          <div class="color-picker-item">
-            <label class="color-label">Primary</label>
-            <div class="color-input-wrapper">
-              <input
-                type="color"
-                :value="themeStore.accentPrimary"
-                @input="themeStore.setAccentPrimary(($event.target as HTMLInputElement).value)"
-              />
-              <span class="color-value">{{ themeStore.accentPrimary }}</span>
-            </div>
-          </div>
-          <div class="color-picker-item">
-            <label class="color-label">Secondary</label>
-            <div class="color-input-wrapper">
-              <input
-                type="color"
-                :value="themeStore.accentSecondary"
-                @input="themeStore.setAccentSecondary(($event.target as HTMLInputElement).value)"
-              />
-              <span class="color-value">{{ themeStore.accentSecondary }}</span>
-            </div>
-          </div>
+          <BaseColorPicker
+            variant="inline"
+            label="Primary"
+            :modelValue="themeStore.accentPrimary"
+            @update:modelValue="themeStore.setAccentPrimary($event)"
+          />
+          <BaseColorPicker
+            variant="inline"
+            label="Secondary"
+            :modelValue="themeStore.accentSecondary"
+            @update:modelValue="themeStore.setAccentSecondary($event)"
+          />
         </div>
         <BaseSlider
           label="Gradient Angle"
@@ -378,17 +380,25 @@ function handleFileImport(event: Event) {
         </div>
 
         <!-- Custom Resize Toggle -->
-        <div class="toggle-group" style="margin-top: 14px;">
+        <div 
+          class="toggle-group" 
+          style="margin-top: 14px;"
+          :title="themeStore.compactMode ? 'Disable Compact Mode to enable custom resize' : ''"
+        >
           <BaseToggle
             label="Allow Custom Resize"
             :modelValue="uiStore.allowCustomResize"
+            :disabled="themeStore.compactMode"
             @update:modelValue="uiStore.setAllowCustomResize($event)"
           />
         </div>
 
         <p class="layout-hint">
           <iconify-icon icon="ph:info-duotone"></iconify-icon>
-          <template v-if="uiStore.allowCustomResize">
+          <template v-if="themeStore.compactMode">
+            Disable Compact Mode to allow custom resize
+          </template>
+          <template v-else-if="uiStore.allowCustomResize">
             Drag the panel edge to resize
           </template>
           <template v-else>
@@ -496,17 +506,12 @@ function handleFileImport(event: Event) {
               :step="5"
               unit="%"
             />
-            <div class="color-picker-item">
-              <label class="color-label">Color</label>
-              <div class="color-input-wrapper">
-                <input
-                  type="color"
-                  :value="themeStore.flashlightColor"
-                  @input="themeStore.setFlashlightColor(($event.target as HTMLInputElement).value)"
-                />
-                <span class="color-value">{{ themeStore.flashlightColor }}</span>
-              </div>
-            </div>
+            <BaseColorPicker
+              variant="inline"
+              label="Color"
+              :modelValue="themeStore.flashlightColor"
+              @update:modelValue="themeStore.setFlashlightColor($event)"
+            />
           </div>
         </template>
       </PanelSection>
@@ -616,19 +621,19 @@ function handleFileImport(event: Event) {
 /* Theme Presets */
 .preset-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 8px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
 }
 
 .preset-card {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  padding: 14px 10px;
+  gap: 3px;
+  padding: 8px 4px;
   background: var(--surface-1);
   border: 1px solid transparent;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   color: var(--text-secondary);
   cursor: pointer;
   transition: all var(--duration-fast) ease;
@@ -641,13 +646,15 @@ function handleFileImport(event: Event) {
 }
 
 .preset-icon {
-  font-size: 24px;
+  font-size: 16px;
   color: var(--accent-primary);
 }
 
 .preset-name {
-  font-size: 12px;
+  font-size: 9px;
   font-weight: 600;
+  text-align: center;
+  line-height: 1.2;
 }
 
 .preset-desc {
@@ -738,53 +745,7 @@ function handleFileImport(event: Event) {
   margin-bottom: 14px;
 }
 
-.color-picker-item {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.color-label {
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--text-secondary);
-}
-
-.color-input-wrapper {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
-  background: var(--surface-1);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--glass-border);
-}
-
-.color-input-wrapper input[type="color"] {
-  width: 24px;
-  height: 24px;
-  padding: 0;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: none;
-  cursor: pointer;
-}
-
-.color-input-wrapper input[type="color"]::-webkit-color-swatch-wrapper {
-  padding: 0;
-}
-
-.color-input-wrapper input[type="color"]::-webkit-color-swatch {
-  border: none;
-  border-radius: var(--radius-sm);
-}
-
-.color-value {
-  font-size: 11px;
-  font-family: 'JetBrains Mono', monospace;
-  color: var(--text-muted);
-  text-transform: uppercase;
-}
+/* Color picker styles now handled by BaseColorPicker component */
 
 /* Option Buttons */
 .option-group {
