@@ -1,0 +1,431 @@
+/* ColorPicker Component */
+.kwami-colorpicker {
+  position: relative;
+  display: inline-flex;
+}
+
+/* Trigger button */
+.kwami-colorpicker-trigger {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1rem;
+  border: none;
+  border-radius: 12px;
+  background: var(--kwami-surface, #e0e5ec);
+  box-shadow:
+    4px 4px 8px var(--kwami-shadow-dark, rgba(163, 177, 198, 0.6)),
+    -4px -4px 8px var(--kwami-shadow-light, rgba(255, 255, 255, 0.8));
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: var(--kwami-text, #333);
+}
+
+.kwami-colorpicker-trigger:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    6px 6px 12px var(--kwami-shadow-dark, rgba(163, 177, 198, 0.6)),
+    -6px -6px 12px var(--kwami-shadow-light, rgba(255, 255, 255, 0.8));
+}
+
+.kwami-colorpicker-trigger:active {
+  transform: translateY(0);
+  box-shadow:
+    inset 2px 2px 4px var(--kwami-shadow-dark, rgba(163, 177, 198, 0.6)),
+    inset -2px -2px 4px var(--kwami-shadow-light, rgba(255, 255, 255, 0.8));
+}
+
+.kwami-colorpicker.active .kwami-colorpicker-trigger {
+  box-shadow:
+    inset 2px 2px 4px var(--kwami-shadow-dark, rgba(163, 177, 198, 0.6)),
+    inset -2px -2px 4px var(--kwami-shadow-light, rgba(255, 255, 255, 0.8));
+}
+
+/* Color preview swatch */
+.kwami-colorpicker-preview {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  box-shadow:
+    inset 2px 2px 4px rgba(0, 0, 0, 0.2),
+    inset -1px -1px 2px rgba(255, 255, 255, 0.3);
+  transition: transform 0.2s ease;
+}
+
+.kwami-colorpicker-trigger:hover .kwami-colorpicker-preview {
+  transform: scale(1.1);
+}
+
+/* Popup container */
+.kwami-colorpicker-popup {
+  position: absolute;
+  bottom: calc(100% + 12px);
+  left: 50%;
+  transform: translateX(-50%) scale(0.9);
+  opacity: 0;
+  visibility: hidden;
+  padding: 1rem;
+  border-radius: 20px;
+  background: var(--kwami-surface, #e0e5ec);
+  box-shadow:
+    8px 8px 20px var(--kwami-shadow-dark, rgba(163, 177, 198, 0.6)),
+    -8px -8px 20px var(--kwami-shadow-light, rgba(255, 255, 255, 0.8)),
+    0 10px 40px rgba(0, 0, 0, 0.15);
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  z-index: 10000;
+}
+
+.kwami-colorpicker-popup.active {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) scale(1);
+}
+
+/* Arrow pointing down (for upward popup) */
+.kwami-colorpicker-popup::after {
+  content: '';
+  position: absolute;
+  bottom: -8px;
+  left: 50%;
+  transform: translateX(-50%) rotate(45deg);
+  width: 16px;
+  height: 16px;
+  background: var(--kwami-surface, #e0e5ec);
+  box-shadow: 4px 4px 8px var(--kwami-shadow-dark, rgba(163, 177, 198, 0.6));
+  z-index: -1;
+}
+
+/* Popup opens downward */
+.kwami-colorpicker-popup-down {
+  bottom: auto;
+  top: calc(100% + 12px);
+}
+
+.kwami-colorpicker-popup-down::after {
+  bottom: auto;
+  top: -8px;
+  box-shadow: -4px -4px 8px var(--kwami-shadow-light, rgba(255, 255, 255, 0.8));
+}
+
+/* Popup with auto direction - will be positioned dynamically */
+/* Default to opening upward, JavaScript will adjust if needed */
+
+/* Actions row at bottom */
+.kwami-colorpicker-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--kwami-shadow-dark, rgba(163, 177, 198, 0.3));
+  gap: 0.5rem;
+}
+
+/* Action item - button with label */
+.kwami-colorpicker-action-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  flex: 1;
+}
+
+/* Action label */
+.kwami-colorpicker-action-label {
+  font-size: 0.55rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--kwami-text-secondary, #888);
+  white-space: nowrap;
+}
+
+/* Common action button style */
+.kwami-colorpicker-pipette,
+.kwami-colorpicker-randomize,
+.kwami-colorpicker-reset,
+.kwami-colorpicker-copy-opposite {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 10px;
+  background: var(--kwami-surface, #e0e5ec);
+  box-shadow:
+    3px 3px 6px var(--kwami-shadow-dark, rgba(163, 177, 198, 0.6)),
+    -3px -3px 6px var(--kwami-shadow-light, rgba(255, 255, 255, 0.8));
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--kwami-text-secondary, #888);
+  transition: all 0.2s ease;
+}
+
+.kwami-colorpicker-pipette:hover,
+.kwami-colorpicker-randomize:hover,
+.kwami-colorpicker-reset:hover,
+.kwami-colorpicker-copy-opposite:hover {
+  color: var(--kwami-accent, #ff9500);
+  transform: translateY(-2px);
+}
+
+/* Button click state - simple press effect */
+.kwami-colorpicker-pipette:active,
+.kwami-colorpicker-pipette.clicked,
+.kwami-colorpicker-randomize:active,
+.kwami-colorpicker-randomize.clicked,
+.kwami-colorpicker-reset:active,
+.kwami-colorpicker-reset.clicked,
+.kwami-colorpicker-copy-opposite:active,
+.kwami-colorpicker-copy-opposite.clicked {
+  transform: translateY(0);
+  box-shadow:
+    inset 2px 2px 4px var(--kwami-shadow-dark, rgba(163, 177, 198, 0.6)),
+    inset -2px -2px 4px var(--kwami-shadow-light, rgba(255, 255, 255, 0.8));
+  color: var(--kwami-accent, #ff9500);
+}
+
+/* Color wheel container */
+.kwami-colorpicker-wheel {
+  position: relative;
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  overflow: hidden;
+  box-shadow:
+    inset 4px 4px 8px var(--kwami-shadow-dark, rgba(163, 177, 198, 0.6)),
+    inset -4px -4px 8px var(--kwami-shadow-light, rgba(255, 255, 255, 0.8));
+}
+
+/* Canvas */
+.kwami-colorpicker-canvas {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  cursor: crosshair;
+}
+
+/* Selection cursor - always visible with current color */
+.kwami-colorpicker-cursor {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border: 3px solid white;
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.3),
+    0 2px 8px rgba(0, 0, 0, 0.4),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.1);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  opacity: 1;
+  transition:
+    opacity 0.15s ease,
+    background-color 0.1s ease;
+}
+
+/* Sliders container */
+.kwami-colorpicker-sliders {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* Slider row */
+.kwami-colorpicker-slider-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 10px;
+  background: var(--kwami-surface, #e0e5ec);
+  box-shadow:
+    inset 2px 2px 4px var(--kwami-shadow-dark, rgba(163, 177, 198, 0.6)),
+    inset -2px -2px 4px var(--kwami-shadow-light, rgba(255, 255, 255, 0.8));
+}
+
+.kwami-colorpicker-slider-row iconify-icon {
+  color: var(--kwami-text-secondary, #888);
+  flex-shrink: 0;
+}
+
+/* Brightness slider */
+.kwami-colorpicker-brightness-slider {
+  flex: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(to right, #000000, #ffffff);
+  outline: none;
+  cursor: pointer;
+}
+
+/* Opacity slider */
+.kwami-colorpicker-opacity-slider {
+  flex: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 8px;
+  border-radius: 4px;
+  background:
+    linear-gradient(to right, transparent 0%, var(--kwami-text, #333) 100%),
+    repeating-conic-gradient(#ccc 0% 25%, white 0% 50%) 50% / 8px 8px;
+  outline: none;
+  cursor: pointer;
+}
+
+/* Common slider thumb styles */
+.kwami-colorpicker-brightness-slider::-webkit-slider-thumb,
+.kwami-colorpicker-opacity-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--kwami-surface, #e0e5ec);
+  border: 2px solid var(--kwami-text-secondary, #888);
+  box-shadow:
+    2px 2px 4px var(--kwami-shadow-dark, rgba(163, 177, 198, 0.6)),
+    -1px -1px 2px var(--kwami-shadow-light, rgba(255, 255, 255, 0.8));
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.kwami-colorpicker-brightness-slider::-webkit-slider-thumb:hover,
+.kwami-colorpicker-opacity-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.1);
+  border-color: var(--kwami-accent, #ff9500);
+}
+
+.kwami-colorpicker-brightness-slider::-moz-range-thumb,
+.kwami-colorpicker-opacity-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--kwami-surface, #e0e5ec);
+  border: 2px solid var(--kwami-text-secondary, #888);
+  box-shadow:
+    2px 2px 4px var(--kwami-shadow-dark, rgba(163, 177, 198, 0.6)),
+    -1px -1px 2px var(--kwami-shadow-light, rgba(255, 255, 255, 0.8));
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.kwami-colorpicker-brightness-slider::-moz-range-thumb:hover,
+.kwami-colorpicker-opacity-slider::-moz-range-thumb:hover {
+  transform: scale(1.1);
+  border-color: var(--kwami-accent, #ff9500);
+}
+
+/* Value row with format toggle and input */
+.kwami-colorpicker-value-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+  width: 200px;
+}
+
+/* Format toggle button */
+.kwami-colorpicker-format-toggle {
+  padding: 0.35rem 0.45rem;
+  border: none;
+  border-radius: 6px;
+  background: var(--kwami-surface, #e0e5ec);
+  box-shadow:
+    2px 2px 4px var(--kwami-shadow-dark, rgba(163, 177, 198, 0.6)),
+    -2px -2px 4px var(--kwami-shadow-light, rgba(255, 255, 255, 0.8));
+  font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--kwami-text-secondary, #888);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  flex-shrink: 0;
+}
+
+.kwami-colorpicker-format-toggle:hover {
+  color: var(--kwami-accent, #ff9500);
+  transform: scale(1.05);
+}
+
+.kwami-colorpicker-format-toggle:active {
+  transform: scale(0.95);
+  box-shadow:
+    inset 1px 1px 2px var(--kwami-shadow-dark, rgba(163, 177, 198, 0.6)),
+    inset -1px -1px 2px var(--kwami-shadow-light, rgba(255, 255, 255, 0.8));
+}
+
+/* Value input */
+.kwami-colorpicker-value-input {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  padding: 0.4rem 0.5rem;
+  border: none;
+  border-radius: 6px;
+  background: var(--kwami-surface, #e0e5ec);
+  box-shadow:
+    inset 2px 2px 4px var(--kwami-shadow-dark, rgba(163, 177, 198, 0.6)),
+    inset -2px -2px 4px var(--kwami-shadow-light, rgba(255, 255, 255, 0.8));
+  font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--kwami-text, #333);
+  letter-spacing: 0.2px;
+  outline: none;
+  transition: box-shadow 0.15s ease;
+}
+
+.kwami-colorpicker-value-input:focus {
+  box-shadow:
+    inset 2px 2px 4px var(--kwami-shadow-dark, rgba(163, 177, 198, 0.6)),
+    inset -2px -2px 4px var(--kwami-shadow-light, rgba(255, 255, 255, 0.8)),
+    0 0 0 2px var(--kwami-accent, #ff9500);
+}
+
+.kwami-colorpicker-value-input::placeholder {
+  color: var(--kwami-text-secondary, #888);
+  opacity: 0.6;
+}
+
+.kwami-colorpicker-value-input::selection {
+  background: var(--kwami-accent, #ff9500);
+  color: white;
+}
+
+/* Icon styling */
+.kwami-colorpicker-trigger iconify-icon {
+  color: var(--kwami-text-secondary, #888);
+  transition:
+    color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.kwami-colorpicker-trigger:hover iconify-icon {
+  color: var(--kwami-accent, #ff9500);
+  transform: rotate(15deg);
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .kwami-colorpicker-popup {
+    position: fixed;
+    bottom: auto;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.9);
+  }
+
+  .kwami-colorpicker-popup.active {
+    transform: translate(-50%, -50%) scale(1);
+  }
+
+  .kwami-colorpicker-popup::after {
+    display: none;
+  }
+}
