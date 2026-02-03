@@ -11,19 +11,20 @@ const isResizing = ref(false);
 const startX = ref(0);
 const startWidth = ref(0);
 
-// Computed to check if resizing is allowed
-const canResize = computed(() => !themeStore.compactMode && uiStore.allowCustomResize);
+// Computed to check if resizing is allowed (uses canCustomResize which respects compact mode)
+const canResize = computed(() => uiStore.canCustomResize);
 
 // Computed to check if sidebar is on the right
 const isRightSidebar = computed(() => themeStore.sidebarPosition === 'right');
 
-// Dynamic panel width style
+// Dynamic panel width style with viewport constraint
 const panelStyle = computed(() => {
   if (themeStore.compactMode) {
     return {}; // Let CSS handle compact mode width
   }
   return {
     width: `${uiStore.panelWidth}px`,
+    maxWidth: `calc(100vw - 120px)`, // CSS fallback: sidebar nav (62px) + gaps (12px) + margins (40px) + buffer
   };
 });
 

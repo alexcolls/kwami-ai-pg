@@ -438,7 +438,7 @@ export function getDefaultCrystalBallState(): CrystalBallState {
       rotation: { x: 0, y: 0.001, z: 0 },
     },
     surface: {
-      scale: 4.0,
+      scale: 3.0,
       roughness: 0.1,
       metalness: 0.0,
       envMapIntensity: 0.8,

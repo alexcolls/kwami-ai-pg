@@ -61,7 +61,7 @@ const {
 // Computed: get the presets for the current renderer
 const currentPresets = computed(() => {
   switch (rendererType.value) {
-    case 'blob':
+    case 'blob-xyz':
       return blobXyzPresets.value;
     case 'orbital-shards':
       return orbitalShardsPresets.value;
@@ -125,7 +125,7 @@ function syncFromKwami() {
   // Sync renderer type from kwami
   avatarStore.setRendererType(
     kwamiRendererType.value as
-      | 'blob'
+      | 'blob-xyz'
       | 'orbital-shards'
       | 'stars-genesis'
       | 'crystal-ball'
@@ -422,6 +422,10 @@ watch(
   () => crystalBallVolume.value.noiseScale,
   (v) => getCrystalBall()?.setNoiseScale(v),
 );
+watch(
+  () => crystalBallVolume.value.quality,
+  (v) => getCrystalBall()?.setQuality(v),
+);
 
 // ANIMATION watchers
 watch(
@@ -623,7 +627,7 @@ watch(rendererType, (type) => {
 
 // Actions
 function handleSwitchRenderer(
-  type: 'blob' | 'orbital-shards' | 'stars-genesis' | 'crystal-ball' | 'black-hole',
+  type: 'blob-xyz' | 'orbital-shards' | 'stars-genesis' | 'crystal-ball' | 'black-hole',
 ) {
   avatarStore.setRendererType(type);
   switchRenderer(type as any);
@@ -644,7 +648,7 @@ function handleReset() {
   blackHoleStore.resetAll();
 
   // Apply defaults to kwami instance
-  if (rendererType.value === 'blob') {
+  if (rendererType.value === 'blob-xyz') {
     const b = getBlob();
     if (b && kwami.value) {
       // Skin
@@ -722,7 +726,7 @@ function handleApplyPreset(presetId: string) {
     }
 
     // Manually sync preset to kwami instance (watchers may not fire for all nested changes)
-    if (rendererType.value === 'blob') {
+    if (rendererType.value === 'blob-xyz') {
       const b = getBlob();
       if (b && kwami.value) {
         // Skin
@@ -931,13 +935,13 @@ onUnmounted(() => {
     <PanelSection title="Avatar Type" icon="ph:swap-duotone" collapsible>
       <p class="section-desc">Choose the visual style for your avatar</p>
       <div class="renderer-selector">
-        <label class="renderer-option" :class="{ active: rendererType === 'blob' }">
+        <label class="renderer-option" :class="{ active: rendererType === 'blob-xyz' }">
           <input
             type="radio"
             name="renderer"
-            value="blob"
-            :checked="rendererType === 'blob'"
-            @change="handleSwitchRenderer('blob')"
+            value="blob-xyz"
+            :checked="rendererType === 'blob-xyz'"
+            @change="handleSwitchRenderer('blob-xyz')"
           />
           <iconify-icon icon="ph:circle-wavy-duotone" class="renderer-icon"></iconify-icon>
           <span class="renderer-label">Blob XYZ</span>
@@ -1021,7 +1025,7 @@ onUnmounted(() => {
     </PanelSection>
 
     <!-- Sub-components -->
-    <BlobXyzSettings v-if="rendererType === 'blob'" />
+    <BlobXyzSettings v-if="rendererType === 'blob-xyz'" />
     <OrbitalShardsSettings v-if="rendererType === 'orbital-shards'" />
     <StarsGenesisSettings v-if="rendererType === 'stars-genesis'" />
     <CrystalBallSettings v-if="rendererType === 'crystal-ball'" />

@@ -11,7 +11,7 @@ declare global {
 
 // Singleton state
 const kwamiInstance = shallowRef<Kwami | null>(null);
-const rendererType = ref<'blob-xyz' | 'orbital-shards' | 'stars-genesis' | 'crystal-ball'>('blob-xyz');
+const rendererType = ref<'blob-xyz' | 'orbital-shards' | 'stars-genesis' | 'crystal-ball' | 'black-hole'>('blob-xyz');
 const isConnected = ref(false);
 
 export function useKwami() {
@@ -21,7 +21,7 @@ export function useKwami() {
   // User ID from authenticated user, fallback to 'anonymous'
   const userId = computed(() => authStore.userId || 'anonymous');
 
-  function init(canvas: HTMLCanvasElement, renderer: 'blob-xyz' | 'orbital-shards' | 'stars-genesis' | 'crystal-ball' = 'blob-xyz') {
+  function init(canvas: HTMLCanvasElement, renderer: 'blob-xyz' | 'orbital-shards' | 'stars-genesis' | 'crystal-ball' | 'black-hole' = 'blob-xyz') {
     rendererType.value = renderer;
 
     // Get voice config from store
@@ -32,6 +32,7 @@ export function useKwami() {
       if (renderer === 'orbital-shards') return ['#050510', '#0a0a20', '#050510'];
       if (renderer === 'stars-genesis') return ['#000000', '#0a0a15', '#000000'];
       if (renderer === 'crystal-ball') return ['#0a0510', '#150a20', '#0a0510'];
+      if (renderer === 'black-hole') return ['#000000', '#050510', '#000000'];
       return ['#0a0a1a', '#1a1a3a', '#0a0a1a'];
     };
 
@@ -90,14 +91,14 @@ export function useKwami() {
         crystalBall: {
           style: { style: 'mystical' as 'mystical' | 'nebula' | 'earth' | 'fire' | 'ocean' },
           colors: { primary: '#6b5b95', secondary: '#feb236' },
-          // Ultra-optimized for smooth 60fps
-          volume: { iterations: 16, depth: 0.6, smoothing: 0.25, noiseScale: 2.0 },
+          // Tutorial defaults for magical marble effect
+          volume: { iterations: 18, depth: 0.6, smoothing: 0.3, noiseScale: 1.0 },
           animation: {
-            displacementSpeed: 0.071,
-            displacementStrength: 0.1,
+            displacementSpeed: 0.07,
+            displacementStrength: 0.3,
             rotationSpeed: { x: 0, y: 0.001, z: 0 },
           },
-          scale: 4.0,
+          scale: 3.0,
           roughness: 0.1,
           metalness: 0.0,
           envMapIntensity: 0.8,
@@ -231,7 +232,7 @@ export function useKwami() {
     }
   }
 
-  function switchRenderer(newRenderer: 'blob-xyz' | 'orbital-shards' | 'stars-genesis' | 'crystal-ball') {
+  function switchRenderer(newRenderer: 'blob-xyz' | 'orbital-shards' | 'stars-genesis' | 'crystal-ball' | 'black-hole') {
     if (!kwamiInstance.value) {
       console.warn('Cannot switch renderer: Kwami not initialized');
       return;

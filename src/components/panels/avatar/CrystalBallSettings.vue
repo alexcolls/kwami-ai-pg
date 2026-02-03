@@ -298,11 +298,13 @@ watch(clickEvents, (config) => {
     </template>
     <p class="section-desc">Internal volumetric effect parameters</p>
     <div class="slider-group">
-      <BaseSlider label="Iterations" :min="8" :max="32" :step="4" v-model="volume.iterations" />
+      <BaseSlider label="Quality" :min="1" :max="4" :step="1" v-model="volume.quality" />
+      <BaseSlider label="Iterations" :min="16" :max="48" :step="4" v-model="volume.iterations" />
       <BaseSlider label="Depth" :min="0.3" :max="1" :step="0.05" v-model="volume.depth" />
       <BaseSlider label="Smoothing" :min="0.05" :max="0.5" :step="0.01" v-model="volume.smoothing" />
       <BaseSlider label="Noise Scale" :min="1" :max="5" :step="0.1" v-model="volume.noiseScale" />
     </div>
+    <p class="quality-hint">Quality: 1=Fast, 2=Balanced, 3=Detailed, 4=Maximum</p>
   </PanelSection>
 
   <!-- ==================== ANIMATION ==================== -->
@@ -535,6 +537,14 @@ watch(clickEvents, (config) => {
   font-size: 11px;
   color: var(--text-muted);
   margin: 0 0 12px 0;
+}
+
+/* Quality Hint */
+.quality-hint {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin: 8px 0 0 0;
+  opacity: 0.7;
   line-height: 1.4;
 }
 
