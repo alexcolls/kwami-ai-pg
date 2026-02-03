@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue';
+import { storeToRefs } from 'pinia';
 import PanelSection from '@/components/ui/PanelSection.vue';
 import BaseColorPicker from '@/components/ui/BaseColorPicker.vue';
 import BaseSelect from '@/components/ui/BaseSelect.vue';
@@ -7,69 +8,16 @@ import BaseSlider from '@/components/ui/BaseSlider.vue';
 import BaseInput from '@/components/ui/BaseInput.vue';
 import { sceneImagePresets, type SceneImagePreset } from '@/presets/scene/image-presets';
 import { sceneVideoPresets, type SceneVideoPreset } from '@/presets/scene/video-presets';
+import { sceneHdriPresets, type SceneHdriPreset } from '@/presets/scene/hdri-presets';
+import { useSceneStore, type GradientStop, type GradientOrb } from '@/stores/scene';
 
-type MediaType = 'none' | 'solid' | 'image' | 'video';
-type MediaFit = 'cover' | 'contain' | 'stretch';
-type GradientType = 'radial' | 'linear' | 'orbs';
-type BlendMode = 'normal' | 'multiply' | 'screen' | 'overlay' | 'soft-light';
+// Use store for state persistence
+const sceneStore = useSceneStore();
+const { background } = storeToRefs(sceneStore);
 
-export interface GradientStop {
-  color: string;
-  position: number; // 0-100
-  opacity: number;  // 0-1
-}
-
-export interface GradientOrb {
-  id: string;
-  x: number; // 0-100 position
-  y: number; // 0-100 position
-  size: number; // 10-100 radius percentage
-  color: string;
-  opacity: number; // 0-1
-  softness: number; // 0-100 edge softness
-}
-
-export interface BackgroundConfig {
-  // Media layer (back)
-  media: {
-    type: MediaType;
-    solidColor: string;
-    solidOpacity: number;
-    image: {
-      url: string;
-      fit: MediaFit;
-      opacity: number;
-    };
-    video: {
-      url: string;
-      fit: MediaFit;
-      opacity: number;
-      loop: boolean;
-      muted: boolean;
-    };
-  };
-  // Gradient layer (front overlay)
-  gradient: {
-    enabled: boolean;
-    type: GradientType;
-    angle: number; // 0-360 for linear
-    radialCenter: { x: number; y: number }; // 0-100
-    radialSize: number; // 0-200 (percentage)
-    stops: GradientStop[];
-    orbs: GradientOrb[]; // For orbs mode
-    opacity: number;
-    blendMode: BlendMode;
-  };
-}
-
-// Use defineModel for proper two-way binding (Vue 3.3+)
-const background = defineModel<BackgroundConfig>('background', { required: true });
-
-const emit = defineEmits<{
-  (e: 'preset', name: string): void;
-  (e: 'imageUpload', file: File): void;
-  (e: 'videoUpload', file: File): void;
-}>();
+// Re-export types for backwards compatibility
+export type { GradientStop, GradientOrb };
+export type { BackgroundConfig } from '@/stores/scene';
 
 // Helper functions for randomization
 // function randomHex(): string {
@@ -93,76 +41,16 @@ function generateOrbId(): string {
   return Math.random().toString(36).substring(2, 9);
 }
 
-// Initialize optional properties with defaults
-watch(background, (bg) => {
-  if (bg) {
-    // Ensure media defaults
-    if (!bg.media) {
-      bg.media = {
-        type: 'none',
-        solidColor: '#0a0a1a',
-        solidOpacity: 1,
-        image: { url: '', fit: 'cover', opacity: 1 },
-        video: { url: '', fit: 'cover', opacity: 1, loop: true, muted: true },
-      };
-    }
-    if (!bg.media.image) {
-      bg.media.image = { url: '', fit: 'cover', opacity: 1 };
-    }
-    if (!bg.media.video) {
-      bg.media.video = { url: '', fit: 'cover', opacity: 1, loop: true, muted: true };
-    }
-    // Ensure gradient defaults
-    if (!bg.gradient) {
-      bg.gradient = {
-        enabled: true,
-        type: 'radial',
-        angle: 180,
-        radialCenter: { x: 50, y: 50 },
-        radialSize: 100,
-        stops: [
-          { color: '#0a0a1a', position: 0, opacity: 1 },
-          { color: '#1a1a3a', position: 50, opacity: 1 },
-          { color: '#0a0a1a', position: 100, opacity: 1 },
-        ],
-        orbs: [
-          { id: generateOrbId(), x: 20, y: 30, size: 40, color: '#1a2a4a', opacity: 0.8, softness: 80 },
-          { id: generateOrbId(), x: 80, y: 70, size: 50, color: '#2a1a3a', opacity: 0.7, softness: 70 },
-          { id: generateOrbId(), x: 50, y: 50, size: 60, color: '#0a1a2a', opacity: 0.6, softness: 90 },
-        ],
-        opacity: 1,
-        blendMode: 'normal',
-      };
-    }
-    if (!bg.gradient.stops || bg.gradient.stops.length < 2) {
-      bg.gradient.stops = [
-        { color: '#0a0a1a', position: 0, opacity: 1 },
-        { color: '#1a1a3a', position: 50, opacity: 1 },
-        { color: '#0a0a1a', position: 100, opacity: 1 },
-      ];
-    }
-    if (!bg.gradient.orbs || bg.gradient.orbs.length === 0) {
-      bg.gradient.orbs = [
-        { id: generateOrbId(), x: 20, y: 30, size: 40, color: '#1a2a4a', opacity: 0.8, softness: 80 },
-        { id: generateOrbId(), x: 80, y: 70, size: 50, color: '#2a1a3a', opacity: 0.7, softness: 70 },
-        { id: generateOrbId(), x: 50, y: 50, size: 60, color: '#0a1a2a', opacity: 0.6, softness: 90 },
-      ];
-    }
-  }
-}, { immediate: true, deep: true });
-
 const imageFileInput = ref<HTMLInputElement | null>(null);
 const videoFileInput = ref<HTMLInputElement | null>(null);
+const showCustomSettings = ref(false);
 
 function handleImageUpload(event: Event) {
   const input = event.target as HTMLInputElement;
   if (input.files && input.files[0]) {
     const file = input.files[0];
     const url = URL.createObjectURL(file);
-    if (background.value?.media?.image) {
-      background.value.media.image.url = url;
-    }
-    emit('imageUpload', file);
+    sceneStore.setImageUrl(url);
   }
 }
 
@@ -171,10 +59,7 @@ function handleVideoUpload(event: Event) {
   if (input.files && input.files[0]) {
     const file = input.files[0];
     const url = URL.createObjectURL(file);
-    if (background.value?.media?.video) {
-      background.value.media.video.url = url;
-    }
-    emit('videoUpload', file);
+    sceneStore.setVideoUrl(url);
   }
 }
 
@@ -188,15 +73,15 @@ function triggerVideoUpload() {
 
 // Preset selection
 function selectImagePreset(preset: SceneImagePreset) {
-  if (background.value?.media?.image) {
-    background.value.media.image.url = preset.url;
-  }
+  sceneStore.setImageUrl(preset.url);
 }
 
 function selectVideoPreset(preset: SceneVideoPreset) {
-  if (background.value?.media?.video) {
-    background.value.media.video.url = preset.url;
-  }
+  sceneStore.setVideoUrl(preset.url);
+}
+
+function selectHdriPreset(preset: SceneHdriPreset) {
+  sceneStore.setHdriUrl(preset.url);
 }
 
 // Check if a preset is selected
@@ -206,6 +91,10 @@ function isImagePresetSelected(preset: SceneImagePreset): boolean {
 
 function isVideoPresetSelected(preset: SceneVideoPreset): boolean {
   return background.value?.media?.video?.url === preset.url;
+}
+
+function isHdriPresetSelected(preset: SceneHdriPreset): boolean {
+  return background.value?.media?.hdri?.url === preset.url;
 }
 
 // Gradient stop management
@@ -306,83 +195,6 @@ function randomizeAll() {
   }
 }
 
-// Presets for gradients
-const gradientPresets: Record<string, { stops: GradientStop[]; type: GradientType }> = {
-  midnight: { 
-    type: 'radial',
-    stops: [
-      { color: '#0a0a1a', position: 0, opacity: 1 },
-      { color: '#1a1a3a', position: 50, opacity: 1 },
-      { color: '#0a0a1a', position: 100, opacity: 1 },
-    ]
-  },
-  sunset: { 
-    type: 'linear',
-    stops: [
-      { color: '#1a0a1a', position: 0, opacity: 1 },
-      { color: '#3a1a2a', position: 50, opacity: 1 },
-      { color: '#1a0a1a', position: 100, opacity: 1 },
-    ]
-  },
-  ocean: { 
-    type: 'radial',
-    stops: [
-      { color: '#0a1a2a', position: 0, opacity: 1 },
-      { color: '#1a2a3a', position: 50, opacity: 1 },
-      { color: '#0a1a2a', position: 100, opacity: 1 },
-    ]
-  },
-  forest: { 
-    type: 'radial',
-    stops: [
-      { color: '#0a1a0a', position: 0, opacity: 1 },
-      { color: '#1a2a1a', position: 50, opacity: 1 },
-      { color: '#0a1a0a', position: 100, opacity: 1 },
-    ]
-  },
-  cyber: { 
-    type: 'linear',
-    stops: [
-      { color: '#1a0a2a', position: 0, opacity: 1 },
-      { color: '#0a1a3a', position: 50, opacity: 1 },
-      { color: '#1a0a2a', position: 100, opacity: 1 },
-    ]
-  },
-  warm: { 
-    type: 'radial',
-    stops: [
-      { color: '#2a1a0a', position: 0, opacity: 1 },
-      { color: '#3a2a1a', position: 50, opacity: 1 },
-      { color: '#2a1a0a', position: 100, opacity: 1 },
-    ]
-  },
-  aurora: { 
-    type: 'linear',
-    stops: [
-      { color: '#0a2a1a', position: 0, opacity: 1 },
-      { color: '#1a1a3a', position: 50, opacity: 1 },
-      { color: '#2a0a2a', position: 100, opacity: 1 },
-    ]
-  },
-  vignette: { 
-    type: 'radial',
-    stops: [
-      { color: '#000000', position: 0, opacity: 0 },
-      { color: '#000000', position: 60, opacity: 0.3 },
-      { color: '#000000', position: 100, opacity: 0.9 },
-    ]
-  },
-};
-
-function applyGradientPreset(name: string) {
-  const preset = gradientPresets[name];
-  if (preset && background.value?.gradient) {
-    background.value.gradient.type = preset.type;
-    background.value.gradient.stops = preset.stops.map(s => ({ ...s }));
-    background.value.gradient.enabled = true;
-  }
-}
-
 const fitOptions = [
   { label: 'Cover', value: 'cover' },
   { label: 'Contain', value: 'contain' },
@@ -444,47 +256,67 @@ const gradientPreviewStyle = computed(() => {
 <template>
   <!-- MEDIA LAYER (BACK) -->
   <PanelSection title="Media Background" icon="ph:image-duotone" collapsible>
-      <div class="bg-type-selector">
-        <label class="bg-option" :class="{ active: background.media.type === 'none' }">
-          <input type="radio" value="none" v-model="background.media.type" />
-          <iconify-icon icon="ph:x-circle-duotone"></iconify-icon>
-          <span>None</span>
-        </label>
-        <label class="bg-option" :class="{ active: background.media.type === 'solid' }">
-          <input type="radio" value="solid" v-model="background.media.type" />
-          <iconify-icon icon="ph:drop-duotone"></iconify-icon>
-          <span>Solid</span>
-        </label>
-        <label class="bg-option" :class="{ active: background.media.type === 'image' }">
-          <input type="radio" value="image" v-model="background.media.type" />
-          <iconify-icon icon="ph:image-duotone"></iconify-icon>
-          <span>Image</span>
-        </label>
-        <label class="bg-option" :class="{ active: background.media.type === 'video' }">
-          <input type="radio" value="video" v-model="background.media.type" />
-          <iconify-icon icon="ph:video-duotone"></iconify-icon>
-          <span>Video</span>
-        </label>
-      </div>
-    </PanelSection>
+    <div class="bg-type-selector">
+      <label class="bg-option" :class="{ active: background.media.type === 'none' }">
+        <input type="radio" value="none" v-model="background.media.type" />
+        <iconify-icon icon="ph:x-circle-duotone"></iconify-icon>
+        <span>None</span>
+      </label>
+      <label class="bg-option" :class="{ active: background.media.type === 'image' }">
+        <input type="radio" value="image" v-model="background.media.type" />
+        <iconify-icon icon="ph:image-duotone"></iconify-icon>
+        <span>Image</span>
+      </label>
+      <label class="bg-option" :class="{ active: background.media.type === 'video' }">
+        <input type="radio" value="video" v-model="background.media.type" />
+        <iconify-icon icon="ph:video-duotone"></iconify-icon>
+        <span>Video</span>
+      </label>
+      <label class="bg-option" :class="{ active: background.media.type === 'hdri' }">
+        <input type="radio" value="hdri" v-model="background.media.type" />
+        <iconify-icon icon="ph:globe-duotone"></iconify-icon>
+        <span>HDRI</span>
+      </label>
+    </div>
 
-    <!-- Solid Color Settings -->
-    <PanelSection v-if="background.media.type === 'solid'" title="Solid Color" collapsible>
-      <BaseColorPicker label="Color" v-model="background.media.solidColor" />
-      <div style="margin-top: 12px">
-        <BaseSlider
-          label="Opacity"
-          v-model="background.media.solidOpacity"
-          :min="0"
-          :max="1"
-          :step="0.05"
+    <!-- Image Gallery & Settings -->
+    <template v-if="background.media.type === 'image'">
+      <input
+        ref="imageFileInput"
+        type="file"
+        accept="image/*"
+        style="display: none"
+        @change="handleImageUpload"
+      />
+
+      <div class="media-gallery-header">
+        <span class="gallery-label">{{ showCustomSettings ? 'Upload custom image' : 'Select an image' }}</span>
+        <button 
+          class="toggle-view-btn"
+          @click="showCustomSettings = !showCustomSettings"
+          :title="showCustomSettings ? 'Back to gallery' : 'Upload custom'"
+        >
+          <iconify-icon :icon="showCustomSettings ? 'ph:images-duotone' : 'ph:upload-duotone'"></iconify-icon>
+          <span>{{ showCustomSettings ? 'Gallery' : 'Upload' }}</span>
+        </button>
+      </div>
+
+      <!-- Upload Settings (hides gallery) -->
+      <div v-if="showCustomSettings" class="upload-settings">
+        <button class="upload-btn" @click="triggerImageUpload">
+          <iconify-icon icon="ph:upload-duotone"></iconify-icon>
+          <span>Choose File</span>
+        </button>
+        <BaseInput
+          label="Or paste URL"
+          v-model="background.media.image.url"
+          placeholder="https://..."
         />
+        <p class="cors-hint">External URLs require CORS headers.</p>
       </div>
-    </PanelSection>
 
-    <!-- Image Gallery -->
-    <PanelSection v-if="background.media.type === 'image'" title="Image Gallery" icon="ph:images-duotone" collapsible>
-      <div class="preset-gallery">
+      <!-- Image Gallery -->
+      <div v-else class="preset-gallery">
         <div
           v-for="preset in sceneImagePresets"
           :key="preset.id"
@@ -497,32 +329,8 @@ const gradientPreviewStyle = computed(() => {
           <span class="preset-name">{{ preset.name }}</span>
         </div>
       </div>
-    </PanelSection>
 
-    <!-- Image Settings -->
-    <PanelSection v-if="background.media.type === 'image'" title="Image Settings" collapsible>
-      <div class="media-upload">
-        <input
-          ref="imageFileInput"
-          type="file"
-          accept="image/*"
-          style="display: none"
-          @change="handleImageUpload"
-        />
-        <button class="upload-btn" @click="triggerImageUpload">
-          <iconify-icon icon="ph:upload-duotone"></iconify-icon>
-          <span>Upload Image</span>
-        </button>
-        <BaseInput
-          label="Or enter URL (Custom)"
-          v-model="background.media.image.url"
-          placeholder="https://..."
-        />
-        <p class="cors-hint">External URLs require CORS headers. Upload local files for best results.</p>
-      </div>
-      <div v-if="background.media.image?.url" class="media-preview">
-        <img :src="background.media.image.url" alt="Background preview" />
-      </div>
+      <!-- Image Options (always visible) -->
       <div class="media-options">
         <BaseSelect
           label="Fit"
@@ -537,11 +345,46 @@ const gradientPreviewStyle = computed(() => {
           :step="0.05"
         />
       </div>
-    </PanelSection>
+    </template>
 
-    <!-- Video Gallery -->
-    <PanelSection v-if="background.media.type === 'video'" title="Video Gallery" icon="ph:video-duotone" collapsible>
-      <div class="preset-gallery">
+    <!-- Video Gallery & Settings -->
+    <template v-if="background.media.type === 'video'">
+      <input
+        ref="videoFileInput"
+        type="file"
+        accept="video/*"
+        style="display: none"
+        @change="handleVideoUpload"
+      />
+
+      <div class="media-gallery-header">
+        <span class="gallery-label">{{ showCustomSettings ? 'Upload custom video' : 'Select a video' }}</span>
+        <button 
+          class="toggle-view-btn"
+          @click="showCustomSettings = !showCustomSettings"
+          :title="showCustomSettings ? 'Back to gallery' : 'Upload custom'"
+        >
+          <iconify-icon :icon="showCustomSettings ? 'ph:video-duotone' : 'ph:upload-duotone'"></iconify-icon>
+          <span>{{ showCustomSettings ? 'Gallery' : 'Upload' }}</span>
+        </button>
+      </div>
+
+      <!-- Upload Settings (hides gallery) -->
+      <div v-if="showCustomSettings" class="upload-settings">
+        <button class="upload-btn" @click="triggerVideoUpload">
+          <iconify-icon icon="ph:upload-duotone"></iconify-icon>
+          <span>Choose File</span>
+        </button>
+        <BaseInput
+          label="Or paste URL"
+          v-model="background.media.video.url"
+          placeholder="https://..."
+        />
+        <p class="cors-hint">External URLs require CORS headers.</p>
+      </div>
+
+      <!-- Video Gallery -->
+      <div v-else class="preset-gallery">
         <div
           v-for="preset in sceneVideoPresets"
           :key="preset.id"
@@ -554,32 +397,8 @@ const gradientPreviewStyle = computed(() => {
           <span class="preset-name">{{ preset.name }}</span>
         </div>
       </div>
-    </PanelSection>
 
-    <!-- Video Settings -->
-    <PanelSection v-if="background.media.type === 'video'" title="Video Settings" collapsible>
-      <div class="media-upload">
-        <input
-          ref="videoFileInput"
-          type="file"
-          accept="video/*"
-          style="display: none"
-          @change="handleVideoUpload"
-        />
-        <button class="upload-btn" @click="triggerVideoUpload">
-          <iconify-icon icon="ph:upload-duotone"></iconify-icon>
-          <span>Upload Video</span>
-        </button>
-        <BaseInput
-          label="Or enter URL (Custom)"
-          v-model="background.media.video.url"
-          placeholder="https://..."
-        />
-        <p class="cors-hint">External URLs require CORS headers. Upload local files for best results.</p>
-      </div>
-      <div v-if="background.media.video?.url" class="media-preview video-preview">
-        <video :src="background.media.video.url" muted autoplay loop></video>
-      </div>
+      <!-- Video Options (always visible) -->
       <div class="media-options">
         <BaseSelect
           label="Fit"
@@ -604,7 +423,67 @@ const gradientPreviewStyle = computed(() => {
           </label>
         </div>
       </div>
-    </PanelSection>
+    </template>
+
+    <!-- HDRI Gallery & Settings -->
+    <template v-if="background.media.type === 'hdri'">
+      <div class="media-gallery-header">
+        <span class="gallery-label">{{ showCustomSettings ? 'Enter HDRI URL' : 'Select a 3D environment' }}</span>
+        <button 
+          class="toggle-view-btn"
+          @click="showCustomSettings = !showCustomSettings"
+          :title="showCustomSettings ? 'Back to gallery' : 'Custom URL'"
+        >
+          <iconify-icon :icon="showCustomSettings ? 'ph:globe-duotone' : 'ph:link-duotone'"></iconify-icon>
+          <span>{{ showCustomSettings ? 'Gallery' : 'Custom' }}</span>
+        </button>
+      </div>
+
+      <!-- Custom URL Settings (hides gallery) -->
+      <div v-if="showCustomSettings" class="upload-settings">
+        <BaseInput
+          label="HDRI URL (.hdr file)"
+          v-model="background.media.hdri.url"
+          placeholder="https://.../.hdr"
+        />
+        <p class="cors-hint">Use Poly Haven or similar CORS-enabled sources.</p>
+      </div>
+
+      <!-- HDRI Gallery -->
+      <div v-else class="preset-gallery hdri-gallery">
+        <div
+          v-for="preset in sceneHdriPresets"
+          :key="preset.id"
+          class="preset-item"
+          :class="{ selected: isHdriPresetSelected(preset) }"
+          @click="selectHdriPreset(preset)"
+          :title="preset.name"
+        >
+          <img :src="preset.thumbnail" :alt="preset.name" loading="lazy" />
+          <span class="preset-name">{{ preset.name }}</span>
+          <span class="preset-badge">360°</span>
+        </div>
+      </div>
+
+      <!-- HDRI Options (always visible) -->
+      <div class="media-options">
+        <BaseSlider
+          label="Intensity"
+          v-model="background.media.hdri.intensity"
+          :min="0"
+          :max="2"
+          :step="0.1"
+        />
+        <BaseSlider
+          label="Blur"
+          v-model="background.media.hdri.blur"
+          :min="0"
+          :max="1"
+          :step="0.1"
+        />
+      </div>
+    </template>
+  </PanelSection>
 
     <!-- GRADIENT LAYER (FRONT OVERLAY) -->
     <PanelSection title="Gradient Overlay" icon="ph:gradient-duotone" collapsible>
@@ -844,30 +723,76 @@ const gradientPreviewStyle = computed(() => {
       </div>
     </PanelSection>
 
-    <!-- Gradient Presets (not for orbs) -->
-    <PanelSection v-if="background.gradient.type !== 'orbs'" title="Gradient Presets" collapsible>
-      <div class="preset-grid">
-        <button
-          v-for="(preset, name) in gradientPresets"
-          :key="name"
-          class="preset-btn"
-          :title="(name as string).charAt(0).toUpperCase() + (name as string).slice(1)"
-          @click="applyGradientPreset(name as string)"
-        >
-          <span
-            class="preset-preview"
-            :style="{ 
-              background: preset.type === 'radial' 
-                ? `radial-gradient(${preset.stops.map(s => `${s.color} ${s.position}%`).join(', ')})`
-                : `linear-gradient(180deg, ${preset.stops.map(s => `${s.color} ${s.position}%`).join(', ')})`
-            }"
-          ></span>
-        </button>
-      </div>
-    </PanelSection>
 </template>
 
 <style scoped>
+/* Media Gallery Header */
+.media-gallery-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 12px 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.gallery-label {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.toggle-view-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  background: var(--surface-1);
+  border: 1px solid var(--glass-border);
+  border-radius: 6px;
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.toggle-view-btn:hover {
+  background: var(--accent-glow);
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+}
+
+.toggle-view-btn iconify-icon {
+  font-size: 14px;
+}
+
+/* Upload Settings */
+.upload-settings {
+  background: var(--surface-1);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.upload-settings .cors-hint {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* Media Options (below gallery) */
+.media-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--glass-border);
+}
+
 /* Preset Gallery */
 .preset-gallery {
   display: grid;
@@ -935,6 +860,25 @@ const gradientPreviewStyle = computed(() => {
   text-overflow: ellipsis;
   white-space: nowrap;
   overflow: hidden;
+}
+
+/* HDRI Badge */
+.preset-item .preset-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  padding: 2px 6px;
+  font-size: 9px;
+  font-weight: 600;
+  color: white;
+  background: var(--accent-primary);
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.hdri-gallery .preset-item {
+  aspect-ratio: 2 / 1;
 }
 
 /* Dice Buttons */

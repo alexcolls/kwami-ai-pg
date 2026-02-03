@@ -1,131 +1,25 @@
 <script setup lang="ts">
-import { reactive, ref, onMounted, onUnmounted, watch, nextTick } from 'vue';
+import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue';
+import { storeToRefs } from 'pinia';
 import { useKwami } from '@/composables/useKwami';
+import { useSceneStore, type BlendMode } from '@/stores/scene';
 import * as THREE from 'three';
+import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 import BasePanel from '@/components/ui/BasePanel.vue';
-import PanelSection from '@/components/ui/PanelSection.vue';
-import BaseSlider from '@/components/ui/BaseSlider.vue';
-import BaseToggle from '@/components/ui/BaseToggle.vue';
-import SceneBackground, { type BackgroundConfig } from './SceneBackground.vue';
+import SceneBackground from './SceneBackground.vue';
 
 const { kwami } = useKwami();
+const sceneStore = useSceneStore();
+const { background } = storeToRefs(sceneStore);
 
-// Types (Must match child components)
-// type MediaType = 'none' | 'solid' | 'image' | 'video';
-// type MediaFit = 'cover' | 'contain' | 'stretch';
-// type GradientType = 'radial' | 'linear' | 'orbs';
-type BlendMode = 'normal' | 'multiply' | 'screen' | 'overlay' | 'soft-light';
-
-// Helper to generate orb IDs
-function generateOrbId(): string {
-  return Math.random().toString(36).substring(2, 9);
-}
-
-interface StarFieldState {
-  enabled: boolean;
-  count: number;
-  fieldRadius: number;
-  twinkleSpeed: number;
-  rotationSpeed: number;
-}
-
-interface ScenePanelState {
-  background: BackgroundConfig;
-  starField: StarFieldState;
-}
-
-const state = reactive<ScenePanelState>({
-  starField: {
-    enabled: false,
-    count: 8000,
-    fieldRadius: 500,
-    twinkleSpeed: 1.5,
-    rotationSpeed: 0.0003,
-  },
-  background: {
-    media: {
-      type: 'none',
-      solidColor: '#0a0a1a',
-      solidOpacity: 1,
-      image: {
-        url: '',
-        fit: 'cover',
-        opacity: 1,
-      },
-      video: {
-        url: '',
-        fit: 'cover',
-        opacity: 1,
-        loop: true,
-        muted: true,
-      },
-    },
-    gradient: {
-      enabled: true,
-      type: 'radial',
-      angle: 180,
-      radialCenter: { x: 50, y: 50 },
-      radialSize: 100,
-      stops: [
-        { color: '#0a0a1a', position: 0, opacity: 1 },
-        { color: '#1a1a3a', position: 50, opacity: 1 },
-        { color: '#0a0a1a', position: 100, opacity: 1 },
-      ],
-      orbs: [
-        { id: generateOrbId(), x: 20, y: 30, size: 40, color: '#1a2a4a', opacity: 0.8, softness: 80 },
-        { id: generateOrbId(), x: 80, y: 70, size: 50, color: '#2a1a3a', opacity: 0.7, softness: 70 },
-        { id: generateOrbId(), x: 50, y: 50, size: 60, color: '#0a1a2a', opacity: 0.6, softness: 90 },
-      ],
-      opacity: 1,
-      blendMode: 'normal',
-    },
-  },
-});
+// HDRI state
+let currentHdriTexture: THREE.DataTexture | null = null;
+const hdriLoading = ref(false);
 
 // Logic
 function getScene() {
   return kwami.value?.avatar.getScene();
 }
-
-// Star field controls
-function updateStarField() {
-  const scene = getScene();
-  if (!scene) return;
-  
-  scene.setStarFieldEnabled(state.starField.enabled);
-  scene.setStarFieldConfig({
-    count: state.starField.count,
-    fieldRadius: state.starField.fieldRadius,
-    twinkleSpeed: state.starField.twinkleSpeed,
-    rotationSpeed: state.starField.rotationSpeed,
-  });
-}
-
-// Star field watchers
-watch(() => state.starField.enabled, (enabled) => {
-  const scene = getScene();
-  if (scene) scene.setStarFieldEnabled(enabled);
-});
-
-watch(() => state.starField.count, (count) => {
-  const scene = getScene();
-  if (scene) scene.setStarFieldConfig({ count });
-});
-
-watch(() => state.starField.fieldRadius, (fieldRadius) => {
-  const scene = getScene();
-  if (scene) scene.setStarFieldConfig({ fieldRadius });
-});
-
-watch(() => state.starField.twinkleSpeed, (twinkleSpeed) => {
-  const scene = getScene();
-  if (scene) scene.setStarFieldConfig({ twinkleSpeed });
-});
-
-watch(() => state.starField.rotationSpeed, (rotationSpeed) => {
-  const scene = getScene();
-  if (scene) scene.setStarFieldConfig({ rotationSpeed });
-});
 
 // Helper to convert hex color + opacity to rgba string
 function hexToRgba(hex: string, opacity: number): string {
@@ -149,7 +43,7 @@ function getCanvasBlendMode(blendMode: BlendMode): GlobalCompositeOperation {
 
 // Create gradient canvas
 function createGradientCanvas(width: number, height: number): HTMLCanvasElement | null {
-  const { gradient } = state.background;
+  const { gradient } = background.value;
   if (!gradient.enabled) return null;
 
   const canvas = document.createElement('canvas');
@@ -221,59 +115,75 @@ function createGradientCanvas(width: number, height: number): HTMLCanvasElement 
   return canvas;
 }
 
-// Render media layer to canvas
+// Render media layer to canvas with fit support
 function renderMediaToCanvas(
   canvas: HTMLCanvasElement, 
   mediaImage: HTMLImageElement | HTMLVideoElement | null,
-  mediaOpacity: number
+  mediaOpacity: number,
+  fit: 'cover' | 'contain' | 'stretch' = 'cover'
 ): void {
   const ctx = canvas.getContext('2d');
-  if (!ctx) return;
+  if (!ctx || !mediaImage) return;
 
-  const { media } = state.background;
+  ctx.globalAlpha = mediaOpacity;
   
-  if (media.type === 'solid') {
-    ctx.globalAlpha = media.solidOpacity;
-    ctx.fillStyle = media.solidColor;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-  } else if (mediaImage && (media.type === 'image' || media.type === 'video')) {
-    ctx.globalAlpha = mediaOpacity;
-    // Draw with cover fit
-    const imgWidth = mediaImage instanceof HTMLVideoElement ? mediaImage.videoWidth : mediaImage.width;
-    const imgHeight = mediaImage instanceof HTMLVideoElement ? mediaImage.videoHeight : mediaImage.height;
-    
-    const canvasRatio = canvas.width / canvas.height;
-    const imgRatio = imgWidth / imgHeight;
-    
-    let drawWidth, drawHeight, offsetX, offsetY;
-    
+  const imgWidth = mediaImage instanceof HTMLVideoElement ? mediaImage.videoWidth : mediaImage.width;
+  const imgHeight = mediaImage instanceof HTMLVideoElement ? mediaImage.videoHeight : mediaImage.height;
+  
+  if (!imgWidth || !imgHeight) return;
+  
+  const canvasRatio = canvas.width / canvas.height;
+  const imgRatio = imgWidth / imgHeight;
+  
+  let drawWidth: number, drawHeight: number, offsetX: number, offsetY: number;
+  
+  if (fit === 'stretch') {
+    // Stretch to fill canvas
+    drawWidth = canvas.width;
+    drawHeight = canvas.height;
+    offsetX = 0;
+    offsetY = 0;
+  } else if (fit === 'contain') {
+    // Fit inside canvas (may have letterboxing)
     if (imgRatio > canvasRatio) {
-      // Image is wider - fit by height
+      drawWidth = canvas.width;
+      drawHeight = canvas.width / imgRatio;
+      offsetX = 0;
+      offsetY = (canvas.height - drawHeight) / 2;
+    } else {
+      drawHeight = canvas.height;
+      drawWidth = canvas.height * imgRatio;
+      offsetX = (canvas.width - drawWidth) / 2;
+      offsetY = 0;
+    }
+  } else {
+    // Cover (default) - fill canvas, may crop
+    if (imgRatio > canvasRatio) {
       drawHeight = canvas.height;
       drawWidth = imgWidth * (canvas.height / imgHeight);
       offsetX = (canvas.width - drawWidth) / 2;
       offsetY = 0;
     } else {
-      // Image is taller - fit by width
       drawWidth = canvas.width;
       drawHeight = imgHeight * (canvas.width / imgWidth);
       offsetX = 0;
       offsetY = (canvas.height - drawHeight) / 2;
     }
-    
-    ctx.drawImage(mediaImage, offsetX, offsetY, drawWidth, drawHeight);
   }
+  
+  ctx.drawImage(mediaImage, offsetX, offsetY, drawWidth, drawHeight);
 }
 
 // Composite both layers together
 function compositeBackground(
   mediaImage: HTMLImageElement | HTMLVideoElement | null = null,
-  mediaOpacity: number = 1
+  mediaOpacity: number = 1,
+  mediaFit: 'cover' | 'contain' | 'stretch' = 'cover'
 ) {
   const scene = getScene();
   if (!scene) return;
 
-  const { media, gradient } = state.background;
+  const { media, gradient } = background.value;
   
   // If both are disabled, clear background
   if (media.type === 'none' && !gradient.enabled) {
@@ -291,8 +201,8 @@ function compositeBackground(
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   // Layer 1: Media background (back)
-  if (media.type !== 'none') {
-    renderMediaToCanvas(canvas, mediaImage, mediaOpacity);
+  if (media.type !== 'none' && mediaImage) {
+    renderMediaToCanvas(canvas, mediaImage, mediaOpacity, mediaFit);
   }
 
   // Layer 2: Gradient overlay (front)
@@ -315,8 +225,9 @@ let videoElement: HTMLVideoElement | null = null;
 let videoAnimationFrame: number | null = null;
 
 function updateVideoLoop() {
-  if (videoElement && state.background.media.type === 'video') {
-    compositeBackground(videoElement, state.background.media.video.opacity);
+  if (videoElement && background.value.media.type === 'video') {
+    const { opacity, fit } = background.value.media.video;
+    compositeBackground(videoElement, opacity, fit);
     videoAnimationFrame = requestAnimationFrame(updateVideoLoop);
   }
 }
@@ -328,15 +239,91 @@ function stopVideoLoop() {
   }
 }
 
-// Update media layer
-function updateMediaBackground() {
-  // Skip if not yet initialized (library already set initial background)
+// Load HDRI environment
+function loadHdriEnvironment() {
   if (!backgroundInitialized.value) return;
   
   const scene = getScene();
   if (!scene) return;
 
-  const { media } = state.background;
+  const { hdri } = background.value.media;
+  
+  if (!hdri.url) {
+    // Clear HDRI
+    if (currentHdriTexture) {
+      currentHdriTexture.dispose();
+      currentHdriTexture = null;
+    }
+    scene.scene.background = null;
+    scene.scene.environment = null;
+    return;
+  }
+
+  hdriLoading.value = true;
+
+  const rgbeLoader = new RGBELoader();
+  rgbeLoader.load(
+    hdri.url,
+    (texture) => {
+      // Dispose old texture
+      if (currentHdriTexture) {
+        currentHdriTexture.dispose();
+      }
+
+      texture.mapping = THREE.EquirectangularReflectionMapping;
+      currentHdriTexture = texture;
+      
+      // Apply rotation by adjusting texture offset
+      // Note: Full rotation requires a custom shader or PMREMGenerator
+      // For now, we'll use the texture directly
+      
+      // Set as background and environment (for reflections/lighting)
+      scene.scene.background = texture;
+      scene.scene.environment = texture;
+      
+      // Apply blur if needed (requires PMREMGenerator for proper blur)
+      if (hdri.blur > 0) {
+        const pmremGenerator = new THREE.PMREMGenerator(scene.renderer);
+        pmremGenerator.compileEquirectangularShader();
+        const envMap = pmremGenerator.fromEquirectangular(texture).texture;
+        scene.scene.background = texture; // Keep original for background
+        scene.scene.environment = envMap; // Use processed for reflections
+        pmremGenerator.dispose();
+      }
+      
+      hdriLoading.value = false;
+    },
+    undefined,
+    (error) => {
+      console.warn('Failed to load HDRI:', error);
+      hdriLoading.value = false;
+    }
+  );
+}
+
+// Update HDRI properties without reloading
+function updateHdriProperties() {
+  if (!backgroundInitialized.value) return;
+  if (background.value.media.type !== 'hdri') return;
+  
+  // For intensity and rotation, we would need custom shader modifications
+  // These are more complex to implement without a full environment manager
+  // For now, intensity affects renderer tone mapping exposure
+  const scene = getScene();
+  if (scene) {
+    const { intensity } = background.value.media.hdri;
+    scene.renderer.toneMappingExposure = intensity;
+  }
+}
+
+// Update media layer
+function updateMediaBackground() {
+  if (!backgroundInitialized.value) return;
+  
+  const scene = getScene();
+  if (!scene) return;
+
+  const { media } = background.value;
   
   // Cleanup video if not using it
   if (media.type !== 'video') {
@@ -349,13 +336,27 @@ function updateMediaBackground() {
     }
     videoElement = null;
   }
+  
+  // Cleanup HDRI if not using it
+  if (media.type !== 'hdri') {
+    if (currentHdriTexture) {
+      currentHdriTexture.dispose();
+      currentHdriTexture = null;
+    }
+    // Reset tone mapping exposure
+    if (scene) {
+      scene.renderer.toneMappingExposure = 1;
+    }
+  }
 
   if (media.type === 'none') {
+    scene.scene.background = null;
+    scene.scene.environment = null;
     compositeBackground();
-  } else if (media.type === 'solid') {
-    compositeBackground();
+  } else if (media.type === 'hdri') {
+    loadHdriEnvironment();
   } else if (media.type === 'image') {
-    const { url, opacity } = media.image;
+    const { url, opacity, fit } = media.image;
     if (!url) {
       compositeBackground();
       return;
@@ -372,7 +373,7 @@ function updateMediaBackground() {
       url,
       (texture) => {
         const img = texture.image as HTMLImageElement;
-        compositeBackground(img, opacity);
+        compositeBackground(img, opacity, fit);
       },
       undefined,
       (error) => {
@@ -381,7 +382,7 @@ function updateMediaBackground() {
       }
     );
   } else if (media.type === 'video') {
-    const { url, muted, loop /*, opacity */ } = media.video;
+    const { url, muted, loop } = media.video;
     if (!url) {
       compositeBackground();
       return;
@@ -439,66 +440,83 @@ function updateMediaBackground() {
 
 // Update gradient layer
 function updateGradientOverlay() {
-  // Skip if not yet initialized (library already set initial background)
   if (!backgroundInitialized.value) return;
   
   // If video is playing, the video loop will handle compositing
-  if (state.background.media.type === 'video' && videoElement) {
-    return; // Video loop will handle it
+  if (background.value.media.type === 'video' && videoElement) {
+    return;
   }
   
   // For image, we need to reload the image to recomposite
-  if (state.background.media.type === 'image' && state.background.media.image.url) {
+  if (background.value.media.type === 'image' && background.value.media.image.url) {
     updateMediaBackground();
     return;
   }
   
-  // For solid or none, just recomposite
+  // For none, just recomposite gradient only
   compositeBackground();
 }
 
 // Media watchers
-watch(() => state.background.media.type, updateMediaBackground);
-watch(() => state.background.media.solidColor, updateGradientOverlay);
-watch(() => state.background.media.solidOpacity, updateGradientOverlay);
-watch(() => state.background.media.image, updateMediaBackground, { deep: true });
-watch(() => state.background.media.video.url, updateMediaBackground);
-watch(() => state.background.media.video.muted, (muted) => {
+watch(() => background.value.media.type, updateMediaBackground);
+watch(() => background.value.media.image, updateMediaBackground, { deep: true });
+watch(() => background.value.media.video.url, updateMediaBackground);
+watch(() => background.value.media.video.muted, (muted) => {
   const video = document.getElementById('scene-bg-video') as HTMLVideoElement;
   if (video) video.muted = muted;
 });
-watch(() => state.background.media.video.loop, (loop) => {
+watch(() => background.value.media.video.loop, (loop) => {
   const video = document.getElementById('scene-bg-video') as HTMLVideoElement;
   if (video) video.loop = loop;
 });
-watch(() => state.background.media.video.opacity, () => {
-  // Video opacity is handled in the composite loop
-});
+
+// HDRI watchers
+watch(() => background.value.media.hdri.url, loadHdriEnvironment);
+watch(() => background.value.media.hdri.intensity, updateHdriProperties);
+watch(() => background.value.media.hdri.blur, loadHdriEnvironment); // Requires reload for blur
 
 // Gradient watchers
-watch(() => state.background.gradient.enabled, updateGradientOverlay);
-watch(() => state.background.gradient.type, updateGradientOverlay);
-watch(() => state.background.gradient.angle, updateGradientOverlay);
-watch(() => state.background.gradient.radialCenter, updateGradientOverlay, { deep: true });
-watch(() => state.background.gradient.radialSize, updateGradientOverlay);
-watch(() => state.background.gradient.stops, updateGradientOverlay, { deep: true });
-watch(() => state.background.gradient.orbs, updateGradientOverlay, { deep: true });
-watch(() => state.background.gradient.opacity, updateGradientOverlay);
-watch(() => state.background.gradient.blendMode, updateGradientOverlay);
+watch(() => background.value.gradient.enabled, updateGradientOverlay);
+watch(() => background.value.gradient.type, updateGradientOverlay);
+watch(() => background.value.gradient.angle, updateGradientOverlay);
+watch(() => background.value.gradient.radialCenter, updateGradientOverlay, { deep: true });
+watch(() => background.value.gradient.radialSize, updateGradientOverlay);
+watch(() => background.value.gradient.stops, updateGradientOverlay, { deep: true });
+watch(() => background.value.gradient.orbs, updateGradientOverlay, { deep: true });
+watch(() => background.value.gradient.opacity, updateGradientOverlay);
+watch(() => background.value.gradient.blendMode, updateGradientOverlay);
 
-// Track if panel has been initialized - don't update background on first load
-// since the library already set it up correctly with matching defaults
+// Track if panel has been initialized
 const backgroundInitialized = ref(false);
+
+// Resume video loop if video is already playing (e.g., after panel switch)
+function resumeVideoIfNeeded() {
+  if (background.value.media.type === 'video' && background.value.media.video.url) {
+    const existingVideo = document.getElementById('scene-bg-video') as HTMLVideoElement;
+    if (existingVideo && !existingVideo.paused) {
+      videoElement = existingVideo;
+      if (!videoAnimationFrame) {
+        updateVideoLoop();
+      }
+    }
+  }
+}
 
 onMounted(() => {
   if (kwami.value) {
-    nextTick(() => { backgroundInitialized.value = true; });
+    nextTick(() => { 
+      backgroundInitialized.value = true;
+      resumeVideoIfNeeded();
+    });
   } else {
     watch(
       kwami,
       (k) => {
         if (k) {
-          nextTick(() => { backgroundInitialized.value = true; });
+          nextTick(() => { 
+            backgroundInitialized.value = true;
+            resumeVideoIfNeeded();
+          });
         }
       },
       { once: true },
@@ -506,77 +524,12 @@ onMounted(() => {
   }
 });
 
-onUnmounted(() => {
-  stopVideoLoop();
-  const video = document.getElementById('scene-bg-video') as HTMLVideoElement;
-  if (video) {
-    video.pause();
-    video.src = '';
-    video.remove();
-  }
-});
+// Don't clean up video on unmount - let it keep playing
+// Video will be cleaned up when media type changes or URL is cleared
 </script>
 
 <template>
   <BasePanel icon="ph:mountains-duotone" title="Scene">
-    <!-- 3D Scene Effects -->
-    <PanelSection title="Star Field" icon="ph:star-duotone" collapsible>
-      <div class="toggle-group">
-        <BaseToggle
-          label="Enable Star Field"
-          v-model="state.starField.enabled"
-        />
-      </div>
-      <template v-if="state.starField.enabled">
-        <div class="settings-group" style="margin-top: 12px;">
-          <BaseSlider
-            label="Star Count"
-            v-model="state.starField.count"
-            :min="1000"
-            :max="20000"
-            :step="1000"
-          />
-          <BaseSlider
-            label="Field Radius"
-            v-model="state.starField.fieldRadius"
-            :min="200"
-            :max="1000"
-            :step="50"
-          />
-          <BaseSlider
-            label="Twinkle Speed"
-            v-model="state.starField.twinkleSpeed"
-            :min="0.5"
-            :max="5"
-            :step="0.25"
-            unit="x"
-          />
-          <BaseSlider
-            label="Rotation Speed"
-            v-model="state.starField.rotationSpeed"
-            :min="0"
-            :max="0.002"
-            :step="0.0001"
-          />
-        </div>
-      </template>
-    </PanelSection>
-
-    <!-- Background Controls -->
-    <SceneBackground v-model:background="state.background" />
+    <SceneBackground />
   </BasePanel>
 </template>
-
-<style scoped>
-.toggle-group {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.settings-group {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-</style>
