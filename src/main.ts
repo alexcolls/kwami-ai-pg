@@ -8,6 +8,7 @@ import Toast, { type PluginOptions, POSITION } from 'vue-toastification';
 import 'vue-toastification/dist/index.css';
 import App from './App.vue';
 import { useThemeStore } from './stores/theme';
+import { useSceneStore } from './stores/scene';
 
 const app = createApp(App);
 const pinia = createPinia();
@@ -32,5 +33,9 @@ app.use(Toast, toastOptions);
 // Initialize theme settings
 const themeStore = useThemeStore();
 themeStore.loadSettings();
+
+// Initialize scene settings
+const sceneStore = useSceneStore();
+sceneStore.loadSettings();
 
 app.mount('#app');
