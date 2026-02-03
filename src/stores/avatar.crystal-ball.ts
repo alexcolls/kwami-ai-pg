@@ -55,6 +55,7 @@ export interface CrystalBallVolume {
   depth: number;
   smoothing: number;
   noiseScale: number;
+  quality: number;  // 1=fast, 2=balanced, 3=detailed, 4=maximum
 }
 
 /** ANIMATION: Motion and effects */
@@ -152,20 +153,21 @@ export function getDefaultColors(): CrystalBallColors {
   };
 }
 
-// Ultra-optimized for smooth 60fps
+// Tutorial defaults: iterations 18, depth 0.6, smoothing 0.3
 export function getDefaultVolume(): CrystalBallVolume {
   return {
-    iterations: 16,
+    iterations: 18,
     depth: 0.6,
-    smoothing: 0.25,
-    noiseScale: 2.0,
+    smoothing: 0.3,
+    noiseScale: 1.0,
+    quality: 2,
   };
 }
 
 export function getDefaultAnimation(): CrystalBallAnimation {
   return {
-    displacementSpeed: 0.071,
-    displacementStrength: 0.1,
+    displacementSpeed: 0.07,      // tutorial ~0.07
+    displacementStrength: 0.3,    // tutorial ~0.3
     pulseSpeed: 1.0,
     pulseIntensity: 0.02,
     rotation: {
@@ -178,7 +180,7 @@ export function getDefaultAnimation(): CrystalBallAnimation {
 
 export function getDefaultSurface(): CrystalBallSurface {
   return {
-    scale: 4.0,
+    scale: 3.0,
     roughness: 0.1,
     metalness: 0.0,
     envMapIntensity: 0.8,
