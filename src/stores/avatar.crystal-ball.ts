@@ -124,12 +124,20 @@ export interface CrystalBallAudio {
   };
 }
 
+/** ORIENTATION: Mesh position/rotation in 3D space */
+export interface CrystalBallOrientation {
+  x: number;
+  y: number;
+  z: number;
+}
+
 /** Complete crystal ball state */
 export interface CrystalBallState {
   style: CrystalBallStyleSection;
   colors: CrystalBallColors;
   volume: CrystalBallVolume;
   animation: CrystalBallAnimation;
+  orientation: CrystalBallOrientation;
   surface: CrystalBallSurface;
   clickEvents: CrystalBallClickEvents;
   cursorTouch: CrystalBallCursorTouch;
@@ -236,12 +244,21 @@ export function getDefaultAudio(): CrystalBallAudio {
   };
 }
 
+export function getDefaultOrientation(): CrystalBallOrientation {
+  return {
+    x: 0,
+    y: 0,
+    z: 0,
+  };
+}
+
 export function getDefaultCrystalBallState(): CrystalBallState {
   return {
     style: getDefaultStyle(),
     colors: getDefaultColors(),
     volume: getDefaultVolume(),
     animation: getDefaultAnimation(),
+    orientation: getDefaultOrientation(),
     surface: getDefaultSurface(),
     clickEvents: getDefaultClickEvents(),
     cursorTouch: getDefaultCursorTouch(),
@@ -259,6 +276,7 @@ export const useCrystalBallStore = defineStore('crystalBall', () => {
   const colors = reactive<CrystalBallColors>(getDefaultColors());
   const volume = reactive<CrystalBallVolume>(getDefaultVolume());
   const animation = reactive<CrystalBallAnimation>(getDefaultAnimation());
+  const orientation = reactive<CrystalBallOrientation>(getDefaultOrientation());
   const surface = reactive<CrystalBallSurface>(getDefaultSurface());
   const clickEvents = reactive<CrystalBallClickEvents>(getDefaultClickEvents());
   const cursorTouch = reactive<CrystalBallCursorTouch>(getDefaultCursorTouch());
@@ -284,6 +302,10 @@ export const useCrystalBallStore = defineStore('crystalBall', () => {
     Object.assign(animation, getDefaultAnimation());
   }
 
+  function resetOrientation() {
+    Object.assign(orientation, getDefaultOrientation());
+  }
+
   function resetSurface() {
     Object.assign(surface, getDefaultSurface());
   }
@@ -305,6 +327,7 @@ export const useCrystalBallStore = defineStore('crystalBall', () => {
     resetColors();
     resetVolume();
     resetAnimation();
+    resetOrientation();
     resetSurface();
     resetClickEvents();
     resetCursorTouch();
@@ -368,6 +391,12 @@ export const useCrystalBallStore = defineStore('crystalBall', () => {
     audio.frequencyEffects.highGlowBoost = high;
   }
 
+  function setOrientation(x: number, y: number, z: number) {
+    orientation.x = x;
+    orientation.y = y;
+    orientation.z = z;
+  }
+
   // =====================================================
   // SYNC FROM EXTERNAL (Kwami instance)
   // =====================================================
@@ -425,6 +454,7 @@ export const useCrystalBallStore = defineStore('crystalBall', () => {
       colors: { ...colors },
       volume: { ...volume },
       animation: { ...animation, rotation: { ...animation.rotation } },
+      orientation: { ...orientation },
       surface: { ...surface },
       clickEvents: { ...clickEvents },
       cursorTouch: { ...cursorTouch },
@@ -464,6 +494,7 @@ export const useCrystalBallStore = defineStore('crystalBall', () => {
     if (state.colors) deepMerge(colors, state.colors);
     if (state.volume) deepMerge(volume, state.volume);
     if (state.animation) deepMerge(animation, state.animation);
+    if (state.orientation) deepMerge(orientation, state.orientation);
     if (state.surface) deepMerge(surface, state.surface);
     if (state.clickEvents) deepMerge(clickEvents, state.clickEvents);
     if (state.cursorTouch) deepMerge(cursorTouch, state.cursorTouch);
@@ -476,6 +507,7 @@ export const useCrystalBallStore = defineStore('crystalBall', () => {
     colors,
     volume,
     animation,
+    orientation,
     surface,
     clickEvents,
     cursorTouch,
@@ -486,6 +518,7 @@ export const useCrystalBallStore = defineStore('crystalBall', () => {
     resetColors,
     resetVolume,
     resetAnimation,
+    resetOrientation,
     resetSurface,
     resetClickEvents,
     resetCursorTouch,
@@ -505,6 +538,7 @@ export const useCrystalBallStore = defineStore('crystalBall', () => {
     // Convenience setters
     setColors,
     setRotation,
+    setOrientation,
     setFrequencyEffects,
 
     // Sync

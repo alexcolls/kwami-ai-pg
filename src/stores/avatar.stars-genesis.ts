@@ -155,6 +155,13 @@ export interface StarsGenesisAudio {
   };
 }
 
+/** ORIENTATION: Mesh position/rotation in 3D space */
+export interface StarsGenesisOrientation {
+  x: number;
+  y: number;
+  z: number;
+}
+
 /** Complete starsGenesis state */
 export interface StarsGenesisState {
   formation: StarsGenesisFormation;
@@ -162,6 +169,7 @@ export interface StarsGenesisState {
   transform: StarsGenesisTransform;
   physics: StarsGenesisPhysics;
   animation: StarsGenesisAnimation;
+  orientation: StarsGenesisOrientation;
   clickEvents: StarsGenesisClickEvents;
   cursorTouch: StarsGenesisCursorTouch;
   audio: StarsGenesisAudio;
@@ -274,6 +282,14 @@ export function getDefaultAudio(): StarsGenesisAudio {
   };
 }
 
+export function getDefaultOrientation(): StarsGenesisOrientation {
+  return {
+    x: 0,
+    y: 0,
+    z: 0,
+  };
+}
+
 export function getDefaultStarsGenesisState(): StarsGenesisState {
   return {
     formation: getDefaultFormation(),
@@ -281,6 +297,7 @@ export function getDefaultStarsGenesisState(): StarsGenesisState {
     transform: getDefaultTransform(),
     physics: getDefaultPhysics(),
     animation: getDefaultAnimation(),
+    orientation: getDefaultOrientation(),
     clickEvents: getDefaultClickEvents(),
     cursorTouch: getDefaultCursorTouch(),
     audio: getDefaultAudio(),
@@ -298,6 +315,7 @@ export const useStarsGenesisStore = defineStore('starsGenesis', () => {
   const transform = reactive<StarsGenesisTransform>(getDefaultTransform());
   const physics = reactive<StarsGenesisPhysics>(getDefaultPhysics());
   const animation = reactive<StarsGenesisAnimation>(getDefaultAnimation());
+  const orientation = reactive<StarsGenesisOrientation>(getDefaultOrientation());
   const clickEvents = reactive<StarsGenesisClickEvents>(getDefaultClickEvents());
   const cursorTouch = reactive<StarsGenesisCursorTouch>(getDefaultCursorTouch());
   const audio = reactive<StarsGenesisAudio>(getDefaultAudio());
@@ -326,6 +344,10 @@ export const useStarsGenesisStore = defineStore('starsGenesis', () => {
     Object.assign(animation, getDefaultAnimation());
   }
 
+  function resetOrientation() {
+    Object.assign(orientation, getDefaultOrientation());
+  }
+
   function resetClickEvents() {
     Object.assign(clickEvents, getDefaultClickEvents());
   }
@@ -344,6 +366,7 @@ export const useStarsGenesisStore = defineStore('starsGenesis', () => {
     resetTransform();
     resetPhysics();
     resetAnimation();
+    resetOrientation();
     resetClickEvents();
     resetCursorTouch();
     resetAudio();
@@ -398,6 +421,12 @@ export const useStarsGenesisStore = defineStore('starsGenesis', () => {
     audio.frequencyInfluence.bass = bass;
     audio.frequencyInfluence.mid = mid;
     audio.frequencyInfluence.high = high;
+  }
+
+  function setOrientation(x: number, y: number, z: number) {
+    orientation.x = x;
+    orientation.y = y;
+    orientation.z = z;
   }
 
   // =====================================================
@@ -532,6 +561,7 @@ export const useStarsGenesisStore = defineStore('starsGenesis', () => {
         wave: { ...animation.wave },
         turbulence: { ...animation.turbulence },
       },
+      orientation: { ...orientation },
       clickEvents: { ...clickEvents },
       cursorTouch: { ...cursorTouch },
       audio: { ...audio, frequencyInfluence: { ...audio.frequencyInfluence } },
@@ -571,6 +601,7 @@ export const useStarsGenesisStore = defineStore('starsGenesis', () => {
     if (state.transform) deepMerge(transform, state.transform);
     if (state.physics) deepMerge(physics, state.physics);
     if (state.animation) deepMerge(animation, state.animation);
+    if (state.orientation) deepMerge(orientation, state.orientation);
     if (state.clickEvents) deepMerge(clickEvents, state.clickEvents);
     if (state.cursorTouch) deepMerge(cursorTouch, state.cursorTouch);
     if (state.audio) deepMerge(audio, state.audio);
@@ -583,6 +614,7 @@ export const useStarsGenesisStore = defineStore('starsGenesis', () => {
     transform,
     physics,
     animation,
+    orientation,
     clickEvents,
     cursorTouch,
     audio,
@@ -593,6 +625,7 @@ export const useStarsGenesisStore = defineStore('starsGenesis', () => {
     resetTransform,
     resetPhysics,
     resetAnimation,
+    resetOrientation,
     resetClickEvents,
     resetCursorTouch,
     resetAudio,
@@ -611,6 +644,7 @@ export const useStarsGenesisStore = defineStore('starsGenesis', () => {
     // Convenience setters
     setColors,
     setFrequencyInfluence,
+    setOrientation,
 
     // Sync
     syncFromKwami,

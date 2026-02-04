@@ -143,6 +143,13 @@ export interface BlackHoleAudio {
   };
 }
 
+/** ORIENTATION: Mesh position/rotation in 3D space */
+export interface BlackHoleOrientation {
+  x: number;
+  y: number;
+  z: number;
+}
+
 /** Complete black hole state */
 export interface BlackHoleState {
   colorScheme: BlackHoleColorSchemeSection;
@@ -151,6 +158,7 @@ export interface BlackHoleState {
   colors: BlackHoleColors;
   stars: BlackHoleStars;
   animation: BlackHoleAnimation;
+  orientation: BlackHoleOrientation;
   effects: BlackHoleEffects;
   clickEvents: BlackHoleClickEvents;
   cursorTouch: BlackHoleCursorTouch;
@@ -276,6 +284,14 @@ export function getDefaultAudio(): BlackHoleAudio {
   };
 }
 
+export function getDefaultOrientation(): BlackHoleOrientation {
+  return {
+    x: 0,
+    y: 0,
+    z: 0,
+  };
+}
+
 export function getDefaultBlackHoleState(): BlackHoleState {
   return {
     colorScheme: getDefaultColorScheme(),
@@ -284,6 +300,7 @@ export function getDefaultBlackHoleState(): BlackHoleState {
     colors: getDefaultColors(),
     stars: getDefaultStars(),
     animation: getDefaultAnimation(),
+    orientation: getDefaultOrientation(),
     effects: getDefaultEffects(),
     clickEvents: getDefaultClickEvents(),
     cursorTouch: getDefaultCursorTouch(),
@@ -305,6 +322,7 @@ export const useBlackHoleStore = defineStore('blackHole', () => {
   const colors = reactive<BlackHoleColors>(getDefaultColors());
   const stars = reactive<BlackHoleStars>(getDefaultStars());
   const animation = reactive<BlackHoleAnimation>(getDefaultAnimation());
+  const orientation = reactive<BlackHoleOrientation>(getDefaultOrientation());
   const effects = reactive<BlackHoleEffects>(getDefaultEffects());
   const clickEvents = reactive<BlackHoleClickEvents>(getDefaultClickEvents());
   const cursorTouch = reactive<BlackHoleCursorTouch>(getDefaultCursorTouch());
@@ -340,6 +358,10 @@ export const useBlackHoleStore = defineStore('blackHole', () => {
     Object.assign(animation, getDefaultAnimation());
   }
 
+  function resetOrientation() {
+    Object.assign(orientation, getDefaultOrientation());
+  }
+
   function resetEffects() {
     Object.assign(effects, getDefaultEffects());
   }
@@ -363,6 +385,7 @@ export const useBlackHoleStore = defineStore('blackHole', () => {
     resetColors();
     resetStars();
     resetAnimation();
+    resetOrientation();
     resetEffects();
     resetClickEvents();
     resetCursorTouch();
@@ -471,6 +494,12 @@ export const useBlackHoleStore = defineStore('blackHole', () => {
     audio.frequencyEffects.highStarTwinkle = high;
   }
 
+  function setOrientation(x: number, y: number, z: number) {
+    orientation.x = x;
+    orientation.y = y;
+    orientation.z = z;
+  }
+
   // =====================================================
   // SYNC FROM EXTERNAL (Kwami instance)
   // =====================================================
@@ -527,6 +556,7 @@ export const useBlackHoleStore = defineStore('blackHole', () => {
       colors: { ...colors },
       stars: { ...stars },
       animation: { ...animation },
+      orientation: { ...orientation },
       effects: { ...effects },
       clickEvents: { ...clickEvents },
       cursorTouch: { ...cursorTouch },
@@ -570,6 +600,7 @@ export const useBlackHoleStore = defineStore('blackHole', () => {
     if (state.colors) deepMerge(colors, state.colors);
     if (state.stars) deepMerge(stars, state.stars);
     if (state.animation) deepMerge(animation, state.animation);
+    if (state.orientation) deepMerge(orientation, state.orientation);
     if (state.effects) deepMerge(effects, state.effects);
     if (state.clickEvents) deepMerge(clickEvents, state.clickEvents);
     if (state.cursorTouch) deepMerge(cursorTouch, state.cursorTouch);
@@ -586,6 +617,7 @@ export const useBlackHoleStore = defineStore('blackHole', () => {
     colors,
     stars,
     animation,
+    orientation,
     effects,
     clickEvents,
     cursorTouch,
@@ -600,6 +632,7 @@ export const useBlackHoleStore = defineStore('blackHole', () => {
     resetColors,
     resetStars,
     resetAnimation,
+    resetOrientation,
     resetEffects,
     resetClickEvents,
     resetCursorTouch,
@@ -621,6 +654,7 @@ export const useBlackHoleStore = defineStore('blackHole', () => {
     // Convenience setters
     setColorSchemePreset,
     setScale,
+    setOrientation,
     setFrequencyEffects,
 
     // Sync

@@ -188,7 +188,7 @@ export const blobPresetsData: BlobXyzPreset[] = [
       skin: {
         type: 'donut',
         colors: { x: '#ffb6c1', y: '#87ceeb', z: '#dda0dd' },
-        opacity: 0.8,
+        opacity: 0.15,
         shininess: 176,
         lightIntensity: 1.6,
         wireframe: true,

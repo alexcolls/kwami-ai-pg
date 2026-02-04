@@ -69,6 +69,13 @@ export interface OrbitalShardsAnimation {
   };
 }
 
+/** ORIENTATION: Mesh position/rotation in 3D space */
+export interface OrbitalShardsOrientation {
+  x: number;
+  y: number;
+  z: number;
+}
+
 /** CLICK EVENTS: Click interaction callbacks */
 export interface OrbitalShardsClickEvents {
   click: {
@@ -120,6 +127,7 @@ export interface OrbitalShardsState {
   colors: OrbitalShardsColors;
   glow: OrbitalShardsGlow;
   animation: OrbitalShardsAnimation;
+  orientation: OrbitalShardsOrientation;
   clickEvents: OrbitalShardsClickEvents;
   cursorTouch: OrbitalShardsCursorTouch;
   audio: OrbitalShardsAudio;
@@ -162,6 +170,14 @@ export function getDefaultAnimation(): OrbitalShardsAnimation {
       y: 0.002,
       z: 0,
     },
+  };
+}
+
+export function getDefaultOrientation(): OrbitalShardsOrientation {
+  return {
+    x: 0,
+    y: 0,
+    z: 0,
   };
 }
 
@@ -235,6 +251,7 @@ export const useOrbitalShardsStore = defineStore('orbital-shards', () => {
   const colors = reactive<OrbitalShardsColors>(getDefaultColors());
   const glow = reactive<OrbitalShardsGlow>(getDefaultGlow());
   const animation = reactive<OrbitalShardsAnimation>(getDefaultAnimation());
+  const orientation = reactive<OrbitalShardsOrientation>(getDefaultOrientation());
   const clickEvents = reactive<OrbitalShardsClickEvents>(getDefaultClickEvents());
   const cursorTouch = reactive<OrbitalShardsCursorTouch>(getDefaultCursorTouch());
   const audio = reactive<OrbitalShardsAudio>(getDefaultAudio());
@@ -259,6 +276,10 @@ export const useOrbitalShardsStore = defineStore('orbital-shards', () => {
     Object.assign(animation, getDefaultAnimation());
   }
 
+  function resetOrientation() {
+    Object.assign(orientation, getDefaultOrientation());
+  }
+
   function resetClickEvents() {
     Object.assign(clickEvents, getDefaultClickEvents());
   }
@@ -276,6 +297,7 @@ export const useOrbitalShardsStore = defineStore('orbital-shards', () => {
     resetColors();
     resetGlow();
     resetAnimation();
+    resetOrientation();
     resetClickEvents();
     resetCursorTouch();
     resetAudio();
@@ -332,6 +354,12 @@ export const useOrbitalShardsStore = defineStore('orbital-shards', () => {
     animation.rotation.x = x;
     animation.rotation.y = y;
     animation.rotation.z = z;
+  }
+
+  function setOrientation(x: number, y: number, z: number) {
+    orientation.x = x;
+    orientation.y = y;
+    orientation.z = z;
   }
 
   function setFrequencyBoosts(bass: number, mid: number, high: number) {
@@ -411,6 +439,7 @@ export const useOrbitalShardsStore = defineStore('orbital-shards', () => {
       colors: { ...colors, core: { ...colors.core } },
       glow: { ...glow },
       animation: { ...animation, rotation: { ...animation.rotation } },
+      orientation: { ...orientation },
       clickEvents: { ...clickEvents },
       cursorTouch: { ...cursorTouch },
       audio: { ...audio, frequencyBoosts: { ...audio.frequencyBoosts } },
@@ -449,6 +478,7 @@ export const useOrbitalShardsStore = defineStore('orbital-shards', () => {
     if (state.colors) deepMerge(colors, state.colors);
     if (state.glow) deepMerge(glow, state.glow);
     if (state.animation) deepMerge(animation, state.animation);
+    if (state.orientation) deepMerge(orientation, state.orientation);
     if (state.clickEvents) deepMerge(clickEvents, state.clickEvents);
     if (state.cursorTouch) deepMerge(cursorTouch, state.cursorTouch);
     if (state.audio) deepMerge(audio, state.audio);
@@ -460,6 +490,7 @@ export const useOrbitalShardsStore = defineStore('orbital-shards', () => {
     colors,
     glow,
     animation,
+    orientation,
     clickEvents,
     cursorTouch,
     audio,
@@ -469,6 +500,7 @@ export const useOrbitalShardsStore = defineStore('orbital-shards', () => {
     resetColors,
     resetGlow,
     resetAnimation,
+    resetOrientation,
     resetClickEvents,
     resetCursorTouch,
     resetAudio,
@@ -487,6 +519,7 @@ export const useOrbitalShardsStore = defineStore('orbital-shards', () => {
     setColors,
     setCoreColors,
     setRotation,
+    setOrientation,
     setFrequencyBoosts,
 
     // Sync
