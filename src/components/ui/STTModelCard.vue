@@ -1,7 +1,21 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { ref, computed } from 'vue';
 import type { InferenceSTTModel, PluginSTTModel } from '@/composables/useModelsApi';
 import RangeBar from './RangeBar.vue';
+
+// Language name mapping
+const LANGUAGE_NAMES: Record<string, string> = {
+  en: 'English', 'en-US': 'English (US)', 'en-GB': 'English (UK)', 'en-AU': 'English (AU)',
+  es: 'Spanish', 'es-419': 'Spanish (LATAM)', 'es-ES': 'Spanish (Spain)',
+  fr: 'French', 'fr-CA': 'French (CA)', de: 'German', it: 'Italian',
+  pt: 'Portuguese', 'pt-BR': 'Portuguese (BR)', nl: 'Dutch', pl: 'Polish',
+  ru: 'Russian', zh: 'Chinese', 'zh-CN': 'Chinese (Simplified)', 'zh-TW': 'Chinese (Traditional)',
+  ja: 'Japanese', ko: 'Korean', ar: 'Arabic', hi: 'Hindi', tr: 'Turkish',
+  vi: 'Vietnamese', th: 'Thai', id: 'Indonesian', sv: 'Swedish', da: 'Danish',
+  no: 'Norwegian', fi: 'Finnish', cs: 'Czech', el: 'Greek', he: 'Hebrew',
+  hu: 'Hungarian', ro: 'Romanian', uk: 'Ukrainian', multi: 'Multi-language',
+  multilingual: 'Multilingual',
+};
 
 const props = defineProps<{
   model: InferenceSTTModel | PluginSTTModel;
@@ -53,14 +67,23 @@ const pricePercent = computed(() => {
   return 100 - ((pricePerMin.value - props.minPrice) / range) * 100;
 });
 
-// Speed icon
-const speedIcon = computed(() => {
-  const icons: Record<string, string> = {
-    fast: 'ph:lightning-duotone',
-    standard: 'ph:gauge-duotone',
-    slow: 'ph:hourglass-duotone',
+// Speed percentage and display
+const speedPercent = computed(() => {
+  const speedValues: Record<string, number> = {
+    fast: 100,
+    standard: 60,
+    slow: 30,
   };
-  return icons[props.model.speed] || icons.standard;
+  return speedValues[props.model.speed] || 60;
+});
+
+const speedDisplay = computed(() => {
+  const labels: Record<string, string> = {
+    fast: 'Fast',
+    standard: 'Medium',
+    slow: 'Slow',
+  };
+  return labels[props.model.speed] || 'Medium';
 });
 
 // Language display and percentage
@@ -78,6 +101,17 @@ const languageDisplay = computed(() => {
 const languagePercent = computed(() => {
   return isMultilingual.value ? 100 : 30;
 });
+
+// Formatted languages for tooltip
+const formattedLanguages = computed(() => {
+  return props.model.languages.map(code => ({
+    code,
+    name: LANGUAGE_NAMES[code] || code.toUpperCase(),
+  }));
+});
+
+// Show languages popover
+const showLanguages = ref(false);
 
 // Key features to show
 const hasSpecialFeature = computed(() => {
@@ -102,7 +136,6 @@ function handleClick() {
     <div class="card-header">
       <iconify-icon :icon="providerIcon" class="provider-icon"></iconify-icon>
       <span class="model-name">{{ model.display_name }}</span>
-      <iconify-icon :icon="speedIcon" class="speed-icon" :title="model.speed"></iconify-icon>
     </div>
     
     <!-- Range Bars -->
@@ -111,28 +144,63 @@ function handleClick() {
         <RangeBar 
           :value="pricePercent" 
           icon="ph:currency-dollar-duotone"
-          color="purple"
+          label="Price"
           :title="`Price: ${priceDisplay}/1k min`"
         />
         <span class="range-value">{{ priceDisplay }}</span>
       </div>
-      <div class="range-row">
+      <div 
+        class="range-row lang-row"
+        @mouseenter="showLanguages = true"
+        @mouseleave="showLanguages = false"
+      >
         <RangeBar 
           :value="languagePercent" 
           icon="ph:globe-duotone"
-          color="blue"
+          label="Lang"
           :title="`Languages: ${languageDisplay}`"
         />
         <span class="range-value">{{ languageDisplay }}</span>
+        
+        <!-- Languages Popover -->
+        <Transition name="fade">
+          <div v-if="showLanguages && model.languages.length > 1" class="languages-popover">
+            <div class="popover-header">
+              <iconify-icon icon="ph:globe-duotone"></iconify-icon>
+              <span>{{ model.languages.length }} Languages</span>
+            </div>
+            <div class="languages-grid">
+              <span 
+                v-for="lang in formattedLanguages" 
+                :key="lang.code" 
+                class="lang-badge"
+                :title="lang.name"
+              >
+                {{ lang.code }}
+              </span>
+            </div>
+          </div>
+        </Transition>
+      </div>
+      <div class="range-row">
+        <RangeBar 
+          :value="speedPercent" 
+          icon="ph:lightning-duotone"
+          label="Speed"
+          :title="`Speed: ${speedDisplay}`"
+        />
+        <span class="range-value">{{ speedDisplay }}</span>
       </div>
     </div>
     
     <div v-if="hasSpecialFeature" class="card-features">
       <span v-if="model.features.includes('diarization')" class="feature-badge diarization" title="Speaker Diarization">
         <iconify-icon icon="ph:users-duotone"></iconify-icon>
+        <span class="feature-label">Diarization</span>
       </span>
-      <span v-if="model.features.includes('medical_vocabulary')" class="feature-badge medical" title="Medical">
+      <span v-if="model.features.includes('medical_vocabulary')" class="feature-badge medical" title="Medical Vocabulary">
         <iconify-icon icon="ph:first-aid-kit-duotone"></iconify-icon>
+        <span class="feature-label">Medical</span>
       </span>
     </div>
     
@@ -159,9 +227,10 @@ function handleClick() {
   min-height: 90px;
 }
 
-.model-card:hover:not(.disabled) {
+.model-card:hover:not(.disabled):not(.selected) {
   background: var(--surface-2);
-  border-color: var(--surface-3);
+  border-color: var(--accent-primary);
+  box-shadow: 0 2px 12px var(--accent-glow);
   transform: translateY(-1px);
 }
 
@@ -203,16 +272,6 @@ function handleClick() {
   flex: 1;
 }
 
-.speed-icon {
-  font-size: 12px;
-  color: var(--text-muted);
-  flex-shrink: 0;
-}
-
-.model-card:hover .speed-icon {
-  color: var(--text-secondary);
-}
-
 .card-ranges {
   display: flex;
   flex-direction: column;
@@ -225,15 +284,80 @@ function handleClick() {
   gap: 6px;
 }
 
+.lang-row {
+  position: relative;
+  cursor: pointer;
+}
+
 .range-value {
   font-size: 9px;
   color: var(--text-muted);
-  min-width: 32px;
+  min-width: 38px;
   text-align: right;
+}
+
+/* Languages Popover */
+.languages-popover {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 4px;
+  padding: 8px;
+  background: var(--surface-2);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 100;
+  min-width: 180px;
+}
+
+.popover-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.popover-header iconify-icon {
+  font-size: 12px;
+  color: var(--accent-primary);
+}
+
+.languages-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.lang-badge {
+  padding: 2px 6px;
+  font-size: 9px;
+  font-weight: 500;
+  background: var(--surface-3);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.15s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 
 .card-features {
   display: flex;
+  flex-wrap: wrap;
   gap: 4px;
   margin-top: auto;
 }
@@ -241,25 +365,32 @@ function handleClick() {
 .feature-badge {
   display: flex;
   align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  border-radius: 4px;
+  gap: 3px;
+  padding: 2px 6px;
+  border-radius: var(--radius-lg);
+  font-size: 9px;
+}
+
+.feature-badge iconify-icon {
   font-size: 10px;
 }
 
+.feature-label {
+  font-weight: 500;
+}
+
 .feature-badge.diarization {
-  background: rgba(147, 51, 234, 0.2);
+  background: rgba(147, 51, 234, 0.15);
   color: #a78bfa;
 }
 
 .feature-badge.medical {
-  background: rgba(239, 68, 68, 0.2);
+  background: rgba(239, 68, 68, 0.15);
   color: #f87171;
 }
 
 .model-card.selected .feature-badge {
-  background: rgba(0, 217, 255, 0.2);
+  background: var(--accent-glow);
   color: var(--accent-primary);
 }
 

@@ -55,7 +55,7 @@ const barColor = computed(() => {
   gap: 3px;
   font-size: 9px;
   color: var(--text-muted);
-  min-width: 16px;
+  min-width: 52px;
   flex-shrink: 0;
 }
 
