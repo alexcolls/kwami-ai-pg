@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, watch } from 'vue';
 import { useKwami } from '@/composables/useKwami';
+import { useSceneBackground } from '@/composables/useSceneBackground';
 import { useUIStore } from '@/stores/ui';
 import { useAuthStore } from '@/stores/auth';
 import AuthGuard from '@/components/auth/AuthGuard.vue';
@@ -19,13 +20,10 @@ import InfoPanel from '@/components/panels/info/InfoPanel.vue';
 import MetricsPanel from '@/components/panels/metrics/MetricsPanel.vue';
 import AccountPanel from '@/components/panels/account/AccountPanel.vue';
 import ThemePanel from '@/components/panels/theme/ThemePanel.vue';
-import LLMPanel from '@/components/panels/models/LLMPanel.vue';
-import STTPanel from '@/components/panels/models/STTPanel.vue';
-import TTSPanel from '@/components/panels/models/TTSPanel.vue';
-import UnifiedModelsPanel from '@/components/panels/models/unified/UnifiedModelsPanel.vue';
-import RotationDisplay from '@/components/ui/RotationDisplay.vue';
+import ModelsPanel from '@/components/panels/models/ModelsPanel.vue';
 
 const { kwami, init, switchRenderer } = useKwami();
+const { initialize: initSceneBackground } = useSceneBackground();
 const uiStore = useUIStore();
 const authStore = useAuthStore();
 
@@ -60,6 +58,9 @@ function initializeKwami() {
 
   init(canvasRef.value, rendererType);
   isInitialized.value = true;
+
+  // Initialize scene background from saved settings
+  initSceneBackground();
 
   // Trigger initial resize to ensure proper sizing
   requestAnimationFrame(() => {
@@ -180,9 +181,6 @@ onUnmounted(() => {
           <ControlBar />
         </div>
 
-        <!-- Rotation Display (bottom-left) -->
-        <RotationDisplay />
-
         <TheSidebar>
           <AvatarPanel v-if="uiStore.activePanel === 'avatar'" />
           <ScenePanel v-if="uiStore.activePanel === 'scene'" />
@@ -196,10 +194,7 @@ onUnmounted(() => {
           <MetricsPanel v-if="uiStore.activePanel === 'metrics'" />
           <AccountPanel v-if="uiStore.activePanel === 'account'" />
           <ThemePanel v-if="uiStore.activePanel === 'theme'" />
-          <LLMPanel v-if="uiStore.activePanel === 'llm'" />
-          <STTPanel v-if="uiStore.activePanel === 'stt'" />
-          <TTSPanel v-if="uiStore.activePanel === 'tts'" />
-          <UnifiedModelsPanel v-if="uiStore.activePanel === 'models'" />
+          <ModelsPanel v-if="uiStore.activePanel === 'models'" />
         </TheSidebar>
       </template>
     </div>

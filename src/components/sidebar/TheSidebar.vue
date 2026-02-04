@@ -17,7 +17,7 @@ const isRight = computed(() => themeStore.sidebarPosition === 'right');
 const sidebarStyle = computed(() => ({}));
 
 // FLIP animation for position changes
-watch(() => themeStore.sidebarPosition, async (newPos, oldPos) => {
+watch(() => themeStore.sidebarPosition, async (_newPos, oldPos) => {
   if (!sidebarRef.value || oldPos === undefined) return;
   
   const sidebar = sidebarRef.value;

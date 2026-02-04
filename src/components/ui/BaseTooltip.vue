@@ -8,7 +8,6 @@ const props = defineProps<{
 }>();
 
 const isVisible = ref(false);
-const triggerRef = ref<HTMLElement | null>(null);
 let showTimeout: ReturnType<typeof setTimeout> | null = null;
 
 const tooltipPosition = computed(() => props.position || 'top');
@@ -31,7 +30,6 @@ function hideTooltip() {
 
 <template>
   <div 
-    ref="triggerRef"
     class="tooltip-wrapper"
     @mouseenter="showTooltip"
     @mouseleave="hideTooltip"

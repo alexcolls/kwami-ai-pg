@@ -27,15 +27,6 @@ export function useKwami() {
     // Get voice config from store
     const voiceStore = useVoiceStore();
 
-    // Background colors per renderer
-    const getBackgroundColors = () => {
-      if (renderer === 'orbital-shards') return ['#050510', '#0a0a20', '#050510'];
-      if (renderer === 'stars-genesis') return ['#000000', '#0a0a15', '#000000'];
-      if (renderer === 'crystal-ball') return ['#0a0510', '#150a20', '#0a0510'];
-      if (renderer === 'black-hole') return ['#000000', '#050510', '#000000'];
-      return ['#0a0a1a', '#1a1a3a', '#0a0a1a'];
-    };
-
     const config = {
       avatar: {
         renderer: renderer,
@@ -90,7 +81,8 @@ export function useKwami() {
         },
         crystalBall: {
           style: { style: 'mystical' as 'mystical' | 'nebula' | 'earth' | 'fire' | 'ocean' },
-          colors: { primary: '#6b5b95', secondary: '#feb236' },
+          // TUTORIAL COLORS: black + bright color = depth effect!
+          colors: { primary: '#000000', secondary: '#00ffaa' },
           // Tutorial defaults for magical marble effect
           volume: { iterations: 18, depth: 0.6, smoothing: 0.3, noiseScale: 1.0 },
           animation: {
@@ -110,13 +102,6 @@ export function useKwami() {
         },
         scene: {
           enableControls: true,
-          background: {
-            type: 'gradient' as 'gradient' | 'transparent' | 'solid' | 'image' | 'video',
-            gradient: {
-              colors: getBackgroundColors(),
-              direction: 'radial' as 'radial' | 'vertical' | 'horizontal' | 'diagonal',
-            },
-          },
         },
       },
       agent: {

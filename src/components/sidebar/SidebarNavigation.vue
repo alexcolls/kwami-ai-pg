@@ -26,12 +26,7 @@ const panelIcons: Record<string, string> = {
   info: 'ph:info-duotone',
   account: 'ph:user-duotone',
   theme: 'ph:palette-duotone',
-  // Model Panels
   models: 'ph:cpu-duotone',
-  llm: 'ph:brain-duotone',
-  stt: 'ph:ear-duotone',
-  tts: 'lucide:audio-lines',
-  vision: 'ph:eye-duotone',
 };
 
 function toggleTray() {

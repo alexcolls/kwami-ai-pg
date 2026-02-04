@@ -9,6 +9,7 @@ import 'vue-toastification/dist/index.css';
 import App from './App.vue';
 import { useThemeStore } from './stores/theme';
 import { useSceneStore } from './stores/scene';
+import { useAvatarStore } from './stores/avatar';
 
 const app = createApp(App);
 const pinia = createPinia();
@@ -37,5 +38,9 @@ themeStore.loadSettings();
 // Initialize scene settings
 const sceneStore = useSceneStore();
 sceneStore.loadSettings();
+
+// Initialize avatar settings
+const avatarStore = useAvatarStore();
+avatarStore.loadSettings();
 
 app.mount('#app');
