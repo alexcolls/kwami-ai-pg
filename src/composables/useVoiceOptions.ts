@@ -1,5 +1,13 @@
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
+import { useVoicesApi, type Voice } from './useVoicesApi';
+import { useLanguagesApi, type Language } from './useLanguagesApi';
 
+// Cache for API-fetched voices
+const apiTtsVoices = ref<Record<string, Voice[]>>({});
+const apiRealtimeVoices = ref<Record<string, Voice[]>>({});
+
+// Cache for API-fetched languages
+const apiSttLanguages = ref<Record<string, Language[]>>({});
 
 export function useVoiceOptions(
     stt: { value: { provider: string } },
@@ -7,6 +15,59 @@ export function useVoiceOptions(
     tts: { value: { provider: string } },
     realtime: { value: { provider: string } }
 ) {
+    const { fetchTTSVoicesByProvider, fetchRealtimeVoicesByProvider } = useVoicesApi();
+    const { fetchSTTLanguagesByProvider } = useLanguagesApi();
+
+    // Fetch voices from API when provider changes
+    async function fetchTtsVoicesForProvider(provider: string) {
+        if (apiTtsVoices.value[provider]) return; // Already cached
+        try {
+            const result = await fetchTTSVoicesByProvider(provider);
+            if (result?.voices) {
+                apiTtsVoices.value[provider] = result.voices;
+            }
+        } catch (e) {
+            console.warn(`Failed to fetch TTS voices for ${provider}, using fallback`);
+        }
+    }
+
+    async function fetchRealtimeVoicesForProvider(provider: string) {
+        if (apiRealtimeVoices.value[provider]) return; // Already cached
+        try {
+            const result = await fetchRealtimeVoicesByProvider(provider);
+            if (result?.voices) {
+                apiRealtimeVoices.value[provider] = result.voices;
+            }
+        } catch (e) {
+            console.warn(`Failed to fetch Realtime voices for ${provider}, using fallback`);
+        }
+    }
+
+    // Fetch languages from API when provider changes
+    async function fetchSttLanguagesForProvider(provider: string) {
+        if (apiSttLanguages.value[provider]) return; // Already cached
+        try {
+            const result = await fetchSTTLanguagesByProvider(provider);
+            if (result?.languages) {
+                apiSttLanguages.value[provider] = result.languages;
+            }
+        } catch (e) {
+            console.warn(`Failed to fetch STT languages for ${provider}, using fallback`);
+        }
+    }
+
+    // Watch for provider changes and fetch voices/languages
+    watch(() => tts.value.provider, (provider) => {
+        fetchTtsVoicesForProvider(provider);
+    }, { immediate: true });
+
+    watch(() => realtime.value.provider, (provider) => {
+        fetchRealtimeVoicesForProvider(provider);
+    }, { immediate: true });
+
+    watch(() => stt.value.provider, (provider) => {
+        fetchSttLanguagesForProvider(provider);
+    }, { immediate: true });
     // STT Configuration
     const sttProviders = [
         { provider: 'deepgram', label: 'Deepgram', icon: 'simple-icons:deepgram' },
@@ -56,7 +117,8 @@ export function useVoiceOptions(
         }
     });
 
-    const sttLanguages = [
+    // Fallback STT languages (used when API is unavailable)
+    const fallbackSttLanguages = [
         { value: 'en', label: 'English' },
         { value: 'en-US', label: 'English (US)' },
         { value: 'en-GB', label: 'English (UK)' },
@@ -79,6 +141,25 @@ export function useVoiceOptions(
         { value: 'tr', label: 'Turkish' },
         { value: 'multi', label: 'Multi-language' },
     ];
+
+    const sttLanguages = computed(() => {
+        const provider = stt.value.provider;
+
+        // Use API languages if available
+        const apiLanguages = apiSttLanguages.value[provider];
+        if (apiLanguages && apiLanguages.length > 0) {
+            return apiLanguages.map(lang => {
+                let label = lang.name;
+                if (lang.region) {
+                    label += ` (${lang.region})`;
+                }
+                return { value: lang.code, label };
+            });
+        }
+
+        // Fall back to hardcoded languages
+        return fallbackSttLanguages;
+    });
 
     // LLM Configuration
     const llmProviders = [
@@ -229,111 +310,57 @@ export function useVoiceOptions(
         }
     });
 
+    // Fallback TTS voices (used when API is unavailable)
+    const fallbackTtsVoices: Record<string, Array<{ id: string; name: string; category: string }>> = {
+        cartesia: [
+            { id: '79a125e8-cd45-4c13-8a67-188112f4dd22', name: 'British Lady (Sophia)', category: 'Female EN' },
+            { id: 'c2ac25f9-ecc4-4f56-9095-651354df60c0', name: 'California Girl', category: 'Female EN' },
+            { id: 'a167e0f3-df7e-4d52-a9c3-f949145efdab', name: 'Blake (Newsman)', category: 'Male EN' },
+            { id: '2ee87190-8f84-4925-97da-e52547f9462c', name: 'British Narrator', category: 'Male EN' },
+        ],
+        elevenlabs: [
+            { id: '21m00Tcm4TlvDq8ikWAM', name: 'Rachel', category: 'Female' },
+            { id: 'pNInz6obpgDQGcFmaJgB', name: 'Adam', category: 'Male' },
+            { id: 'onwK4e9ZLuTAKqWW03F9', name: 'Daniel', category: 'Male' },
+        ],
+        openai: [
+            { id: 'alloy', name: 'Alloy', category: 'Neutral' },
+            { id: 'ash', name: 'Ash', category: 'Male' },
+            { id: 'coral', name: 'Coral', category: 'Female' },
+            { id: 'echo', name: 'Echo', category: 'Male' },
+            { id: 'fable', name: 'Fable', category: 'Neutral' },
+            { id: 'nova', name: 'Nova', category: 'Female' },
+            { id: 'onyx', name: 'Onyx', category: 'Male' },
+            { id: 'sage', name: 'Sage', category: 'Female' },
+            { id: 'shimmer', name: 'Shimmer', category: 'Female' },
+        ],
+        deepgram: [
+            { id: 'asteria', name: 'Asteria', category: 'Female' },
+            { id: 'luna', name: 'Luna', category: 'Female' },
+            { id: 'orion', name: 'Orion', category: 'Male' },
+            { id: 'zeus', name: 'Zeus', category: 'Male' },
+        ],
+        google: [
+            { id: 'en-US-Studio-O', name: 'Studio O (Female)', category: 'Female' },
+            { id: 'en-US-Studio-Q', name: 'Studio Q (Male)', category: 'Male' },
+        ],
+    };
+
     const ttsVoices = computed(() => {
-        switch (tts.value.provider) {
-            case 'cartesia':
-                return [
-                    // English - Female
-                    { id: '79a125e8-cd45-4c13-8a67-188112f4dd22', name: 'British Lady (Sophia)', category: 'Female EN' },
-                    { id: '9626c31c-bec5-4cca-baa8-f8ba9e84c8bc', name: 'Jacqueline', category: 'Female EN' },
-                    { id: 'c2ac25f9-ecc4-4f56-9095-651354df60c0', name: 'California Girl', category: 'Female EN' },
-                    { id: 'b7d50908-b17c-442d-ad8d-810c63997ed9', name: 'Reading Lady', category: 'Female EN' },
-                    { id: '00a77add-48d5-4ef6-8157-71e5437b282d', name: 'Sarah', category: 'Female EN' },
-                    { id: 'ed81fd13-2016-4a49-8fe3-c0d2761695fc', name: 'Midwestern Woman', category: 'Female EN' },
-                    { id: '5619d38c-cf51-4d8e-9575-48f61a280413', name: 'Maria', category: 'Female EN' },
-                    { id: 'f146dcec-e481-45be-8ad2-96e1e40e7f32', name: 'Commercial Lady', category: 'Female EN' },
-                    // English - Male
-                    { id: 'a167e0f3-df7e-4d52-a9c3-f949145efdab', name: 'Blake (Newsman)', category: 'Male EN' },
-                    { id: '63ff761f-c1e8-414b-b969-d1833d1c870c', name: 'Commercial Man', category: 'Male EN' },
-                    { id: '421b3369-f63f-4b03-8980-37a44df1d4e8', name: 'Friendly Sidekick', category: 'Male EN' },
-                    { id: '638efaaa-4d0c-442e-b701-3fae16aad012', name: 'Southern Man', category: 'Male EN' },
-                    { id: 'fb26447f-308b-471e-8b00-8e9f04284eb5', name: 'Wise Man', category: 'Male EN' },
-                    { id: '2ee87190-8f84-4925-97da-e52547f9462c', name: 'British Narrator', category: 'Male EN' },
-                    // Australian
-                    { id: 'f31cc6a7-c1e8-4764-980c-60a361443dd1', name: 'Robyn (Australian)', category: 'Female AU' },
-                    { id: 'c99d36f3-5ffd-4253-803a-535c1bc9c306', name: 'Australian Male', category: 'Male AU' },
-                    // Spanish
-                    { id: '5c5ad5e7-1020-476b-8b91-fdcbe9cc313c', name: 'Daniela (Spanish)', category: 'Female ES' },
-                    { id: '15d0c2e2-8d29-44c3-be23-d585d5f154a1', name: 'Spanish Male', category: 'Male ES' },
-                    // French
-                    { id: 'a8a1eb38-5f15-4c1d-8722-7ac0f329f8d7', name: 'French Female', category: 'Female FR' },
-                    { id: 'ab7c61f5-3daa-47dd-a23b-4ac0aac5f5c3', name: 'French Male', category: 'Male FR' },
-                    // German
-                    { id: '3f6e78a1-e5d5-4d7b-9d2a-8a8b9b1a2c3d', name: 'German Female', category: 'Female DE' },
-                    { id: '4a5b6c7d-8e9f-0a1b-2c3d-4e5f6a7b8c9d', name: 'German Male', category: 'Male DE' },
-                    // Child voices
-                    { id: '2b568345-1d48-4047-b25f-7baccf842eb0', name: 'Child (Female)', category: 'Child' },
-                    { id: '98a34ef2-2140-4c28-9c71-663dc4dd7022', name: 'Child (Male)', category: 'Child' },
-                ];
-            case 'elevenlabs':
-                return [
-                    // Premade voices
-                    { id: '21m00Tcm4TlvDq8ikWAM', name: 'Rachel', category: 'Female' },
-                    { id: 'AZnzlk1XvdvUeBnXmlld', name: 'Domi', category: 'Female' },
-                    { id: 'EXAVITQu4vr4xnSDxMaL', name: 'Bella', category: 'Female' },
-                    { id: 'MF3mGyEYCl7XYWbV9V6O', name: 'Elli', category: 'Female' },
-                    { id: 'TxGEqnHWrfWFTfGW9XjX', name: 'Josh', category: 'Male' },
-                    { id: 'VR6AewLTigWG4xSOukaG', name: 'Arnold', category: 'Male' },
-                    { id: 'pNInz6obpgDQGcFmaJgB', name: 'Adam', category: 'Male' },
-                    { id: 'yoZ06aMxZJJ28mfd3POQ', name: 'Sam', category: 'Male' },
-                    { id: 'onwK4e9ZLuTAKqWW03F9', name: 'Daniel', category: 'Male' },
-                    { id: 'XB0fDUnXU5powFXDhCwa', name: 'Charlotte', category: 'Female' },
-                    { id: 'pFZP5JQG7iQjIQuC4Bku', name: 'Lily', category: 'Female' },
-                    { id: 'N2lVS1w4EtoT3dr4eOWO', name: 'Callum', category: 'Male' },
-                    { id: 'IKne3meq5aSn9XLyUdCD', name: 'Charlie', category: 'Male' },
-                    { id: 'JBFqnCBsd6RMkjVDRZzb', name: 'George', category: 'Male' },
-                    { id: 'TX3LPaxmHKxFdv7VOQHJ', name: 'Liam', category: 'Male' },
-                    { id: 'bIHbv24MWmeRgasZH58o', name: 'Will', category: 'Male' },
-                    { id: 'cgSgspJ2msm6clMCkdW9', name: 'Jessica', category: 'Female' },
-                    { id: 'cjVigY5qzO86Huf0OWal', name: 'Eric', category: 'Male' },
-                    { id: 'iP95p4xoKVk53GoZ742B', name: 'Chris', category: 'Male' },
-                    { id: 'nPczCjzI2devNBz1zQrb', name: 'Brian', category: 'Male' },
-                ];
-            case 'openai':
-                // Note: 'ballad' and 'verse' are only available for OpenAI Realtime API, not standard TTS
-                return [
-                    { id: 'alloy', name: 'Alloy', category: 'Neutral' },
-                    { id: 'ash', name: 'Ash', category: 'Male' },
-                    { id: 'coral', name: 'Coral', category: 'Female' },
-                    { id: 'echo', name: 'Echo', category: 'Male' },
-                    { id: 'fable', name: 'Fable', category: 'Neutral' },
-                    { id: 'nova', name: 'Nova', category: 'Female' },
-                    { id: 'onyx', name: 'Onyx', category: 'Male' },
-                    { id: 'sage', name: 'Sage', category: 'Female' },
-                    { id: 'shimmer', name: 'Shimmer', category: 'Female' },
-                ];
-            case 'deepgram':
-                return [
-                    { id: 'asteria', name: 'Asteria', category: 'Female' },
-                    { id: 'luna', name: 'Luna', category: 'Female' },
-                    { id: 'stella', name: 'Stella', category: 'Female' },
-                    { id: 'athena', name: 'Athena', category: 'Female' },
-                    { id: 'hera', name: 'Hera', category: 'Female' },
-                    { id: 'orion', name: 'Orion', category: 'Male' },
-                    { id: 'arcas', name: 'Arcas', category: 'Male' },
-                    { id: 'perseus', name: 'Perseus', category: 'Male' },
-                    { id: 'angus', name: 'Angus', category: 'Male' },
-                    { id: 'orpheus', name: 'Orpheus', category: 'Male' },
-                    { id: 'helios', name: 'Helios', category: 'Male' },
-                    { id: 'zeus', name: 'Zeus', category: 'Male' },
-                ];
-            case 'google':
-                return [
-                    { id: 'en-US-Studio-O', name: 'Studio O (Female)', category: 'Female' },
-                    { id: 'en-US-Studio-Q', name: 'Studio Q (Male)', category: 'Male' },
-                    { id: 'en-US-Neural2-A', name: 'Neural2 A (Male)', category: 'Male' },
-                    { id: 'en-US-Neural2-C', name: 'Neural2 C (Female)', category: 'Female' },
-                    { id: 'en-US-Neural2-D', name: 'Neural2 D (Male)', category: 'Male' },
-                    { id: 'en-US-Neural2-E', name: 'Neural2 E (Female)', category: 'Female' },
-                    { id: 'en-US-Neural2-F', name: 'Neural2 F (Female)', category: 'Female' },
-                    { id: 'en-US-Neural2-G', name: 'Neural2 G (Female)', category: 'Female' },
-                    { id: 'en-US-Neural2-H', name: 'Neural2 H (Female)', category: 'Female' },
-                    { id: 'en-US-Neural2-I', name: 'Neural2 I (Male)', category: 'Male' },
-                    { id: 'en-US-Neural2-J', name: 'Neural2 J (Male)', category: 'Male' },
-                ];
-            default:
-                return [{ id: 'default', name: 'Default', category: 'Default' }];
+        const provider = tts.value.provider;
+        
+        // Use API voices if available
+        const apiVoices = apiTtsVoices.value[provider];
+        if (apiVoices && apiVoices.length > 0) {
+            return apiVoices.map(v => ({
+                id: v.id,
+                name: v.name,
+                category: v.category || 'Other',
+            }));
         }
+        
+        // Fall back to hardcoded voices
+        return fallbackTtsVoices[provider] || [{ id: 'default', name: 'Default', category: 'Default' }];
     });
 
     // Group voices by category for better UI
@@ -375,30 +402,41 @@ export function useVoiceOptions(
         }
     });
 
+    // Fallback Realtime voices (used when API is unavailable)
+    const fallbackRealtimeVoices: Record<string, Array<{ id: string; name: string }>> = {
+        openai: [
+            { id: 'alloy', name: 'Alloy' },
+            { id: 'ash', name: 'Ash' },
+            { id: 'ballad', name: 'Ballad' },
+            { id: 'coral', name: 'Coral' },
+            { id: 'echo', name: 'Echo' },
+            { id: 'sage', name: 'Sage' },
+            { id: 'shimmer', name: 'Shimmer' },
+            { id: 'verse', name: 'Verse' },
+        ],
+        gemini: [
+            { id: 'Puck', name: 'Puck' },
+            { id: 'Charon', name: 'Charon' },
+            { id: 'Kore', name: 'Kore' },
+            { id: 'Fenrir', name: 'Fenrir' },
+            { id: 'Aoede', name: 'Aoede' },
+        ],
+    };
+
     const realtimeVoices = computed(() => {
-        switch (realtime.value.provider) {
-            case 'openai':
-                return [
-                    { id: 'alloy', name: 'Alloy' },
-                    { id: 'ash', name: 'Ash' },
-                    { id: 'ballad', name: 'Ballad' },
-                    { id: 'coral', name: 'Coral' },
-                    { id: 'echo', name: 'Echo' },
-                    { id: 'sage', name: 'Sage' },
-                    { id: 'shimmer', name: 'Shimmer' },
-                    { id: 'verse', name: 'Verse' },
-                ];
-            case 'gemini':
-                return [
-                    { id: 'Puck', name: 'Puck' },
-                    { id: 'Charon', name: 'Charon' },
-                    { id: 'Kore', name: 'Kore' },
-                    { id: 'Fenrir', name: 'Fenrir' },
-                    { id: 'Aoede', name: 'Aoede' },
-                ];
-            default:
-                return [{ id: 'default', name: 'Default' }];
+        const provider = realtime.value.provider;
+        
+        // Use API voices if available
+        const apiVoices = apiRealtimeVoices.value[provider];
+        if (apiVoices && apiVoices.length > 0) {
+            return apiVoices.map(v => ({
+                id: v.id,
+                name: v.name,
+            }));
         }
+        
+        // Fall back to hardcoded voices
+        return fallbackRealtimeVoices[provider] || [{ id: 'default', name: 'Default' }];
     });
 
     const presets = [
