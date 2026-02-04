@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useKwami } from '@/composables/useKwami';
 import {
   useBlackHoleStore,
-  type InteractionAction,
   type BlackHoleColorScheme,
 } from '@/stores/avatar.black-hole';
+import { useAvatarInteractions, actionOptions, cursorOptions } from '@/composables/avatar/useAvatarInteractions';
+import { randomHex, randomInRange } from '@/utils/color';
 import PanelSection from '@/components/ui/PanelSection.vue';
 import BaseSlider from '@/components/ui/BaseSlider.vue';
 import BaseToggle from '@/components/ui/BaseToggle.vue';
@@ -15,14 +16,13 @@ import BaseColorPicker from '@/components/ui/BaseColorPicker.vue';
 import AudioVisualizer from '../audio/AudioVisualizer.vue';
 import MicrophoneControl from '../audio/MicrophoneControl.vue';
 
-const { kwami, switchRenderer } = useKwami();
+const { kwami } = useKwami();
 const blackHoleStore = useBlackHoleStore();
 const {
   colorScheme,
   core,
   disk,
   colors,
-  stars,
   animation,
   effects,
   clickEvents,
@@ -33,26 +33,23 @@ const {
 } = storeToRefs(blackHoleStore);
 
 // =====================================================
-// INTERACTION OPTIONS
+// COMPOSABLES
 // =====================================================
+function getBlackHole() {
+  return (kwami.value?.avatar as any)?.getBlackHole?.();
+}
 
-const actionOptions = [
-  { label: 'None', value: 'none' },
-  { label: 'Toggle Listening', value: 'toggleListening' },
-  { label: 'Start Listening', value: 'startListening' },
-  { label: 'Stop Listening', value: 'stopListening' },
-  { label: 'Randomize', value: 'randomize' },
-  { label: 'Switch Renderer', value: 'switchRenderer' },
-  { label: 'Cycle State', value: 'cycleState' },
-  { label: 'Pulse Effect', value: 'pulse' },
-];
+const { executeAction } = useAvatarInteractions({
+  getRenderer: getBlackHole,
+});
 
-const cursorOptions = [
-  { label: 'Pointer', value: 'pointer' },
-  { label: 'Grab', value: 'grab' },
-  { label: 'Crosshair', value: 'crosshair' },
-  { label: 'Default', value: 'default' },
-];
+function testAction(action: any) {
+  executeAction(action);
+}
+
+// =====================================================
+// OPTIONS
+// =====================================================
 
 const schemeOptions = [
   { label: 'Classic', value: 'classic' },
@@ -63,84 +60,9 @@ const schemeOptions = [
 ];
 
 // =====================================================
-// HELPERS
+// HELPERS (Removed or replaced)
 // =====================================================
-
-function getBlackHole() {
-  return (kwami.value?.avatar as any)?.getBlackHole?.();
-}
-
-function randomHex(): string {
-  return (
-    '#' +
-    Math.floor(Math.random() * 16777215)
-      .toString(16)
-      .padStart(6, '0')
-  );
-}
-
-function randomInRange(min: number, max: number, step: number = 0.01): number {
-  const range = (max - min) / step;
-  return min + Math.round(Math.random() * range) * step;
-}
-
-// =====================================================
-// INTERACTION ACTIONS
-// =====================================================
-
-function executeAction(action: InteractionAction) {
-  if (!kwami.value) return;
-
-  switch (action) {
-    case 'toggleListening': {
-      const currentState = kwami.value.getState() || 'idle';
-      kwami.value.setState(currentState === 'listening' ? 'idle' : 'listening');
-      break;
-    }
-    case 'startListening':
-      kwami.value.setState('listening');
-      break;
-    case 'stopListening':
-      kwami.value.setState('idle');
-      break;
-    case 'randomize':
-      kwami.value.avatar.randomize();
-      window.dispatchEvent(new CustomEvent('kwami:randomized'));
-      break;
-    case 'switchRenderer': {
-      const renderer = kwami.value.avatar.getRendererType();
-      const renderers = [
-        'blob',
-        'orbital-shards',
-        'stars-genesis',
-        'crystal-ball',
-        'black-hole',
-      ] as const;
-      const currentIdx = renderers.indexOf(renderer as (typeof renderers)[number]);
-      const nextIdx = (currentIdx + 1) % renderers.length;
-      switchRenderer(renderers[nextIdx] ?? 'blob');
-      break;
-    }
-    case 'cycleState': {
-      const states = ['idle', 'listening', 'thinking'] as const;
-      const current = kwami.value.getState() || 'idle';
-      const currentIndex = states.indexOf(current as (typeof states)[number]);
-      const nextIndex = (currentIndex + 1) % states.length;
-      const nextState = states[nextIndex] || 'idle';
-      kwami.value.setState(nextState);
-      window.dispatchEvent(new CustomEvent('kwami:stateChanged', { detail: nextState }));
-      break;
-    }
-    case 'pulse': {
-      // Black hole doesn't have a pulse method, but we can trigger a visual effect
-      break;
-    }
-  }
-}
-
-function testAction(action: InteractionAction) {
-  executeAction(action);
-}
+// (Helpers removed as they are now imported or replaced by composables)
 
 // =====================================================
 // SECTION-SPECIFIC RANDOMIZERS
@@ -218,7 +140,7 @@ function randomizeFrequencyEffects() {
 
 watch(
   clickEvents,
-  (config) => {
+  (_config) => {
     const bh = getBlackHole();
     if (!bh) return;
 
@@ -618,6 +540,7 @@ watch(
 </template>
 
 <style scoped>
+@import '@/styles/avatar-settings.css';
 /* Section Description */
 .section-desc {
   font-size: 11px;
@@ -684,112 +607,4 @@ watch(
   grid-column: span 1;
 }
 
-/* Layout helpers */
-.slider-group {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.toggle-row {
-  margin-bottom: 12px;
-}
-
-/* Dice button */
-.dice-btn {
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--surface-2);
-  border: 1px solid var(--glass-border);
-  border-radius: 6px;
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.dice-btn:hover {
-  background: var(--surface-3);
-  color: var(--accent-primary);
-  border-color: var(--accent-primary);
-}
-
-.dice-btn iconify-icon {
-  font-size: 16px;
-}
-
-/* Interaction Styles */
-.interaction-row {
-  background: var(--surface-1);
-  border-radius: var(--radius-md);
-  padding: 12px;
-  margin-bottom: 10px;
-}
-
-.interaction-row:last-child {
-  margin-bottom: 0;
-}
-
-.interaction-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.interaction-header iconify-icon {
-  font-size: 18px;
-  color: var(--accent-primary);
-}
-
-.interaction-header span {
-  flex: 1;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--text-primary);
-}
-
-.interaction-config {
-  display: flex;
-  align-items: flex-end;
-  gap: 8px;
-  padding-top: 12px;
-  margin-top: 8px;
-  border-top: 1px solid var(--glass-border);
-}
-
-.interaction-config > :first-child {
-  flex: 1;
-}
-
-.test-btn {
-  width: 36px;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--surface-2);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-md);
-  color: var(--accent-primary);
-  cursor: pointer;
-  transition: all var(--duration-fast) var(--ease-out);
-}
-
-.test-btn:hover {
-  background: var(--accent-glow);
-  border-color: var(--accent-primary);
-  transform: scale(1.05);
-}
-
-/* Hover config */
-.hover-config {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid var(--glass-border);
-}
 </style>

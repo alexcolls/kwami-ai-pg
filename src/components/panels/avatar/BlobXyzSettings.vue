@@ -2,7 +2,17 @@
 import { ref, computed, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useKwami } from '@/composables/useKwami';
-import { useBlobXyzStore, type InteractionAction, type SkinType } from '@/stores/avatar.blob-xyz';
+import { useBlobXyzStore, type SkinType } from '@/stores/avatar.blob-xyz';
+import { randomHex, randomInRange } from '@/utils/color';
+import { 
+  useColorPalettes, 
+  type PaletteType 
+} from '@/composables/avatar/useColorPalettes';
+import { 
+  useAvatarInteractions, 
+  actionOptions, 
+  cursorOptions 
+} from '@/composables/avatar/useAvatarInteractions';
 import PanelSection from '@/components/ui/PanelSection.vue';
 import BaseSlider from '@/components/ui/BaseSlider.vue';
 import BaseToggle from '@/components/ui/BaseToggle.vue';
@@ -11,7 +21,7 @@ import BaseColorPicker from '@/components/ui/BaseColorPicker.vue';
 import AudioVisualizer from '../audio/AudioVisualizer.vue';
 import MicrophoneControl from '../audio/MicrophoneControl.vue';
 
-const { kwami, switchRenderer } = useKwami();
+const { kwami } = useKwami();
 const blobStore = useBlobXyzStore();
 const { skin, shape, animation, clickEvents, cursorTouch, audio } = storeToRefs(blobStore);
 
@@ -23,105 +33,18 @@ const linkRotation = ref(false);
 const linkPosition = ref(false);
 
 // =====================================================
-// INTERACTION OPTIONS
-// =====================================================
-
-const actionOptions = [
-  { label: 'None', value: 'none' },
-  { label: 'Toggle Listening', value: 'toggleListening' },
-  { label: 'Start Listening', value: 'startListening' },
-  { label: 'Stop Listening', value: 'stopListening' },
-  { label: 'Randomize', value: 'randomize' },
-  { label: 'Switch Renderer', value: 'switchRenderer' },
-  { label: 'Cycle State', value: 'cycleState' },
-  { label: 'Pulse Effect', value: 'pulse' },
-  { label: 'Move to Click', value: 'moveToClick' },
-];
-
-const cursorOptions = [
-  { label: 'Pointer', value: 'pointer' },
-  { label: 'Grab', value: 'grab' },
-  { label: 'Crosshair', value: 'crosshair' },
-  { label: 'Default', value: 'default' },
-];
-
-// =====================================================
-// HELPERS
+// COMPOSABLES
 // =====================================================
 
 function getBlob() {
   return kwami.value?.avatar.getBlob();
 }
 
-function randomHex(): string {
-  return '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0');
-}
+const { executeAction, testAction } = useAvatarInteractions({
+  getRenderer: getBlob,
+});
 
-function randomInRange(min: number, max: number, step: number = 0.01): number {
-  const range = (max - min) / step;
-  return min + Math.round(Math.random() * range) * step;
-}
-
-// =====================================================
-// INTERACTION ACTIONS
-// =====================================================
-
-function executeAction(action: InteractionAction) {
-  if (!kwami.value) return;
-
-  switch (action) {
-    case 'toggleListening': {
-      const currentState = kwami.value.getState() || 'idle';
-      kwami.value.setState(currentState === 'listening' ? 'idle' : 'listening');
-      break;
-    }
-    case 'startListening':
-      kwami.value.setState('listening');
-      break;
-    case 'stopListening':
-      kwami.value.setState('idle');
-      break;
-    case 'randomize':
-      kwami.value.avatar.randomize();
-      window.dispatchEvent(new CustomEvent('kwami:randomized'));
-      break;
-    case 'switchRenderer': {
-      const renderer = kwami.value.avatar.getRendererType();
-      const renderers = ['blob-xyz', 'orbital-shards', 'stars-genesis'] as const;
-      const currentIdx = renderers.findIndex(r => r === renderer);
-      const nextIdx = (currentIdx + 1) % renderers.length;
-      switchRenderer(renderers[nextIdx] ?? 'blob-xyz');
-      break;
-    }
-    case 'cycleState': {
-      const states = ['idle', 'listening', 'thinking'] as const;
-      const current = kwami.value.getState() || 'idle';
-      const currentIndex = states.indexOf(current as typeof states[number]);
-      const nextIndex = (currentIndex + 1) % states.length;
-      const nextState = states[nextIndex] || 'idle';
-      kwami.value.setState(nextState);
-      window.dispatchEvent(new CustomEvent('kwami:stateChanged', { detail: nextState }));
-      break;
-    }
-    case 'pulse': {
-      const blob = getBlob();
-      if (blob) blob.triggerPulse();
-      break;
-    }
-    case 'moveToClick': {
-      const blob = getBlob();
-      if (blob) {
-        // Cast to any because the type definition might be missing moveToPosition
-        (blob as any).moveToPosition(0.2 + Math.random() * 0.6, 0.2 + Math.random() * 0.6);
-      }
-      break;
-    }
-  }
-}
-
-function testAction(action: InteractionAction) {
-  executeAction(action);
-}
+const { palettes, applyPalette } = useColorPalettes();
 
 // =====================================================
 // SECTION-SPECIFIC RANDOMIZERS
@@ -253,137 +176,14 @@ function randomizeFrequencyBands() {
 }
 
 // =====================================================
-// COLOR PALETTE SYSTEM
+// COLOR PALETTE HANDLER
 // =====================================================
 
-function hslToHex(h: number, s: number, l: number): string {
-  h = ((h % 360) + 360) % 360;
-  h /= 360; s /= 100; l /= 100;
-  let r, g, b;
-
-  if (s === 0) {
-    r = g = b = l;
-  } else {
-    const hue2rgb = (p: number, q: number, t: number) => {
-      if (t < 0) t += 1;
-      if (t > 1) t -= 1;
-      if (t < 1/6) return p + (q - p) * 6 * t;
-      if (t < 1/2) return q;
-      if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
-      return p;
-    };
-    const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
-    const p = 2 * l - q;
-    r = hue2rgb(p, q, h + 1/3);
-    g = hue2rgb(p, q, h);
-    b = hue2rgb(p, q, h - 1/3);
-  }
-
-  const toHex = (x: number) => {
-    const hex = Math.round(x * 255).toString(16);
-    return hex.length === 1 ? '0' + hex : hex;
-  };
-
-  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
-}
-
-type PaletteType = 'complementary' | 'analogous' | 'triadic' | 'split' | 'monochrome' | 'warm' | 'cool' | 'pastel' | 'vibrant' | 'sunset' | 'ocean' | 'forest';
-
-const palettes: Record<PaletteType, { label: string; icon: string; generate: () => [string, string, string] }> = {
-  complementary: {
-    label: 'Complementary',
-    icon: 'ph:circle-half-duotone',
-    generate: () => {
-      const h = Math.random() * 360, s = 60 + Math.random() * 30, l = 45 + Math.random() * 20;
-      return [hslToHex(h, s, l), hslToHex(h + 180, s, l), hslToHex(h + 180, s * 0.7, l + 15)];
-    }
-  },
-  analogous: {
-    label: 'Analogous',
-    icon: 'ph:gradient-duotone',
-    generate: () => {
-      const h = Math.random() * 360, s = 55 + Math.random() * 35, l = 45 + Math.random() * 20;
-      return [hslToHex(h, s, l), hslToHex(h + 30, s, l + 5), hslToHex(h - 30, s, l - 5)];
-    }
-  },
-  triadic: {
-    label: 'Triadic',
-    icon: 'ph:triangle-duotone',
-    generate: () => {
-      const h = Math.random() * 360, s = 60 + Math.random() * 30, l = 50 + Math.random() * 15;
-      return [hslToHex(h, s, l), hslToHex(h + 120, s, l), hslToHex(h + 240, s, l)];
-    }
-  },
-  split: {
-    label: 'Split',
-    icon: 'ph:arrows-split-duotone',
-    generate: () => {
-      const h = Math.random() * 360, s = 60 + Math.random() * 30, l = 50 + Math.random() * 15;
-      return [hslToHex(h, s, l), hslToHex(h + 150, s, l), hslToHex(h + 210, s, l)];
-    }
-  },
-  monochrome: {
-    label: 'Mono',
-    icon: 'ph:circle-duotone',
-    generate: () => {
-      const h = Math.random() * 360, s = 50 + Math.random() * 40;
-      return [hslToHex(h, s, 30 + Math.random() * 15), hslToHex(h, s * 0.8, 50 + Math.random() * 10), hslToHex(h, s * 0.6, 70 + Math.random() * 10)];
-    }
-  },
-  warm: {
-    label: 'Warm',
-    icon: 'ph:sun-duotone',
-    generate: () => {
-      const h = Math.random() * 60, s = 65 + Math.random() * 30, l = 50 + Math.random() * 15;
-      return [hslToHex(h, s, l), hslToHex(h + 20 + Math.random() * 20, s, l + 5), hslToHex(h - 10 + Math.random() * 10, s * 0.9, l - 5)];
-    }
-  },
-  cool: {
-    label: 'Cool',
-    icon: 'ph:snowflake-duotone',
-    generate: () => {
-      const h = 180 + Math.random() * 80, s = 55 + Math.random() * 35, l = 45 + Math.random() * 20;
-      return [hslToHex(h, s, l), hslToHex(h + 25 + Math.random() * 20, s, l + 5), hslToHex(h - 20 + Math.random() * 15, s * 0.85, l - 5)];
-    }
-  },
-  pastel: {
-    label: 'Pastel',
-    icon: 'ph:flower-duotone',
-    generate: () => {
-      const h1 = Math.random() * 360, h2 = (h1 + 60 + Math.random() * 60) % 360, h3 = (h2 + 60 + Math.random() * 60) % 360;
-      return [hslToHex(h1, 40 + Math.random() * 20, 80 + Math.random() * 10), hslToHex(h2, 35 + Math.random() * 25, 78 + Math.random() * 12), hslToHex(h3, 38 + Math.random() * 22, 82 + Math.random() * 8)];
-    }
-  },
-  vibrant: {
-    label: 'Vibrant',
-    icon: 'ph:lightning-duotone',
-    generate: () => {
-      const h1 = Math.random() * 360, h2 = (h1 + 90 + Math.random() * 60) % 360, h3 = (h2 + 90 + Math.random() * 60) % 360;
-      return [hslToHex(h1, 85 + Math.random() * 15, 50 + Math.random() * 10), hslToHex(h2, 80 + Math.random() * 20, 52 + Math.random() * 10), hslToHex(h3, 82 + Math.random() * 18, 48 + Math.random() * 12)];
-    }
-  },
-  sunset: {
-    label: 'Sunset',
-    icon: 'ph:sun-horizon-duotone',
-    generate: () => [hslToHex(15 + Math.random() * 20, 80 + Math.random() * 20, 55 + Math.random() * 15), hslToHex(330 + Math.random() * 30, 70 + Math.random() * 25, 60 + Math.random() * 15), hslToHex(270 + Math.random() * 40, 50 + Math.random() * 30, 45 + Math.random() * 20)]
-  },
-  ocean: {
-    label: 'Ocean',
-    icon: 'ph:waves-duotone',
-    generate: () => [hslToHex(200 + Math.random() * 20, 70 + Math.random() * 25, 45 + Math.random() * 15), hslToHex(175 + Math.random() * 25, 60 + Math.random() * 30, 50 + Math.random() * 15), hslToHex(210 + Math.random() * 30, 55 + Math.random() * 35, 55 + Math.random() * 20)]
-  },
-  forest: {
-    label: 'Forest',
-    icon: 'ph:tree-duotone',
-    generate: () => [hslToHex(90 + Math.random() * 40, 40 + Math.random() * 35, 35 + Math.random() * 20), hslToHex(30 + Math.random() * 20, 35 + Math.random() * 30, 30 + Math.random() * 20), hslToHex(70 + Math.random() * 50, 45 + Math.random() * 30, 45 + Math.random() * 20)]
-  },
-};
-
-function applyPalette(type: PaletteType) {
-  const [x, y, z] = palettes[type].generate();
-  skin.value.colors.x = x;
-  skin.value.colors.y = y;
-  skin.value.colors.z = z;
+function handleApplyPalette(type: PaletteType) {
+  const colors = applyPalette(type);
+  skin.value.colors.x = colors.x;
+  skin.value.colors.y = colors.y;
+  skin.value.colors.z = colors.z;
 }
 
 // =====================================================
@@ -511,7 +311,7 @@ const skinGradient = computed(() => {
           v-for="(palette, key) in palettes" 
           :key="key"
           class="palette-btn" 
-          @click="applyPalette(key as PaletteType)" 
+          @click="handleApplyPalette(key as PaletteType)" 
           :title="palette.label"
         >
           <iconify-icon :icon="palette.icon"></iconify-icon>
@@ -845,263 +645,5 @@ const skinGradient = computed(() => {
 </template>
 
 <style scoped>
-/* Section Description */
-.section-desc {
-  font-size: 11px;
-  color: var(--text-muted);
-  margin: 0 0 12px 0;
-  line-height: 1.4;
-}
-
-/* Skin Selector */
-.skin-selector {
-  display: flex;
-  gap: 8px;
-}
-
-.skin-option {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  padding: 10px 8px;
-  background: var(--surface-1);
-  border: 1px solid transparent;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.skin-option:hover {
-  background: var(--surface-2);
-  transform: translateY(-2px);
-}
-
-.skin-option.active {
-  background: var(--accent-glow);
-  border-color: var(--accent-primary);
-  box-shadow: 0 4px 20px var(--accent-glow);
-}
-
-.skin-option input {
-  display: none;
-}
-
-.skin-preview {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-}
-
-.skin-label {
-  font-size: 10px;
-  font-weight: 500;
-  color: var(--text-secondary);
-}
-
-.skin-option.active .skin-label {
-  color: var(--text-primary);
-}
-
-/* Dice Buttons */
-.dice-btn, .dice-btn-sm {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--surface-1);
-  border: 1px solid var(--glass-border);
-  border-radius: 6px;
-  color: var(--text-muted);
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.dice-btn {
-  width: 24px;
-  height: 24px;
-  font-size: 14px;
-}
-
-.dice-btn-sm {
-  width: 20px;
-  height: 20px;
-  font-size: 12px;
-  background: transparent;
-  border-color: transparent;
-}
-
-.dice-btn:hover, .dice-btn-sm:hover {
-  background: var(--accent-glow);
-  border-color: var(--accent-primary);
-  color: var(--accent-primary);
-  transform: rotate(15deg) scale(1.1);
-}
-
-/* Color Palettes */
-.color-palettes {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid var(--glass-border);
-}
-
-.palette-label {
-  display: block;
-  font-size: 10px;
-  color: var(--text-muted);
-  margin-bottom: 8px;
-}
-
-.palette-grid {
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 6px;
-}
-
-.palette-btn {
-  aspect-ratio: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--surface-1);
-  border: 1px solid var(--glass-border);
-  border-radius: 6px;
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-size: 14px;
-}
-
-.palette-btn:hover {
-  background: var(--surface-2);
-  border-color: var(--accent-primary);
-  color: var(--accent-primary);
-  transform: scale(1.1);
-}
-
-/* Link Button (for XYZ linking) */
-
-.link-btn {
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--surface-1);
-  border: 1px solid var(--glass-border);
-  border-radius: 6px;
-  color: var(--text-muted);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-size: 12px;
-}
-
-.link-btn:hover {
-  background: var(--surface-2);
-  color: var(--text-secondary);
-}
-
-.link-btn.active {
-  background: var(--accent-glow);
-  border-color: var(--accent-primary);
-  color: var(--accent-primary);
-}
-
-/* Slider Group */
-.slider-group {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.slider-group.linked {
-  padding: 8px;
-  background: var(--accent-glow);
-  border-radius: 8px;
-  border: 1px solid rgba(0, 217, 255, 0.2);
-}
-
-/* Row layouts */
-.row-3 {
-  display: flex;
-  gap: 12px;
-}
-
-.row-3 > * {
-  flex: 1;
-}
-
-/* Interaction Styles */
-.interaction-row {
-  background: var(--surface-1);
-  border-radius: var(--radius-md);
-  padding: 12px;
-  margin-bottom: 10px;
-}
-
-.interaction-row:last-child {
-  margin-bottom: 0;
-}
-
-.interaction-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.interaction-header iconify-icon {
-  font-size: 18px;
-  color: var(--accent-primary);
-}
-
-.interaction-header span {
-  flex: 1;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--text-primary);
-}
-
-.interaction-config {
-  display: flex;
-  align-items: flex-end;
-  gap: 8px;
-  padding-top: 8px;
-  margin-top: 8px;
-  border-top: 1px solid var(--glass-border);
-}
-
-.interaction-config > :first-child {
-  flex: 1;
-}
-
-.test-btn {
-  width: 36px;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--surface-2);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-md);
-  color: var(--accent-primary);
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.test-btn:hover {
-  background: var(--accent-glow);
-  border-color: var(--accent-primary);
-  transform: scale(1.05);
-}
-
-.toggle-row {
-  margin-bottom: 12px;
-}
-
-.toggle-group {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
+@import '@/styles/avatar-settings.css';
 </style>
