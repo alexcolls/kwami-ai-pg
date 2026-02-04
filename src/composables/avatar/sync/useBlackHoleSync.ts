@@ -127,6 +127,22 @@ export function useBlackHoleSync(options: UseBlackHoleSyncOptions) {
     );
 
     // =====================================================
+    // ORIENTATION WATCHER
+    // =====================================================
+
+    watch(
+        () => blackHoleStore.orientation,
+        (v) => {
+            const bh = getBlackHole();
+            if (bh?.setOrientation) {
+                const degToRad = (deg: number) => (deg * Math.PI) / 180;
+                bh.setOrientation(degToRad(v.x), degToRad(v.y), degToRad(v.z));
+            }
+        },
+        { deep: true }
+    );
+
+    // =====================================================
     // STARS WATCHERS
     // =====================================================
 
@@ -260,6 +276,16 @@ export function useBlackHoleSync(options: UseBlackHoleSyncOptions) {
         bh.setDiskRotationSpeed(blackHoleStore.animation.diskRotationSpeed);
         bh.setStarsRotationSpeed(blackHoleStore.animation.starsRotationSpeed);
         bh.setAutoRotate(blackHoleStore.animation.autoRotate);
+
+        // Apply orientation
+        if (bh.setOrientation) {
+            const degToRad = (deg: number) => (deg * Math.PI) / 180;
+            bh.setOrientation(
+                degToRad(blackHoleStore.orientation.x),
+                degToRad(blackHoleStore.orientation.y),
+                degToRad(blackHoleStore.orientation.z)
+            );
+        }
 
         // Apply effects
         bh.setBloomIntensity(blackHoleStore.effects.bloomIntensity);

@@ -32,6 +32,7 @@ export function useCrystalBallSync(options: UseCrystalBallSyncOptions) {
         colors: crystalBallColors,
         volume: crystalBallVolume,
         animation: crystalBallAnimation,
+        orientation: crystalBallOrientation,
         surface: crystalBallSurface,
         audio: crystalBallAudio,
     } = storeToRefs(crystalBallStore);
@@ -115,6 +116,22 @@ export function useCrystalBallSync(options: UseCrystalBallSyncOptions) {
     );
 
     // =====================================================
+    // ORIENTATION WATCHER
+    // =====================================================
+
+    watch(
+        () => crystalBallOrientation.value,
+        (v) => {
+            const cb = getCrystalBall();
+            if (cb?.setOrientation) {
+                const degToRad = (deg: number) => (deg * Math.PI) / 180;
+                cb.setOrientation(degToRad(v.x), degToRad(v.y), degToRad(v.z));
+            }
+        },
+        { deep: true }
+    );
+
+    // =====================================================
     // SURFACE WATCHERS
     // =====================================================
 
@@ -162,6 +179,16 @@ export function useCrystalBallSync(options: UseCrystalBallSyncOptions) {
             crystalBallAnimation.value.rotation.y,
             crystalBallAnimation.value.rotation.z
         );
+
+        // Orientation
+        if (cb.setOrientation) {
+            const degToRad = (deg: number) => (deg * Math.PI) / 180;
+            cb.setOrientation(
+                degToRad(crystalBallOrientation.value.x),
+                degToRad(crystalBallOrientation.value.y),
+                degToRad(crystalBallOrientation.value.z)
+            );
+        }
 
         if (cb.audioEffects) {
             cb.audioEffects.enabled = crystalBallAudio.value.enabled;

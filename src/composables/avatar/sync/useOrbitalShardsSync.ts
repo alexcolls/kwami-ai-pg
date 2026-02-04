@@ -32,6 +32,7 @@ export function useOrbitalShardsSync(options: UseOrbitalShardsSyncOptions) {
         colors: orbitalShardsColors,
         glow: orbitalShardsGlow,
         animation: orbitalShardsAnimation,
+        orientation: orbitalShardsOrientation,
         audio: orbitalShardsAudio,
     } = storeToRefs(orbitalShardsStore);
 
@@ -94,6 +95,22 @@ export function useOrbitalShardsSync(options: UseOrbitalShardsSyncOptions) {
     );
 
     // =====================================================
+    // ORIENTATION WATCHER
+    // =====================================================
+
+    watch(
+        () => orbitalShardsOrientation.value,
+        (v) => {
+            const os = getOrbitalShards();
+            if (os?.setOrientation) {
+                const degToRad = (deg: number) => (deg * Math.PI) / 180;
+                os.setOrientation(degToRad(v.x), degToRad(v.y), degToRad(v.z));
+            }
+        },
+        { deep: true }
+    );
+
+    // =====================================================
     // AUDIO WATCHERS
     // =====================================================
 
@@ -145,6 +162,16 @@ export function useOrbitalShardsSync(options: UseOrbitalShardsSyncOptions) {
             orbitalShardsAnimation.value.rotation.y,
             orbitalShardsAnimation.value.rotation.z
         );
+
+        // Orientation
+        if (c.setOrientation) {
+            const degToRad = (deg: number) => (deg * Math.PI) / 180;
+            c.setOrientation(
+                degToRad(orbitalShardsOrientation.value.x),
+                degToRad(orbitalShardsOrientation.value.y),
+                degToRad(orbitalShardsOrientation.value.z)
+            );
+        }
 
         // Audio
         if (c.audioEffects) {

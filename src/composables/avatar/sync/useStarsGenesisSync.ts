@@ -33,6 +33,7 @@ export function useStarsGenesisSync(options: UseStarsGenesisSyncOptions) {
         transform: starsGenesisTransform,
         physics: starsGenesisPhysics,
         animation: starsGenesisAnimation,
+        orientation: starsGenesisOrientation,
         audio: starsGenesisAudio,
     } = storeToRefs(starsGenesisStore);
 
@@ -94,6 +95,22 @@ export function useStarsGenesisSync(options: UseStarsGenesisSyncOptions) {
     );
 
     // =====================================================
+    // ORIENTATION WATCHER
+    // =====================================================
+
+    watch(
+        () => starsGenesisOrientation.value,
+        (v) => {
+            const sg = getStarsGenesis();
+            if (sg?.setOrientation) {
+                const degToRad = (deg: number) => (deg * Math.PI) / 180;
+                sg.setOrientation(degToRad(v.x), degToRad(v.y), degToRad(v.z));
+            }
+        },
+        { deep: true }
+    );
+
+    // =====================================================
     // AUDIO WATCHERS
     // =====================================================
 
@@ -141,6 +158,17 @@ export function useStarsGenesisSync(options: UseStarsGenesisSyncOptions) {
         p.setScale(starsGenesisTransform.value.scale);
         p.setPhysics(starsGenesisPhysics.value);
         p.setAnimation(starsGenesisAnimation.value);
+
+        // Orientation
+        if (p.setOrientation) {
+            const degToRad = (deg: number) => (deg * Math.PI) / 180;
+            p.setOrientation(
+                degToRad(starsGenesisOrientation.value.x),
+                degToRad(starsGenesisOrientation.value.y),
+                degToRad(starsGenesisOrientation.value.z)
+            );
+        }
+
         p.setAudioEffects({
             enabled: starsGenesisAudio.value.enabled,
             reactivity: starsGenesisAudio.value.reactivity,
