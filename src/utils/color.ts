@@ -73,6 +73,74 @@ export function mixColors(color1: string, color2: string, weight: number = 0.5):
  * @param wait - Milliseconds to delay
  * @returns Debounced function
  */
+/**
+ * Convert HSL values to hex color string
+ * @param h - Hue (0-360)
+ * @param s - Saturation (0-100)
+ * @param l - Lightness (0-100)
+ * @returns Hex color string with #
+ */
+export function hslToHex(h: number, s: number, l: number): string {
+    // Normalize values
+    h = ((h % 360) + 360) % 360;
+    h /= 360;
+    s /= 100;
+    l /= 100;
+
+    let r: number, g: number, b: number;
+
+    if (s === 0) {
+        r = g = b = l;
+    } else {
+        const hue2rgb = (p: number, q: number, t: number): number => {
+            if (t < 0) t += 1;
+            if (t > 1) t -= 1;
+            if (t < 1 / 6) return p + (q - p) * 6 * t;
+            if (t < 1 / 2) return q;
+            if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+            return p;
+        };
+        const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+        const p = 2 * l - q;
+        r = hue2rgb(p, q, h + 1 / 3);
+        g = hue2rgb(p, q, h);
+        b = hue2rgb(p, q, h - 1 / 3);
+    }
+
+    const toHex = (x: number): string => {
+        const hex = Math.round(x * 255).toString(16);
+        return hex.length === 1 ? '0' + hex : hex;
+    };
+
+    return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+
+/**
+ * Generate a random hex color
+ * @returns Random hex color string with #
+ */
+export function randomHex(): string {
+    return '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0');
+}
+
+/**
+ * Generate a random number within a range with optional step
+ * @param min - Minimum value
+ * @param max - Maximum value
+ * @param step - Step increment (default 0.01)
+ * @returns Random number within range
+ */
+export function randomInRange(min: number, max: number, step: number = 0.01): number {
+    const range = (max - min) / step;
+    return min + Math.round(Math.random() * range) * step;
+}
+
+/**
+ * Create a debounced function that delays invoking func
+ * @param func - Function to debounce
+ * @param wait - Milliseconds to delay
+ * @returns Debounced function
+ */
 export function debounce<T extends (...args: unknown[]) => void>(
     func: T,
     wait: number
