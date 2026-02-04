@@ -5,7 +5,7 @@
  * Uses the new section-based stars-genesis state structure.
  */
 
-import type { StarsGenesisState } from '../stores/avatar.stars-genesis';
+import type { StarsGenesisState } from '@/stores/avatar.stars-genesis';
 
 export interface StarsGenesisPreset {
   id: string;

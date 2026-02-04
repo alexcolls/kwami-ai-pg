@@ -198,7 +198,7 @@ export const blobPresetsData: BlobXyzPreset[] = [
       shape: {
         scale: 3.2,
         position: { x: 22, y: 260, z: 260 },
-        spikes: { x: 2.5, y: 1.5, z: 2.5 },
+        spikes: { x: 1.2, y: 1, z: 0.95 },
         amplitude: { x: 3.6, y: 1.3, z: 0.9 },
       },
       animation: {
