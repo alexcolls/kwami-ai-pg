@@ -19,6 +19,13 @@ const selectedModel = ref<string>(llm.value.model);
 const expandedProvider = ref<string | null>(null);
 const sortBy = ref<'provider' | 'price' | 'context'>('provider');
 
+// Expand the selected provider's accordion
+function expandSelectedProvider() {
+  if (selectedProvider.value && sortBy.value === 'provider') {
+    expandedProvider.value = 'llm-' + selectedProvider.value;
+  }
+}
+
 // Handle accordion toggle
 function handleAccordionToggle(sectionId: string | undefined, wasCollapsed: boolean) {
   if (wasCollapsed) {
@@ -28,9 +35,10 @@ function handleAccordionToggle(sectionId: string | undefined, wasCollapsed: bool
   }
 }
 
-// Fetch models on mount
+// Fetch models on mount and expand selected provider
 onMounted(async () => {
   await fetchLLMInferenceModels();
+  expandSelectedProvider();
 });
 
 // All models flat list
@@ -139,6 +147,8 @@ function selectModel(modelId: string, provider: string) {
 watch(() => [llm.value.provider, llm.value.model], ([newProvider, newModel]) => {
   selectedProvider.value = newProvider || '';
   selectedModel.value = newModel || '';
+  // Auto-expand the new provider's accordion
+  expandSelectedProvider();
 });
 
 function updateTemperature(value: number) {
@@ -160,15 +170,6 @@ function updateMaxTokens(value: number) {
 
 <template>
   <div class="tab-content">
-    <!-- Current Selection -->
-    <div class="current-selection">
-      <div class="selection-label">Selected</div>
-      <div class="selection-value">
-        <iconify-icon :icon="getProviderIcon(selectedProvider)"></iconify-icon>
-        <span>{{ selectedModel }}</span>
-      </div>
-    </div>
-
     <!-- Loading State -->
     <div v-if="isLoading" class="loading-state">
       <iconify-icon icon="ph:spinner-duotone" class="spinner"></iconify-icon>
@@ -176,35 +177,24 @@ function updateMaxTokens(value: number) {
     </div>
 
     <template v-if="!isLoading">
-      <!-- Legend & Sort -->
-      <div class="legend-sort-row">
-        <div class="legend">
-          <div class="legend-group">
-            <span class="legend-label">Capabilities</span>
-            <div class="legend-items">
-              <span class="legend-item cap-vision"><iconify-icon icon="ph:eye-duotone"></iconify-icon> Vision</span>
-              <span class="legend-item cap-tools"><iconify-icon icon="ph:wrench-duotone"></iconify-icon> Tools</span>
-            </div>
-          </div>
-        </div>
-        <div class="sort-controls">
-          <span class="sort-label">Sort:</span>
-          <button 
-            class="sort-btn" 
-            :class="{ active: sortBy === 'provider' }"
-            @click="sortBy = 'provider'"
-          >Provider</button>
-          <button 
-            class="sort-btn" 
-            :class="{ active: sortBy === 'price' }"
-            @click="sortBy = 'price'"
-          >Price</button>
-          <button 
-            class="sort-btn" 
-            :class="{ active: sortBy === 'context' }"
-            @click="sortBy = 'context'"
-          >Context</button>
-        </div>
+      <!-- Sort Controls -->
+      <div class="sort-row">
+        <span class="sort-label">Sort:</span>
+        <button 
+          class="sort-btn" 
+          :class="{ active: sortBy === 'provider' }"
+          @click="sortBy = 'provider'"
+        >Provider</button>
+        <button 
+          class="sort-btn" 
+          :class="{ active: sortBy === 'price' }"
+          @click="sortBy = 'price'"
+        >Price</button>
+        <button 
+          class="sort-btn" 
+          :class="{ active: sortBy === 'context' }"
+          @click="sortBy = 'context'"
+        >Context</button>
       </div>
 
       <!-- Models by Provider (accordion view) -->
@@ -295,39 +285,6 @@ function updateMaxTokens(value: number) {
   gap: 12px;
 }
 
-.current-selection {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 14px;
-  background: var(--accent-glow);
-  border: 1px solid var(--accent-primary);
-  border-radius: var(--radius-md);
-}
-
-.selection-label {
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--accent-primary);
-}
-
-.selection-value {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--text-primary);
-  flex: 1;
-}
-
-.selection-value iconify-icon {
-  font-size: 14px;
-  color: var(--accent-primary);
-}
-
 .loading-state {
   display: flex;
   align-items: center;
@@ -348,24 +305,7 @@ function updateMaxTokens(value: number) {
   to { transform: rotate(360deg); }
 }
 
-.legend-sort-row {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  padding: 8px 10px;
-  background: var(--surface-1);
-  border-radius: var(--radius-sm);
-}
-
-.sort-controls {
+.sort-row {
   display: flex;
   align-items: center;
   gap: 4px;
@@ -399,47 +339,6 @@ function updateMaxTokens(value: number) {
   background: var(--accent-glow);
   border-color: var(--accent-primary);
   color: var(--accent-primary);
-}
-
-.legend-group {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.legend-label {
-  font-size: 8px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--text-muted);
-}
-
-.legend-items {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-.legend-item {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  font-size: 9px;
-  color: var(--text-secondary);
-}
-
-.legend-item iconify-icon {
-  font-size: 10px;
-}
-
-
-.legend-item.cap-vision iconify-icon {
-  color: #a78bfa;
-}
-
-.legend-item.cap-tools iconify-icon {
-  color: #60a5fa;
 }
 
 .source-tabs {

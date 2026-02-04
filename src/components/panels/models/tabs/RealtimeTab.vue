@@ -64,15 +64,6 @@ function getModelInfo(modelId: string) {
 
 <template>
   <div class="tab-content">
-    <!-- Current Selection -->
-    <div class="current-selection">
-      <div class="selection-label">Selected</div>
-      <div class="selection-value">
-        <iconify-icon :icon="getProviderIcon(selectedProvider)"></iconify-icon>
-        <span>{{ getModelInfo(selectedModel).name }}</span>
-      </div>
-    </div>
-
     <!-- Info Banner -->
     <div class="info-banner">
       <iconify-icon icon="ph:info-duotone"></iconify-icon>
@@ -180,39 +171,6 @@ function getModelInfo(modelId: string) {
   display: flex;
   flex-direction: column;
   gap: 12px;
-}
-
-.current-selection {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 14px;
-  background: var(--accent-glow);
-  border: 1px solid var(--accent-primary);
-  border-radius: var(--radius-md);
-}
-
-.selection-label {
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--accent-primary);
-}
-
-.selection-value {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--text-primary);
-  flex: 1;
-}
-
-.selection-value iconify-icon {
-  font-size: 14px;
-  color: var(--accent-primary);
 }
 
 .info-banner {
@@ -400,7 +358,7 @@ function getModelInfo(modelId: string) {
 }
 
 .realtime-model-card.selected .feature {
-  background: rgba(0, 217, 255, 0.2);
+  background: var(--accent-glow);
   color: var(--accent-primary);
 }
 

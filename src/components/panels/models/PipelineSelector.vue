@@ -94,7 +94,7 @@ const selected = computed({
 }
 
 .pipeline-btn.active .pipeline-icon {
-  background: rgba(0, 217, 255, 0.2);
+  background: var(--accent-glow);
   color: var(--accent-primary);
 }
 
