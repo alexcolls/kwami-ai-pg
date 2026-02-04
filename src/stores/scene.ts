@@ -6,7 +6,7 @@ const STORAGE_KEY = 'kwami-scene';
 // Types
 export type MediaType = 'none' | 'image' | 'video' | 'hdri';
 export type MediaFit = 'cover' | 'contain' | 'stretch';
-export type GradientType = 'radial' | 'linear' | 'orbs';
+export type GradientType = 'solid' | 'radial' | 'linear' | 'orbs';
 export type BlendMode = 'normal' | 'multiply' | 'screen' | 'overlay' | 'soft-light';
 
 export interface GradientStop {
@@ -50,6 +50,7 @@ export interface MediaConfig {
 export interface GradientConfig {
   enabled: boolean;
   type: GradientType;
+  solidColor: string; // For solid mode
   angle: number; // 0-360 for linear
   radialCenter: { x: number; y: number }; // 0-100
   radialSize: number; // 0-200 (percentage)
@@ -93,6 +94,7 @@ const defaultBackground: BackgroundConfig = {
   gradient: {
     enabled: true,
     type: 'radial',
+    solidColor: '#0a0a15',
     angle: 180,
     radialCenter: { x: 50, y: 50 },
     radialSize: 120,
@@ -155,6 +157,7 @@ export const useSceneStore = defineStore('scene', () => {
         if (settings.gradient) {
           background.gradient.enabled = settings.gradient.enabled ?? true;
           background.gradient.type = settings.gradient.type || 'radial';
+          background.gradient.solidColor = settings.gradient.solidColor || '#0a0a15';
           background.gradient.angle = settings.gradient.angle ?? 180;
           background.gradient.radialCenter = settings.gradient.radialCenter || { x: 50, y: 50 };
           background.gradient.radialSize = settings.gradient.radialSize ?? 100;

@@ -2,7 +2,6 @@ import { defineStore } from 'pinia';
 import { ref, reactive, computed } from 'vue';
 import {
   avatarPresets,
-  avatarPresetsRef,
   getBlobXyzPresets,
   getOrbitalShardsPresets,
   getStarsGenesisPresets,
@@ -515,6 +514,8 @@ export function getDefaultBlackHoleState(): BlackHoleState {
 // Re-export for backwards compatibility
 export const AVATAR_PRESETS = avatarPresets;
 
+const STORAGE_KEY = 'kwami-avatar';
+
 export const useAvatarStore = defineStore('avatar', () => {
   // State
   const blob = reactive<BlobState>(getDefaultBlobState());
@@ -524,6 +525,8 @@ export const useAvatarStore = defineStore('avatar', () => {
   const blackHole = reactive<BlackHoleState>(getDefaultBlackHoleState());
   const activeState = ref<AvatarState>('idle');
   const rendererType = ref<RendererType>('blob-xyz');
+  const isInitialized = ref(false);
+  const isLoading = ref(false);
 
   // Computed
   const currentState = computed(() => {
@@ -534,7 +537,7 @@ export const useAvatarStore = defineStore('avatar', () => {
     return starsGenesis;
   });
 
-  const presets = computed(() => avatarPresetsRef.value);
+
 
   const blobXyzPresets = computed(() => getBlobXyzPresets());
 
@@ -618,7 +621,7 @@ export const useAvatarStore = defineStore('avatar', () => {
     if (preset.renderer === 'blob-xyz' && preset.blobXyz) {
       // Use the new blob store for presets
       const blobStore = useBlobXyzStore();
-      blobStore.importState(preset.blobXyz  as Parameters<typeof blobStore.importState>[0]);
+      blobStore.importState(preset.blobXyz as Parameters<typeof blobStore.importState>[0]);
     } else if (preset.renderer === 'orbital-shards' && preset.orbitalShards) {
       // Use the new orbital shards store for presets
       const orbitalShardsStore = useOrbitalShardsStore();
@@ -788,6 +791,84 @@ export const useAvatarStore = defineStore('avatar', () => {
     }
   }
 
+  // =====================================================
+  // PERSISTENCE
+  // =====================================================
+
+  function saveSettings() {
+    // Don't save during the initial load phase
+    if (isLoading.value) return;
+
+    const blobStore = useBlobXyzStore();
+    const orbitalShardsStore = useOrbitalShardsStore();
+    const starsGenesisStore = useStarsGenesisStore();
+    const crystalBallStore = useCrystalBallStore();
+    const blackHoleStore = useBlackHoleStore();
+
+    const settings = {
+      rendererType: rendererType.value,
+      blobXyz: blobStore.exportState(),
+      orbitalShards: orbitalShardsStore.exportState(),
+      starsGenesis: starsGenesisStore.exportState(),
+      crystalBall: crystalBallStore.exportState(),
+      blackHole: blackHoleStore.exportState(),
+    };
+
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+    } catch (e) {
+      console.warn('Failed to save avatar settings:', e);
+    }
+  }
+
+  function loadSettings() {
+    isLoading.value = true;
+
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (!saved) {
+      isInitialized.value = true;
+      isLoading.value = false;
+      return;
+    }
+
+    try {
+      const settings = JSON.parse(saved);
+
+      // Restore renderer type
+      if (settings.rendererType) {
+        rendererType.value = settings.rendererType;
+      }
+
+      // Restore individual avatar states
+      const blobStore = useBlobXyzStore();
+      const orbitalShardsStore = useOrbitalShardsStore();
+      const starsGenesisStore = useStarsGenesisStore();
+      const crystalBallStore = useCrystalBallStore();
+      const blackHoleStore = useBlackHoleStore();
+
+      if (settings.blobXyz) {
+        blobStore.importState(settings.blobXyz);
+      }
+      if (settings.orbitalShards) {
+        orbitalShardsStore.importState(settings.orbitalShards);
+      }
+      if (settings.starsGenesis) {
+        starsGenesisStore.importState(settings.starsGenesis);
+      }
+      if (settings.crystalBall) {
+        crystalBallStore.importState(settings.crystalBall);
+      }
+      if (settings.blackHole) {
+        blackHoleStore.importState(settings.blackHole);
+      }
+    } catch (e) {
+      console.warn('Failed to load avatar settings:', e);
+    }
+
+    isInitialized.value = true;
+    isLoading.value = false;
+  }
+
   return {
     // State
     blob,
@@ -797,6 +878,8 @@ export const useAvatarStore = defineStore('avatar', () => {
     blackHole,
     activeState,
     rendererType,
+    isInitialized,
+    isLoading,
     // Computed
     currentState,
     avatarPresets,
@@ -825,5 +908,8 @@ export const useAvatarStore = defineStore('avatar', () => {
     syncStarsGenesisFromExternal,
     syncCrystalBallFromExternal,
     syncBlackHoleFromExternal,
+    // Persistence
+    loadSettings,
+    saveSettings,
   };
 });

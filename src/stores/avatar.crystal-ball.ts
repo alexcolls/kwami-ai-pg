@@ -148,8 +148,9 @@ export function getDefaultStyle(): CrystalBallStyleSection {
 
 export function getDefaultColors(): CrystalBallColors {
   return {
-    primary: '#6b5b95',
-    secondary: '#feb236',
+    // TUTORIAL: black + bright color creates the depth effect!
+    primary: '#000000',
+    secondary: '#00ffaa',
   };
 }
 
