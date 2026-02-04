@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue';
+import { ref, computed } from 'vue';
 import { storeToRefs } from 'pinia';
 import PanelSection from '@/components/ui/PanelSection.vue';
 import BaseColorPicker from '@/components/ui/BaseColorPicker.vue';
@@ -212,7 +212,13 @@ const blendModeOptions = [
 // Preview gradient CSS for the UI
 const gradientPreviewStyle = computed(() => {
   if (!background.value?.gradient) return {};
-  const { type, angle, radialCenter, /* radialSize, */ stops, orbs } = background.value.gradient;
+  const { type, solidColor, angle, radialCenter, /* radialSize, */ stops, orbs } = background.value.gradient;
+  
+  if (type === 'solid') {
+    return {
+      background: solidColor,
+    };
+  }
   
   if (type === 'orbs') {
     // Create blurred orb effect using radial gradients
@@ -508,9 +514,14 @@ const gradientPreviewStyle = computed(() => {
     </PanelSection>
 
     <!-- Gradient Type & Position -->
-    <PanelSection v-if="background.gradient.enabled" title="Gradient Type" collapsible>
+    <PanelSection v-if="background.gradient.enabled" title="Overlay Type" collapsible>
       <div class="section-header-row">
         <div class="gradient-type-selector">
+          <label class="gradient-type-option" :class="{ active: background.gradient.type === 'solid' }">
+            <input type="radio" value="solid" v-model="background.gradient.type" />
+            <iconify-icon icon="ph:square-duotone"></iconify-icon>
+            <span>Solid</span>
+          </label>
           <label class="gradient-type-option" :class="{ active: background.gradient.type === 'radial' }">
             <input type="radio" value="radial" v-model="background.gradient.type" />
             <iconify-icon icon="ph:circle-duotone"></iconify-icon>
@@ -527,9 +538,17 @@ const gradientPreviewStyle = computed(() => {
             <span>Orbs</span>
           </label>
         </div>
-        <button class="dice-btn" @click="randomizePositions" title="Randomize Positions">
+        <button v-if="background.gradient.type !== 'solid'" class="dice-btn" @click="randomizePositions" title="Randomize Positions">
           <iconify-icon icon="ph:dice-three-duotone"></iconify-icon>
         </button>
+      </div>
+
+      <!-- Solid color picker -->
+      <div v-if="background.gradient.type === 'solid'" class="gradient-position-controls">
+        <BaseColorPicker
+          label="Color"
+          v-model="background.gradient.solidColor"
+        />
       </div>
 
       <!-- Linear gradient angle -->
@@ -657,8 +676,8 @@ const gradientPreviewStyle = computed(() => {
       </button>
     </PanelSection>
 
-    <!-- Gradient Colors / Stops (not for orbs) -->
-    <PanelSection v-if="background.gradient.enabled && background.gradient.type !== 'orbs'" title="Color Stops" collapsible>
+    <!-- Gradient Colors / Stops (only for radial and linear) -->
+    <PanelSection v-if="background.gradient.enabled && (background.gradient.type === 'radial' || background.gradient.type === 'linear')" title="Color Stops" collapsible>
       <template #actions>
         <button class="dice-btn" @click="randomizeColors" title="Randomize Colors">
           <iconify-icon icon="ph:dice-four-duotone"></iconify-icon>
