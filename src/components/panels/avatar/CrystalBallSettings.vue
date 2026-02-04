@@ -15,10 +15,11 @@ import MicrophoneControl from '../audio/MicrophoneControl.vue';
 
 const { kwami } = useKwami();
 const crystalBallStore = useCrystalBallStore();
-const { style, colors, volume, animation, surface, clickEvents, cursorTouch, audio } = storeToRefs(crystalBallStore);
+const { style, colors, volume, animation, orientation, surface, clickEvents, cursorTouch, audio } = storeToRefs(crystalBallStore);
 
-// Link toggle for rotation
+// Link toggles
 const linkRotation = ref(false);
+const linkOrientation = ref(false);
 
 // =====================================================
 // COMPOSABLES
@@ -125,6 +126,20 @@ function randomizeFrequencyEffects() {
   };
 }
 
+// Orientation
+function randomizeOrientation() {
+  if (linkOrientation.value) {
+    const pos = randomInRange(0, 360, 1);
+    orientation.value.x = pos;
+    orientation.value.y = pos;
+    orientation.value.z = pos;
+  } else {
+    orientation.value.x = randomInRange(0, 360, 1);
+    orientation.value.y = randomInRange(0, 360, 1);
+    orientation.value.z = randomInRange(0, 360, 1);
+  }
+}
+
 // =====================================================
 // LINKED WATCHERS
 // =====================================================
@@ -133,6 +148,13 @@ watch(() => animation.value.rotation.x, (val) => {
   if (linkRotation.value) {
     animation.value.rotation.y = val;
     animation.value.rotation.z = val;
+  }
+});
+
+watch(() => orientation.value.x, (val) => {
+  if (linkOrientation.value) {
+    orientation.value.y = val;
+    orientation.value.z = val;
   }
 });
 
@@ -277,6 +299,29 @@ watch(clickEvents, (config) => {
       <BaseSlider label="X" :min="-0.005" :max="0.005" :step="0.0005" v-model="animation.rotation.x" />
       <BaseSlider v-if="!linkRotation" label="Y" :min="-0.005" :max="0.005" :step="0.0005" v-model="animation.rotation.y" />
       <BaseSlider v-if="!linkRotation" label="Z" :min="-0.005" :max="0.005" :step="0.0005" v-model="animation.rotation.z" />
+    </div>
+  </PanelSection>
+
+  <!-- ==================== ORIENTATION ==================== -->
+  <PanelSection title="Orientation" icon="ph:compass-duotone" collapsible>
+    <template #actions>
+      <button 
+        class="link-btn" 
+        :class="{ active: linkOrientation }" 
+        @click="linkOrientation = !linkOrientation"
+        title="Link XYZ values"
+      >
+        <iconify-icon :icon="linkOrientation ? 'ph:link-duotone' : 'ph:link-break-duotone'"></iconify-icon>
+      </button>
+      <button class="dice-btn" @click="randomizeOrientation" title="Randomize orientation">
+        <iconify-icon icon="ph:dice-three-duotone"></iconify-icon>
+      </button>
+    </template>
+    <p class="section-desc">Starting rotation angle in degrees</p>
+    <div class="slider-group" :class="{ linked: linkOrientation }">
+      <BaseSlider label="X (°)" :min="0" :max="360" :step="1" v-model="orientation.x" />
+      <BaseSlider v-if="!linkOrientation" label="Y (°)" :min="0" :max="360" :step="1" v-model="orientation.y" />
+      <BaseSlider v-if="!linkOrientation" label="Z (°)" :min="0" :max="360" :step="1" v-model="orientation.z" />
     </div>
   </PanelSection>
 

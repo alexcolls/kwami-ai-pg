@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, watch, computed } from 'vue';
+import { onMounted, onUnmounted, watch, computed, ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useKwami } from '@/composables/useKwami';
 import { useAvatarStore, type AvatarState } from '@/stores/avatar';
@@ -190,6 +190,7 @@ watch(
     orbitalShardsStore.colors,
     orbitalShardsStore.glow,
     orbitalShardsStore.animation,
+    orbitalShardsStore.orientation,
     orbitalShardsStore.audio,
     orbitalShardsStore.clickEvents,
     orbitalShardsStore.cursorTouch,
@@ -219,6 +220,7 @@ watch(
     crystalBallStore.colors,
     crystalBallStore.volume,
     crystalBallStore.animation,
+    crystalBallStore.orientation,
     crystalBallStore.surface,
     crystalBallStore.audio,
     crystalBallStore.clickEvents,
@@ -236,6 +238,7 @@ watch(
     blackHoleStore.colors,
     blackHoleStore.stars,
     blackHoleStore.animation,
+    blackHoleStore.orientation,
     blackHoleStore.effects,
     blackHoleStore.audio,
     blackHoleStore.clickEvents,
@@ -347,6 +350,106 @@ function onRendererChanged() {
 }
 
 // =====================================================
+// DRAG ROTATION SYNC
+// =====================================================
+
+const isDragging = ref(false);
+let dragAnimationFrame: number | null = null;
+let lastMousePosition = { x: 0, y: 0 };
+
+function radToDeg(rad: number): number {
+  return (rad * 180) / Math.PI;
+}
+
+function normalizeAngle(degrees: number): number {
+  let normalized = degrees % 360;
+  if (normalized < 0) normalized += 360;
+  return normalized;
+}
+
+// For blob-xyz: sync from mesh rotation (blob has its own drag handlers)
+function syncRotationFromMesh() {
+  if (!kwami.value || !isDragging.value) return;
+
+  try {
+    if (rendererType.value === 'blob-xyz') {
+      const blob = getBlob();
+      if (blob) {
+        const mesh = blob.getMesh();
+        if (mesh) {
+          const x = normalizeAngle(radToDeg(mesh.rotation.x));
+          const y = normalizeAngle(radToDeg(mesh.rotation.y));
+          const z = normalizeAngle(radToDeg(mesh.rotation.z));
+          blobStore.shape.position.x = Math.round(x);
+          blobStore.shape.position.y = Math.round(y);
+          blobStore.shape.position.z = Math.round(z);
+        }
+      }
+    }
+    // For other renderers: orientation is updated via onCanvasMouseMove
+  } catch {
+    // Silently handle errors
+  }
+
+  if (isDragging.value) {
+    dragAnimationFrame = requestAnimationFrame(syncRotationFromMesh);
+  }
+}
+
+// Handle drag for non-blob renderers (they don't have built-in drag handlers)
+function onCanvasMouseMove(e: MouseEvent) {
+  if (!isDragging.value) return;
+
+  const deltaX = e.clientX - lastMousePosition.x;
+  const deltaY = e.clientY - lastMousePosition.y;
+  lastMousePosition = { x: e.clientX, y: e.clientY };
+
+  // For non-blob renderers, update orientation directly from mouse delta
+  if (rendererType.value === 'orbital-shards') {
+    orbitalShardsStore.orientation.y = normalizeAngle(orbitalShardsStore.orientation.y + deltaX * 0.5);
+    orbitalShardsStore.orientation.x = normalizeAngle(orbitalShardsStore.orientation.x + deltaY * 0.5);
+  } else if (rendererType.value === 'stars-genesis') {
+    starsGenesisStore.orientation.y = normalizeAngle(starsGenesisStore.orientation.y + deltaX * 0.5);
+    starsGenesisStore.orientation.x = normalizeAngle(starsGenesisStore.orientation.x + deltaY * 0.5);
+  } else if (rendererType.value === 'crystal-ball') {
+    crystalBallStore.orientation.y = normalizeAngle(crystalBallStore.orientation.y + deltaX * 0.5);
+    crystalBallStore.orientation.x = normalizeAngle(crystalBallStore.orientation.x + deltaY * 0.5);
+  } else if (rendererType.value === 'black-hole') {
+    blackHoleStore.orientation.y = normalizeAngle(blackHoleStore.orientation.y + deltaX * 0.5);
+    blackHoleStore.orientation.x = normalizeAngle(blackHoleStore.orientation.x + deltaY * 0.5);
+  }
+}
+
+function onCanvasMouseDown(e: MouseEvent) {
+  if (e.button === 0) {
+    isDragging.value = true;
+    lastMousePosition = { x: e.clientX, y: e.clientY };
+    // Only start animation frame for blob-xyz (which has its own drag handlers)
+    if (rendererType.value === 'blob-xyz') {
+      dragAnimationFrame = requestAnimationFrame(syncRotationFromMesh);
+    }
+  }
+}
+
+function onCanvasMouseUp() {
+  isDragging.value = false;
+  if (dragAnimationFrame !== null) {
+    cancelAnimationFrame(dragAnimationFrame);
+    dragAnimationFrame = null;
+  }
+}
+
+function onCanvasMouseLeave() {
+  if (isDragging.value) {
+    isDragging.value = false;
+    if (dragAnimationFrame !== null) {
+      cancelAnimationFrame(dragAnimationFrame);
+      dragAnimationFrame = null;
+    }
+  }
+}
+
+// =====================================================
 // LIFECYCLE
 // =====================================================
 
@@ -367,12 +470,37 @@ onMounted(() => {
   window.addEventListener('kwami:stateChanged', onStateChanged);
   window.addEventListener('kwami:randomized', onRandomized);
   window.addEventListener('kwami:rendererChanged', onRendererChanged);
+
+  // Add drag rotation sync listeners
+  const canvas = document.getElementById('kwami-canvas');
+  if (canvas) {
+    canvas.addEventListener('mousedown', onCanvasMouseDown);
+    canvas.addEventListener('mouseup', onCanvasMouseUp);
+    canvas.addEventListener('mousemove', onCanvasMouseMove);
+    canvas.addEventListener('mouseleave', onCanvasMouseLeave);
+  }
+  window.addEventListener('mouseup', onCanvasMouseUp);
 });
 
 onUnmounted(() => {
   window.removeEventListener('kwami:stateChanged', onStateChanged);
   window.removeEventListener('kwami:randomized', onRandomized);
   window.removeEventListener('kwami:rendererChanged', onRendererChanged);
+
+  // Remove drag rotation sync listeners
+  const canvas = document.getElementById('kwami-canvas');
+  if (canvas) {
+    canvas.removeEventListener('mousedown', onCanvasMouseDown);
+    canvas.removeEventListener('mouseup', onCanvasMouseUp);
+    canvas.removeEventListener('mousemove', onCanvasMouseMove);
+    canvas.removeEventListener('mouseleave', onCanvasMouseLeave);
+  }
+  window.removeEventListener('mouseup', onCanvasMouseUp);
+
+  // Cancel any pending animation frame
+  if (dragAnimationFrame !== null) {
+    cancelAnimationFrame(dragAnimationFrame);
+  }
 });
 </script>
 

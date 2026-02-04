@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { watch } from 'vue';
+import { ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useKwami } from '@/composables/useKwami';
 import {
@@ -24,6 +24,7 @@ const {
   disk,
   colors,
   animation,
+  orientation,
   effects,
   clickEvents,
   cursorTouch,
@@ -31,6 +32,9 @@ const {
   scale,
   cameraZoom,
 } = storeToRefs(blackHoleStore);
+
+// Link toggle for orientation
+const linkOrientation = ref(false);
 
 // =====================================================
 // COMPOSABLES
@@ -133,6 +137,31 @@ function randomizeFrequencyEffects() {
     highStarTwinkle: randomInRange(0.2, 0.6, 0.05),
   };
 }
+
+// Orientation
+function randomizeOrientation() {
+  if (linkOrientation.value) {
+    const pos = randomInRange(0, 360, 1);
+    orientation.value.x = pos;
+    orientation.value.y = pos;
+    orientation.value.z = pos;
+  } else {
+    orientation.value.x = randomInRange(0, 360, 1);
+    orientation.value.y = randomInRange(0, 360, 1);
+    orientation.value.z = randomInRange(0, 360, 1);
+  }
+}
+
+// =====================================================
+// LINKED WATCHERS
+// =====================================================
+
+watch(() => orientation.value.x, (val) => {
+  if (linkOrientation.value) {
+    orientation.value.y = val;
+    orientation.value.z = val;
+  }
+});
 
 // =====================================================
 // INTERACTION WATCHERS
@@ -364,6 +393,29 @@ watch(
         :step="0.0005"
         v-model="animation.starsRotationSpeed"
       />
+    </div>
+  </PanelSection>
+
+  <!-- ==================== ORIENTATION ==================== -->
+  <PanelSection title="Orientation" icon="ph:compass-duotone" collapsible>
+    <template #actions>
+      <button 
+        class="link-btn" 
+        :class="{ active: linkOrientation }" 
+        @click="linkOrientation = !linkOrientation"
+        title="Link XYZ values"
+      >
+        <iconify-icon :icon="linkOrientation ? 'ph:link-duotone' : 'ph:link-break-duotone'"></iconify-icon>
+      </button>
+      <button class="dice-btn" @click="randomizeOrientation" title="Randomize orientation">
+        <iconify-icon icon="ph:dice-three-duotone"></iconify-icon>
+      </button>
+    </template>
+    <p class="section-desc">Starting rotation angle in degrees</p>
+    <div class="slider-group" :class="{ linked: linkOrientation }">
+      <BaseSlider label="X (°)" :min="0" :max="360" :step="1" v-model="orientation.x" />
+      <BaseSlider v-if="!linkOrientation" label="Y (°)" :min="0" :max="360" :step="1" v-model="orientation.y" />
+      <BaseSlider v-if="!linkOrientation" label="Z (°)" :min="0" :max="360" :step="1" v-model="orientation.z" />
     </div>
   </PanelSection>
 
