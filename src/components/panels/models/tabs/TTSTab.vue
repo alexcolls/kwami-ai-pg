@@ -4,6 +4,7 @@ import { useModelsApi, type InferenceTTSModel } from '@/composables/useModelsApi
 import { useVoiceStore } from '@/stores/voice';
 import { useKwami } from '@/composables/useKwami';
 import { storeToRefs } from 'pinia';
+import type { TTSProvider } from 'kwami-ai';
 import PanelSection from '@/components/ui/PanelSection.vue';
 import TTSModelCard from '@/components/ui/TTSModelCard.vue';
 
@@ -54,7 +55,7 @@ const hasInferenceModels = computed(() => {
 });
 
 // Sorting
-const sortBy = ref<'provider' | 'price' | 'features'>('provider');
+const sortBy = ref<'provider' | 'price' | 'features' | 'speed'>('provider');
 
 // Min/max calculations
 const minPrice = computed(() => {
@@ -94,7 +95,7 @@ const sortedModelsFlat = computed(() => {
   const models = ttsInferenceModels.value?.models || [];
   if (!models.length) return [];
   
-  let sorted = [...models];
+  const sorted = [...models];
   
   if (sortBy.value === 'price') {
     // Highest price first
@@ -102,6 +103,10 @@ const sortedModelsFlat = computed(() => {
   } else if (sortBy.value === 'features') {
     // Most features first
     sorted.sort((a, b) => countAdvancedFeatures(b.features) - countAdvancedFeatures(a.features));
+  } else if (sortBy.value === 'speed') {
+    // Fastest first
+    const speedOrder: Record<string, number> = { fast: 0, standard: 1, slow: 2 };
+    sorted.sort((a, b) => (speedOrder[a.speed] ?? 1) - (speedOrder[b.speed] ?? 1));
   }
   
   return sorted;
@@ -125,7 +130,7 @@ function selectModel(modelId: string, provider: string) {
   selectedModel.value = modelId;
   
   voiceStore.updateTTS({
-    provider: provider as any,
+    provider: provider as TTSProvider,
     model: modelId,
   });
   
@@ -171,6 +176,11 @@ watch(() => [tts.value.provider, tts.value.model], ([newProvider, newModel]) => 
           :class="{ active: sortBy === 'features' }"
           @click="sortBy = 'features'"
         >Features</button>
+        <button 
+          class="sort-btn" 
+          :class="{ active: sortBy === 'speed' }"
+          @click="sortBy = 'speed'"
+        >Speed</button>
       </div>
 
       <!-- Models by Provider (accordion view) -->
@@ -191,7 +201,7 @@ watch(() => [tts.value.provider, tts.value.model], ([newProvider, newModel]) => 
               v-for="model in models"
               :key="model.model_id"
               :model="model"
-              :selected="selectedModel === model.model_id"
+              :selected="tts.model === model.model_id"
               :minPrice="minPrice"
               :maxPrice="maxPrice"
               @select="selectModel"
@@ -269,7 +279,7 @@ watch(() => [tts.value.provider, tts.value.model], ([newProvider, newModel]) => 
   font-family: inherit;
   background: var(--surface-1);
   border: 1px solid transparent;
-  border-radius: 4px;
+  border-radius: var(--radius-xl);
   color: var(--text-secondary);
   cursor: pointer;
   transition: all var(--duration-fast) var(--ease-in-out);
@@ -290,7 +300,7 @@ watch(() => [tts.value.provider, tts.value.model], ([newProvider, newModel]) => 
   display: flex;
   background: var(--surface-1);
   padding: 3px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-xl);
   gap: 3px;
 }
 
@@ -301,7 +311,7 @@ watch(() => [tts.value.provider, tts.value.model], ([newProvider, newModel]) => 
   justify-content: center;
   gap: 5px;
   padding: 8px 10px;
-  border-radius: 4px;
+  border-radius: var(--radius-lg);
   cursor: pointer;
   border: none;
   background: transparent;

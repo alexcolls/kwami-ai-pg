@@ -17,7 +17,7 @@ const { kwami, isConnected } = useKwami();
 const selectedProvider = ref<string>(llm.value.provider);
 const selectedModel = ref<string>(llm.value.model);
 const expandedProvider = ref<string | null>(null);
-const sortBy = ref<'provider' | 'price' | 'context'>('provider');
+const sortBy = ref<'provider' | 'price' | 'context' | 'languages' | 'speed'>('provider');
 
 // Expand the selected provider's accordion
 function expandSelectedProvider() {
@@ -88,7 +88,7 @@ const modelsByProvider = computed(() => {
   return grouped;
 });
 
-// Flat sorted list (for price/context view)
+// Flat sorted list (for price/context/speed view)
 const sortedModelsFlat = computed(() => {
   if (!allModels.value.length) return [];
   
@@ -104,6 +104,18 @@ const sortedModelsFlat = computed(() => {
   } else if (sortBy.value === 'context') {
     // Highest context first
     models.sort((a, b) => b.context_window - a.context_window);
+  } else if (sortBy.value === 'languages') {
+    // Multilingual first, then by language count
+    models.sort((a, b) => {
+      const aMulti = a.languages?.includes('multilingual') ? 1 : 0;
+      const bMulti = b.languages?.includes('multilingual') ? 1 : 0;
+      if (aMulti !== bMulti) return bMulti - aMulti;
+      return (b.languages?.length ?? 0) - (a.languages?.length ?? 0);
+    });
+  } else if (sortBy.value === 'speed') {
+    // Fastest first
+    const speedOrder: Record<string, number> = { fast: 0, standard: 1, slow: 2 };
+    models.sort((a, b) => (speedOrder[a.speed] ?? 1) - (speedOrder[b.speed] ?? 1));
   }
   
   return models;
@@ -195,6 +207,16 @@ function updateMaxTokens(value: number) {
           :class="{ active: sortBy === 'context' }"
           @click="sortBy = 'context'"
         >Context</button>
+        <button 
+          class="sort-btn" 
+          :class="{ active: sortBy === 'languages' }"
+          @click="sortBy = 'languages'"
+        >Languages</button>
+        <button 
+          class="sort-btn" 
+          :class="{ active: sortBy === 'speed' }"
+          @click="sortBy = 'speed'"
+        >Speed</button>
       </div>
 
       <!-- Models by Provider (accordion view) -->
@@ -215,7 +237,7 @@ function updateMaxTokens(value: number) {
               v-for="model in models"
               :key="model.model_id"
               :model="model"
-              :selected="selectedModel === model.model_id"
+              :selected="llm.model === model.model_id"
               :minContext="minContext"
               :maxContext="maxContext"
               :minPrice="minPrice"
@@ -226,7 +248,7 @@ function updateMaxTokens(value: number) {
         </PanelSection>
       </template>
 
-      <!-- Flat sorted view (for price/context) -->
+      <!-- Flat sorted view (for price/context/speed) -->
       <template v-else>
         <div class="models-grid">
           <ModelCard
@@ -324,7 +346,7 @@ function updateMaxTokens(value: number) {
   font-family: inherit;
   background: var(--surface-1);
   border: 1px solid transparent;
-  border-radius: 4px;
+  border-radius: var(--radius-lg);
   color: var(--text-secondary);
   cursor: pointer;
   transition: all var(--duration-fast) var(--ease-in-out);
@@ -345,7 +367,7 @@ function updateMaxTokens(value: number) {
   display: flex;
   background: var(--surface-1);
   padding: 3px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-lg);
   gap: 3px;
 }
 
@@ -356,7 +378,7 @@ function updateMaxTokens(value: number) {
   justify-content: center;
   gap: 5px;
   padding: 8px 10px;
-  border-radius: 4px;
+  border-radius: var(--radius-lg);
   cursor: pointer;
   border: none;
   background: transparent;

@@ -53,7 +53,7 @@ const selected = computed({
   gap: 8px;
   padding: 4px;
   background: var(--surface-1);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
 }
 
 .pipeline-btn {
@@ -64,7 +64,7 @@ const selected = computed({
   padding: 12px 14px;
   background: transparent;
   border: 1px solid transparent;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-lg);
   cursor: pointer;
   transition: all var(--duration-fast) var(--ease-in-out);
   text-align: left;
@@ -87,7 +87,7 @@ const selected = computed({
   width: 36px;
   height: 36px;
   background: var(--surface-2);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-lg);
   font-size: 18px;
   color: var(--text-muted);
   flex-shrink: 0;

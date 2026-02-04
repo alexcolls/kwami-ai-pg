@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { useVoiceStore } from '@/stores/voice';
 import { storeToRefs } from 'pinia';
 import BasePanel from '@/components/ui/BasePanel.vue';
@@ -12,10 +12,15 @@ import TTSTab from './tabs/TTSTab.vue';
 import RealtimeTab from './tabs/RealtimeTab.vue';
 
 const voiceStore = useVoiceStore();
-const { llm, stt, tts, realtime } = storeToRefs(voiceStore);
+const { llm, stt, tts, realtime, pipelineMode } = storeToRefs(voiceStore);
 
-// Pipeline type
-const pipelineType = ref<'standard' | 'realtime'>('standard');
+// Pipeline type - synced with store (converts between UI value and store value)
+const pipelineType = computed({
+  get: () => pipelineMode.value === 'realtime' ? 'realtime' : 'standard',
+  set: (value: 'standard' | 'realtime') => {
+    voiceStore.setPipelineMode(value === 'realtime' ? 'realtime' : 'stt-llm-tts');
+  }
+});
 
 // Active model type tab (for standard pipeline)
 const activeModelType = ref<ModelType>('llm');
@@ -49,51 +54,66 @@ function getProviderIcon(provider: string): string {
 
     <!-- Standard Pipeline -->
     <template v-if="pipelineType === 'standard'">
-      <!-- Model Type Tabs with selected models -->
+      <!-- Model Type Tabs + Content in same section -->
       <PanelSection>
-        <ModelTypeTabs 
-          v-model="activeModelType"
-          :llmModel="{ provider: llm.provider, model: llm.model }"
-          :sttModel="{ provider: stt.provider, model: stt.model }"
-          :ttsModel="{ provider: tts.provider, model: tts.model }"
-        />
+        <div class="models-section">
+          <ModelTypeTabs 
+            v-model="activeModelType"
+            :llmModel="{ provider: llm.provider, model: llm.model }"
+            :sttModel="{ provider: stt.provider, model: stt.model }"
+            :ttsModel="{ provider: tts.provider, model: tts.model }"
+          />
+          
+          <div class="tab-content">
+            <LLMTab v-if="activeModelType === 'llm'" />
+            <STTTab v-if="activeModelType === 'stt'" />
+            <TTSTab v-if="activeModelType === 'tts'" />
+          </div>
+        </div>
       </PanelSection>
-      
-      <div class="tab-content">
-        <LLMTab v-if="activeModelType === 'llm'" />
-        <STTTab v-if="activeModelType === 'stt'" />
-        <TTSTab v-if="activeModelType === 'tts'" />
-      </div>
     </template>
 
     <!-- Realtime Pipeline -->
     <template v-if="pipelineType === 'realtime'">
-      <!-- Realtime Model Summary -->
       <PanelSection>
-        <div class="realtime-model-summary">
-          <div class="realtime-header">
-            <iconify-icon icon="ph:lightning-duotone" class="realtime-icon"></iconify-icon>
-            <span class="realtime-label">Realtime Model</span>
+        <div class="realtime-section">
+          <!-- Realtime Model Summary -->
+          <div class="realtime-model-summary">
+            <div class="realtime-header">
+              <iconify-icon icon="ph:lightning-duotone" class="realtime-icon"></iconify-icon>
+              <span class="realtime-label">Realtime Model</span>
+            </div>
+            <div class="realtime-model">
+              <iconify-icon :icon="getProviderIcon(realtime.provider)" class="realtime-provider-icon"></iconify-icon>
+              <span class="realtime-model-name">{{ realtime.model }}</span>
+            </div>
           </div>
-          <div class="realtime-model">
-            <iconify-icon :icon="getProviderIcon(realtime.provider)" class="realtime-provider-icon"></iconify-icon>
-            <span class="realtime-model-name">{{ realtime.model }}</span>
+          
+          <div class="tab-content">
+            <RealtimeTab />
           </div>
         </div>
       </PanelSection>
-      
-      <div class="tab-content">
-        <RealtimeTab />
-      </div>
     </template>
   </BasePanel>
 </template>
 
 <style scoped>
+.models-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.realtime-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 .tab-content {
   display: flex;
   flex-direction: column;
-  padding: 0 16px;
 }
 
 /* Realtime Model Summary */
@@ -104,7 +124,7 @@ function getProviderIcon(provider: string): string {
   padding: 12px 14px;
   background: var(--surface-2);
   border: 1px solid var(--accent-primary);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
 }
 
 .realtime-header {

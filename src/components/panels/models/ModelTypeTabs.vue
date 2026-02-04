@@ -37,6 +37,14 @@ function getModelForTab(tabId: ModelType): ModelInfo | undefined {
   return undefined;
 }
 
+// Strip provider prefix from model name if present (e.g., "deepgram/aura-1" -> "aura-1")
+function getModelDisplayName(model: string): string {
+  if (model.includes('/')) {
+    return model.split('/').pop() || model;
+  }
+  return model;
+}
+
 function getProviderIcon(provider: string): string {
   const icons: Record<string, string> = {
     openai: 'simple-icons:openai',
@@ -71,7 +79,7 @@ function getProviderIcon(provider: string): string {
       </div>
       <div v-if="getModelForTab(tab.id)" class="tab-model">
         <iconify-icon :icon="getProviderIcon(getModelForTab(tab.id)!.provider)" class="model-provider-icon"></iconify-icon>
-        <span class="model-name">{{ getModelForTab(tab.id)!.model }}</span>
+        <span class="model-name">{{ getModelDisplayName(getModelForTab(tab.id)!.model) }}</span>
       </div>
     </button>
   </div>
@@ -83,7 +91,7 @@ function getProviderIcon(provider: string): string {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   background: var(--surface-1);
   padding: 4px;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   gap: 4px;
 }
 
@@ -93,7 +101,7 @@ function getProviderIcon(provider: string): string {
   align-items: stretch;
   gap: 6px;
   padding: 10px 12px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-lg);
   cursor: pointer;
   border: 1px solid transparent;
   background: transparent;

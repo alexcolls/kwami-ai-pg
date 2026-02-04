@@ -1,15 +1,25 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useModelsApi } from '@/composables/useModelsApi';
+import { useVoiceStore } from '@/stores/voice';
+import { storeToRefs } from 'pinia';
+import type { RealtimeProvider } from 'kwami-ai';
 import PanelSection from '@/components/ui/PanelSection.vue';
 
 const { fetchRealtimeModels, realtimeModels, isLoading } = useModelsApi();
+const voiceStore = useVoiceStore();
+const { realtime } = storeToRefs(voiceStore);
 
 // Local state
-const selectedModel = ref<string>('gpt-4o-realtime-preview');
-const selectedProvider = ref<string>('openai');
 const videoEnabled = ref(false);
 const expandedProvider = ref<string | null>(null);
+
+// Expand selected provider on mount
+function expandSelectedProvider() {
+  if (realtime.value.provider) {
+    expandedProvider.value = 'rt-' + realtime.value.provider;
+  }
+}
 
 function handleAccordionToggle(sectionId: string | undefined, wasCollapsed: boolean) {
   if (wasCollapsed) {
@@ -21,6 +31,7 @@ function handleAccordionToggle(sectionId: string | undefined, wasCollapsed: bool
 
 onMounted(async () => {
   await fetchRealtimeModels();
+  expandSelectedProvider();
 });
 
 const modelsByProvider = computed(() => {
@@ -42,9 +53,11 @@ function getProviderIcon(provider: string): string {
 }
 
 function selectModel(modelId: string, provider: string) {
-  selectedModel.value = modelId;
-  selectedProvider.value = provider;
-  // TODO: Update store and live connection
+  voiceStore.updateRealtime({
+    provider: provider as RealtimeProvider,
+    model: modelId,
+  });
+  expandSelectedProvider();
 }
 
 // Known model metadata (since realtime models don't have enriched data yet)
@@ -77,18 +90,6 @@ function getModelInfo(modelId: string) {
     </div>
 
     <template v-if="!isLoading && hasModels">
-      <!-- Legend -->
-      <div class="legend">
-        <div class="legend-group">
-          <span class="legend-label">Capabilities</span>
-          <div class="legend-items">
-            <span class="legend-item cap-audio"><iconify-icon icon="ph:waveform-duotone"></iconify-icon> Audio</span>
-            <span class="legend-item cap-video"><iconify-icon icon="ph:video-camera-duotone"></iconify-icon> Video</span>
-            <span class="legend-item cap-tools"><iconify-icon icon="ph:wrench-duotone"></iconify-icon> Tools</span>
-          </div>
-        </div>
-      </div>
-
       <!-- Models by Provider -->
       <PanelSection
         v-for="(models, provider) in modelsByProvider"
@@ -105,7 +106,7 @@ function getModelInfo(modelId: string) {
             v-for="model in models"
             :key="model"
             class="realtime-model-card"
-            :class="{ selected: selectedModel === model }"
+            :class="{ selected: realtime.model === model }"
             @click="selectModel(model, String(provider))"
           >
             <div class="model-header">
@@ -116,12 +117,15 @@ function getModelInfo(modelId: string) {
             <div class="model-features">
               <span v-if="getModelInfo(model).features.includes('audio')" class="feature audio" title="Bidirectional Audio">
                 <iconify-icon icon="ph:waveform-duotone"></iconify-icon>
+                <span class="feature-label">Audio</span>
               </span>
               <span v-if="getModelInfo(model).video" class="feature video" title="Video Input">
                 <iconify-icon icon="ph:video-camera-duotone"></iconify-icon>
+                <span class="feature-label">Video</span>
               </span>
               <span v-if="getModelInfo(model).features.includes('function_calling')" class="feature tools" title="Function Calling">
                 <iconify-icon icon="ph:wrench-duotone"></iconify-icon>
+                <span class="feature-label">Tools</span>
               </span>
             </div>
             <div class="selected-indicator">
@@ -179,7 +183,7 @@ function getModelInfo(modelId: string) {
   padding: 10px 12px;
   background: rgba(59, 130, 246, 0.1);
   border: 1px solid rgba(59, 130, 246, 0.3);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-lg);
 }
 
 .info-banner iconify-icon {
@@ -216,59 +220,6 @@ function getModelInfo(modelId: string) {
   to { transform: rotate(360deg); }
 }
 
-.legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  padding: 8px 10px;
-  background: var(--surface-1);
-  border-radius: var(--radius-sm);
-}
-
-.legend-group {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.legend-label {
-  font-size: 8px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--text-muted);
-}
-
-.legend-items {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.legend-item {
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  font-size: 9px;
-  color: var(--text-secondary);
-}
-
-.legend-item iconify-icon {
-  font-size: 11px;
-}
-
-.legend-item.cap-audio iconify-icon {
-  color: #4ade80;
-}
-
-.legend-item.cap-video iconify-icon {
-  color: #a78bfa;
-}
-
-.legend-item.cap-tools iconify-icon {
-  color: #60a5fa;
-}
-
 .models-list {
   display: flex;
   flex-direction: column;
@@ -283,16 +234,17 @@ function getModelInfo(modelId: string) {
   padding: 12px;
   background: var(--surface-1);
   border: 1px solid var(--surface-2);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   cursor: pointer;
   transition: all var(--duration-fast) var(--ease-in-out);
   text-align: left;
   font-family: inherit;
 }
 
-.realtime-model-card:hover {
+.realtime-model-card:hover:not(.selected) {
   background: var(--surface-2);
-  border-color: var(--surface-3);
+  border-color: var(--accent-primary);
+  box-shadow: 0 2px 12px var(--accent-glow);
 }
 
 .realtime-model-card.selected {
@@ -329,17 +281,26 @@ function getModelInfo(modelId: string) {
 
 .model-features {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
 }
 
 .feature {
   display: flex;
   align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 4px;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: var(--radius-lg);
+  font-size: 11px;
+}
+
+.feature iconify-icon {
   font-size: 12px;
+}
+
+.feature-label {
+  font-size: 9px;
+  font-weight: 500;
 }
 
 .feature.audio {
@@ -404,7 +365,7 @@ function getModelInfo(modelId: string) {
   width: 36px;
   height: 20px;
   background: var(--surface-2);
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   position: relative;
   transition: background var(--duration-fast) var(--ease-in-out);
 }
@@ -420,7 +381,7 @@ function getModelInfo(modelId: string) {
   width: 16px;
   height: 16px;
   background: white;
-  border-radius: 50%;
+  border-radius: var(--radius-lg);
   transition: transform var(--duration-fast) var(--ease-in-out);
 }
 

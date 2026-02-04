@@ -15,6 +15,7 @@ export interface InferenceModel {
   context_window: number;
   max_output: number | null;
   capabilities: string[];
+  languages: string[];
   speed: 'fast' | 'standard' | 'slow';
   tier: 'flagship' | 'standard' | 'budget';
   description: string | null;
@@ -33,6 +34,7 @@ export interface PluginModel {
   context_window: number;
   max_output: number | null;
   capabilities: string[];
+  languages: string[];
   speed: 'fast' | 'standard' | 'slow';
   tier: 'flagship' | 'standard' | 'budget';
 }
