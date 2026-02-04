@@ -1,0 +1,284 @@
+/**
+ * Avatar Settings Shared Styles
+ * 
+ * Common styles used across all avatar settings components.
+ * Import this in your component's <style> section.
+ */
+
+/* Section Description */
+.section-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin: 0 0 12px 0;
+  line-height: 1.4;
+}
+
+/* Quality Hint */
+.quality-hint {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin: 8px 0 0 0;
+  opacity: 0.7;
+  line-height: 1.4;
+}
+
+/* Dice and Link Buttons */
+.dice-btn,
+.link-btn {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-1);
+  border: 1px solid var(--glass-border);
+  border-radius: 6px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 14px;
+}
+
+.dice-btn:hover,
+.link-btn:hover {
+  background: var(--accent-glow);
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+  transform: rotate(15deg) scale(1.1);
+}
+
+.link-btn:hover {
+  transform: scale(1.1);
+}
+
+.link-btn.active {
+  background: var(--accent-glow);
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+}
+
+/* Slider Group */
+.slider-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.slider-group.linked {
+  padding: 8px;
+  background: var(--accent-glow);
+  border-radius: 8px;
+  border: 1px solid rgba(0, 217, 255, 0.2);
+}
+
+/* Toggle Row & Group */
+.toggle-row {
+  margin-bottom: 12px;
+}
+
+.toggle-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Row Layouts */
+.row-2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.row-3 {
+  display: flex;
+  gap: 12px;
+}
+
+.row-3 > * {
+  flex: 1;
+}
+
+/* Color Palettes */
+.color-palettes {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--glass-border);
+}
+
+.palette-label {
+  display: block;
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.palette-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+}
+
+.palette-btn {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-1);
+  border: 1px solid var(--glass-border);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 14px;
+}
+
+.palette-btn:hover {
+  background: var(--surface-2);
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+  transform: scale(1.1);
+}
+
+/* Skin/Style Selector */
+.skin-selector,
+.style-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.skin-option,
+.style-option {
+  flex: 1;
+  min-width: 70px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 8px;
+  background: var(--surface-1);
+  border: 1px solid transparent;
+  border-radius: 12px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: all 0.2s ease;
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.skin-option input,
+.style-option input {
+  display: none;
+}
+
+.skin-option:hover,
+.style-option:hover {
+  background: var(--surface-2);
+  transform: translateY(-2px);
+  color: var(--text-primary);
+}
+
+.skin-option.active,
+.style-option.active {
+  background: var(--accent-glow);
+  border-color: var(--accent-primary);
+  box-shadow: 0 4px 20px var(--accent-glow);
+  color: var(--text-primary);
+}
+
+.skin-preview {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.skin-label,
+.style-label {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.skin-option.active .skin-label,
+.style-option.active .style-label {
+  color: var(--text-primary);
+}
+
+.style-icon {
+  font-size: 20px;
+}
+
+/* Interaction Styles */
+.interaction-row {
+  background: var(--surface-1);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  margin-bottom: 10px;
+}
+
+.interaction-row:last-child {
+  margin-bottom: 0;
+}
+
+.interaction-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.interaction-header iconify-icon {
+  font-size: 18px;
+  color: var(--accent-primary);
+}
+
+.interaction-header span {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.interaction-config {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding-top: 8px;
+  margin-top: 8px;
+  border-top: 1px solid var(--glass-border);
+}
+
+.interaction-config > :first-child {
+  flex: 1;
+}
+
+.test-btn {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-2);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  color: var(--accent-primary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.test-btn:hover {
+  background: var(--accent-glow);
+  border-color: var(--accent-primary);
+  transform: scale(1.05);
+}
+
+/* Hover config */
+.hover-config {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--glass-border);
+}
