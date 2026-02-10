@@ -9,6 +9,7 @@ import BaseSelect from '@/components/ui/BaseSelect.vue';
 import BaseSlider from '@/components/ui/BaseSlider.vue';
 import BaseTagInput from '@/components/ui/BaseTagInput.vue';
 import { personaPresets, templateCategories, type PersonaPreset } from '@/presets/agent/persona-presets';
+import { panelIcons } from '@/constants/panel-icons';
 
 const toast = useToast();
 
@@ -85,7 +86,6 @@ const config = reactive({
 });
 
 const traits = ref<string[]>([]);
-// const newTrait = ref('') // Handled by BaseTagInput
 
 const emotionalTraits = reactive({
   happiness: 0,
@@ -194,43 +194,11 @@ watch(emotionalTraits, (v) => {
   }
 }, { deep: true });
 
-// Actions
-function updateName() {
-  kwami.value?.persona.setName(config.name);
-}
-function updatePersonality() {
-  kwami.value?.persona.updateConfig({ personality: config.personality });
-}
-function updateStyle() {
-  kwami.value?.persona.setConversationStyle(config.conversationStyle);
-}
-function updateLanguage() {
-  kwami.value?.persona.setLanguage(config.language);
-}
-
-function updateResponseLength(length: 'short' | 'medium' | 'long') {
-  config.responseLength = length;
-  kwami.value?.persona.setResponseLength(length);
-}
-
-function updateEmotionalTone(tone: 'neutral' | 'warm' | 'enthusiastic' | 'calm') {
-  config.emotionalTone = tone;
-  kwami.value?.persona.setEmotionalTone(tone);
-}
-
-function updateSystemPrompt() {
-  kwami.value?.persona.updateConfig({ systemPrompt: config.systemPrompt });
-}
-
 function updateTraits(newTraits: string[]) {
   // We need to sync the difference
   kwami.value?.persona.updateConfig({ traits: newTraits });
   syncFromKwami(); // Refresh local reference
   syncPersonaToBackend(); // Sync to backend if connected
-}
-
-function updateEmotionalTrait(key: keyof typeof emotionalTraits) {
-  kwami.value?.persona.setEmotionalTrait(key, emotionalTraits[key]);
 }
 
 function previewPrompt() {
@@ -299,7 +267,7 @@ onMounted(() => {
 <template>
   <div class="panel-inner">
     <div class="panel-header">
-      <iconify-icon icon="ph:user-circle-duotone" class="panel-icon"></iconify-icon>
+      <iconify-icon :icon="panelIcons.persona" class="panel-icon"></iconify-icon>
       <h2>Persona</h2>
       <button class="refresh-btn" @click="syncFromKwami" title="Refresh from Kwami">
         <iconify-icon icon="ph:arrows-clockwise-duotone"></iconify-icon>
@@ -307,8 +275,8 @@ onMounted(() => {
     </div>
 
     <div class="panel-body">
-      <!-- Templates -->
-      <PanelSection title="Templates">
+      <!-- Presets -->
+      <PanelSection title="Presets">
         <div class="template-categories">
           <button
             v-for="cat in templateCategories"
@@ -348,7 +316,6 @@ onMounted(() => {
            label="Name"
            v-model="config.name"
            icon="ph:identification-badge-duotone"
-           @change="updateName"
            placeholder="Kwami"
         />
         <!-- TextArea not yet primitive, keep native or make Primitive? Native is fine for now but styled -->
@@ -359,7 +326,6 @@ onMounted(() => {
           </label>
           <textarea
             v-model.lazy="config.personality"
-            @change="updatePersonality"
             rows="2"
             placeholder="Describe the personality..."
           ></textarea>
@@ -381,7 +347,6 @@ onMounted(() => {
           label="Style"
           v-model="config.conversationStyle"
           icon="ph:chat-teardrop-duotone"
-          @change="updateStyle"
           placeholder="friendly, professional..."
         />
         <div style="margin-top: 8px">
@@ -397,7 +362,6 @@ onMounted(() => {
               { label: 'Japanese', value: 'ja' },
               { label: 'Chinese', value: 'zh' },
             ]"
-            @change="updateLanguage"
           />
         </div>
       </PanelSection>
@@ -410,21 +374,21 @@ onMounted(() => {
             <button
               class="toggle-btn"
               :class="{ active: config.responseLength === 'short' }"
-              @click="updateResponseLength('short')"
+              @click="config.responseLength = 'short'"
             >
               Short
             </button>
             <button
               class="toggle-btn"
               :class="{ active: config.responseLength === 'medium' }"
-              @click="updateResponseLength('medium')"
+              @click="config.responseLength = 'medium'"
             >
               Medium
             </button>
             <button
               class="toggle-btn"
               :class="{ active: config.responseLength === 'long' }"
-              @click="updateResponseLength('long')"
+              @click="config.responseLength = 'long'"
             >
               Long
             </button>
@@ -438,7 +402,7 @@ onMounted(() => {
               :key="tone"
               class="tone-option"
               :class="{ active: config.emotionalTone === tone }"
-              @click="updateEmotionalTone(tone as any)"
+              @click="config.emotionalTone = tone as any"
             >
               <iconify-icon
                 :icon="
@@ -467,7 +431,6 @@ onMounted(() => {
               :max="100"
               :step="1"
               v-model="emotionalTraits[t.key]"
-              @update:modelValue="updateEmotionalTrait(t.key)"
             />
           </div>
         </div>
@@ -477,7 +440,6 @@ onMounted(() => {
       <PanelSection title="System Prompt">
         <textarea
           v-model.lazy="config.systemPrompt"
-          @change="updateSystemPrompt"
           rows="4"
           placeholder="Custom system prompt..."
         ></textarea>
@@ -551,42 +513,6 @@ textarea {
   font-size: 13px;
   outline: none;
   resize: vertical;
-}
-
-.traits-container {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 8px;
-}
-.trait-tag {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  background: var(--accent-glow);
-  border: 1px solid var(--accent-primary);
-  border-radius: 16px;
-  font-size: 11px;
-  color: var(--text-primary);
-}
-.trait-remove {
-  background: none;
-  border: none;
-  color: var(--text-tertiary);
-  cursor: pointer;
-  font-size: 14px;
-  padding: 0;
-  display: flex;
-  align-items: center;
-}
-.trait-remove:hover {
-  color: var(--accent-error);
-}
-.trait-input-row {
-  display: flex;
-  gap: 8px;
-  align-items: center;
 }
 
 .option-group {
@@ -701,10 +627,11 @@ textarea {
 
 .template-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: 1fr;
   gap: 8px;
   max-height: 280px;
   overflow-y: auto;
+  overflow-x: hidden;
   padding-right: 4px;
 }
 
@@ -718,6 +645,8 @@ textarea {
   border-radius: 10px;
   cursor: pointer;
   transition: all 0.2s;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .template-card:hover {

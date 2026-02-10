@@ -5,6 +5,7 @@ import { useKwami } from '@/composables/useKwami';
 import { storeToRefs } from 'pinia';
 import BasePanel from '@/components/ui/BasePanel.vue';
 import PanelSection from '@/components/ui/PanelSection.vue';
+import { panelIcons } from '@/constants/panel-icons';
 import BaseSlider from '@/components/ui/BaseSlider.vue';
 import BaseSelect from '@/components/ui/BaseSelect.vue';
 import BaseInput from '@/components/ui/BaseInput.vue';
@@ -37,95 +38,7 @@ const languageFilter = ref<string>('all');
 const genderFilter = ref<string>('all');
 const searchQuery = ref('');
 
-// Language to flag icon mapping
-function getFlagIcon(langCode: string): string {
-  const flagMap: Record<string, string> = {
-    'en': 'circle-flags:us',
-    'en-US': 'circle-flags:us',
-    'en-GB': 'circle-flags:gb',
-    'en-AU': 'circle-flags:au',
-    'en-CA': 'circle-flags:ca',
-    'en-IN': 'circle-flags:in',
-    'en-NZ': 'circle-flags:nz',
-    'es': 'circle-flags:es',
-    'es-ES': 'circle-flags:es',
-    'es-MX': 'circle-flags:mx',
-    'es-419': 'circle-flags:es',
-    'es-AR': 'circle-flags:ar',
-    'fr': 'circle-flags:fr',
-    'fr-FR': 'circle-flags:fr',
-    'fr-CA': 'circle-flags:ca',
-    'de': 'circle-flags:de',
-    'de-DE': 'circle-flags:de',
-    'de-AT': 'circle-flags:at',
-    'de-CH': 'circle-flags:ch',
-    'it': 'circle-flags:it',
-    'it-IT': 'circle-flags:it',
-    'pt': 'circle-flags:pt',
-    'pt-PT': 'circle-flags:pt',
-    'pt-BR': 'circle-flags:br',
-    'ja': 'circle-flags:jp',
-    'ja-JP': 'circle-flags:jp',
-    'ko': 'circle-flags:kr',
-    'ko-KR': 'circle-flags:kr',
-    'zh': 'circle-flags:cn',
-    'zh-CN': 'circle-flags:cn',
-    'zh-TW': 'circle-flags:tw',
-    'zh-HK': 'circle-flags:hk',
-    'ru': 'circle-flags:ru',
-    'ru-RU': 'circle-flags:ru',
-    'ar': 'circle-flags:sa',
-    'ar-SA': 'circle-flags:sa',
-    'ar-AE': 'circle-flags:ae',
-    'hi': 'circle-flags:in',
-    'hi-IN': 'circle-flags:in',
-    'nl': 'circle-flags:nl',
-    'nl-NL': 'circle-flags:nl',
-    'nl-BE': 'circle-flags:be',
-    'pl': 'circle-flags:pl',
-    'pl-PL': 'circle-flags:pl',
-    'tr': 'circle-flags:tr',
-    'tr-TR': 'circle-flags:tr',
-    'sv': 'circle-flags:se',
-    'sv-SE': 'circle-flags:se',
-    'da': 'circle-flags:dk',
-    'da-DK': 'circle-flags:dk',
-    'no': 'circle-flags:no',
-    'nb': 'circle-flags:no',
-    'nb-NO': 'circle-flags:no',
-    'fi': 'circle-flags:fi',
-    'fi-FI': 'circle-flags:fi',
-    'cs': 'circle-flags:cz',
-    'cs-CZ': 'circle-flags:cz',
-    'el': 'circle-flags:gr',
-    'el-GR': 'circle-flags:gr',
-    'he': 'circle-flags:il',
-    'he-IL': 'circle-flags:il',
-    'th': 'circle-flags:th',
-    'th-TH': 'circle-flags:th',
-    'vi': 'circle-flags:vn',
-    'vi-VN': 'circle-flags:vn',
-    'id': 'circle-flags:id',
-    'id-ID': 'circle-flags:id',
-    'ms': 'circle-flags:my',
-    'ms-MY': 'circle-flags:my',
-    'uk': 'circle-flags:ua',
-    'uk-UA': 'circle-flags:ua',
-    'ro': 'circle-flags:ro',
-    'ro-RO': 'circle-flags:ro',
-    'hu': 'circle-flags:hu',
-    'hu-HU': 'circle-flags:hu',
-    'bg': 'circle-flags:bg',
-    'bg-BG': 'circle-flags:bg',
-    'sk': 'circle-flags:sk',
-    'sk-SK': 'circle-flags:sk',
-    'hr': 'circle-flags:hr',
-    'hr-HR': 'circle-flags:hr',
-    'ca': 'circle-flags:es-ct',
-    'multi': 'ph:globe-duotone',
-  };
-  return flagMap[langCode] || 'ph:globe-duotone';
-}
+import { getFlagIcon } from '@/constants/language-flags';
 
 // Provider icons
 function getProviderIcon(provider: string): string {
@@ -387,7 +300,7 @@ watch(() => tts.value.speed, (newSpeed) => {
 </script>
 
 <template>
-  <BasePanel icon="ph:speaker-high-duotone" title="Voice">
+  <BasePanel :icon="panelIcons.voice" title="Voice">
     <!-- Current Model Context -->
     <PanelSection>
       <div class="model-context">
@@ -406,7 +319,7 @@ watch(() => tts.value.speed, (newSpeed) => {
     </PanelSection>
 
     <!-- Filters -->
-    <PanelSection title="Filter Voices" icon="ph:funnel-duotone" collapsible defaultCollapsed>
+    <PanelSection title="Filter Voices" icon="ph:funnel-duotone" collapsible>
       <div class="filters">
         <BaseInput
           v-model="searchQuery"

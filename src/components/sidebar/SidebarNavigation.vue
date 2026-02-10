@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { useUIStore } from '@/stores/ui';
+import { panelIcons } from '@/constants/panel-icons';
 import { useWorkspaceStore } from '@/stores/workspace';
 
 const uiStore = useUIStore();
@@ -11,23 +12,6 @@ const trayExpanded = ref(false);
 const activeWorkspace = computed(() => workspaceStore.getActiveWorkspace());
 const workspaces = computed(() => workspaceStore.workspaces);
 
-const panelIcons: Record<string, string> = {
-  avatar: 'ph:ghost-duotone',
-  scene: 'ph:mountains-duotone',
-  interaction: 'ph:cursor-click-duotone',
-  audio: 'ph:waveform-duotone',
-  voice: 'ph:microphone-duotone',
-  enhancements: 'ph:sliders-duotone',
-  persona: 'ph:user-circle-duotone',
-  memory: 'ph:brain-duotone',
-  tools: 'ph:wrench-duotone',
-  metrics: 'ph:chart-line-up-duotone',
-  transcription: 'ph:chat-circle-text-duotone',
-  info: 'ph:info-duotone',
-  account: 'ph:user-duotone',
-  theme: 'ph:palette-duotone',
-  models: 'ph:cpu-duotone',
-};
 
 function toggleTray() {
   trayExpanded.value = !trayExpanded.value;
@@ -164,17 +148,9 @@ function handlePanelClick(panel: string) {
     <!-- Agent Group -->
     <div class="nav-group">
       <span class="switcher-label">Agent</span>
-      <!-- Models (unified panel) -->
+
       <button
-        class="nav-btn"
-        :class="{ active: uiStore.activePanel === 'models' && uiStore.isPanelOpen }"
-        @click="handlePanelClick('models')"
-        title="Models"
-      >
-        <iconify-icon :icon="panelIcons['models']"></iconify-icon>
-      </button>
-      <button
-        v-for="p in ['voice', 'enhancements', 'memory', 'tools', 'persona']"
+        v-for="p in ['models','voice', 'persona', 'memory', 'enhancements', 'tools']"
         :key="p"
         class="nav-btn"
         :class="{ active: uiStore.activePanel === p && uiStore.isPanelOpen }"

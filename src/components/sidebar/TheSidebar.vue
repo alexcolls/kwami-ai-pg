@@ -42,7 +42,7 @@ watch(() => themeStore.sidebarPosition, async (_newPos, oldPos) => {
   sidebar.style.transform = `translateX(${deltaX}px)`;
   
   // Force browser reflow
-  sidebar.offsetHeight;
+  void sidebar.offsetHeight;
   
   // PLAY: Re-enable transition and animate to final position
   sidebar.style.transition = '';
