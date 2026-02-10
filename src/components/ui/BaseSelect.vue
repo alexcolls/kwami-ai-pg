@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
 
 const props = defineProps<{
   modelValue: string | number;
@@ -15,17 +15,34 @@ const emit = defineEmits(['update:modelValue']);
 
 const isOpen = ref(false);
 const selectRef = ref<HTMLElement | null>(null);
+const triggerRef = ref<HTMLElement | null>(null);
 const highlightedIndex = ref(-1);
+
+// Dropdown position (computed from trigger bounding rect)
+const dropdownStyle = ref<Record<string, string>>({});
 
 const selectedOption = computed(() => {
   return props.options.find(opt => opt.value === props.modelValue);
 });
+
+function updateDropdownPosition() {
+  if (!triggerRef.value) return;
+  const rect = triggerRef.value.getBoundingClientRect();
+  dropdownStyle.value = {
+    position: 'fixed',
+    top: `${rect.bottom + 6}px`,
+    left: `${rect.left}px`,
+    width: `${rect.width}px`,
+    zIndex: '10001',
+  };
+}
 
 function toggle() {
   if (props.disabled) return;
   isOpen.value = !isOpen.value;
   if (isOpen.value) {
     highlightedIndex.value = props.options.findIndex(opt => opt.value === props.modelValue);
+    nextTick(updateDropdownPosition);
   }
 }
 
@@ -35,9 +52,13 @@ function select(opt: { label: string; value: string | number }) {
 }
 
 function handleClickOutside(event: MouseEvent) {
-  if (selectRef.value && !selectRef.value.contains(event.target as Node)) {
-    isOpen.value = false;
-  }
+  // Check if click is inside the trigger or the teleported dropdown
+  const target = event.target as Node;
+  if (selectRef.value?.contains(target)) return;
+  // Also check if click is inside the teleported dropdown
+  const dropdownEl = document.querySelector('.base-select-dropdown-portal');
+  if (dropdownEl?.contains(target)) return;
+  isOpen.value = false;
 }
 
 function handleKeydown(event: KeyboardEvent) {
@@ -46,6 +67,7 @@ function handleKeydown(event: KeyboardEvent) {
       event.preventDefault();
       isOpen.value = true;
       highlightedIndex.value = Math.max(0, props.options.findIndex(opt => opt.value === props.modelValue));
+      nextTick(updateDropdownPosition);
     }
     return;
   }
@@ -73,12 +95,21 @@ function handleKeydown(event: KeyboardEvent) {
   }
 }
 
+// Close on scroll of any ancestor (position may shift)
+function handleScroll() {
+  if (isOpen.value) {
+    updateDropdownPosition();
+  }
+}
+
 onMounted(() => {
-  document.addEventListener('click', handleClickOutside);
+  document.addEventListener('click', handleClickOutside, true);
+  document.addEventListener('scroll', handleScroll, true);
 });
 
 onUnmounted(() => {
-  document.removeEventListener('click', handleClickOutside);
+  document.removeEventListener('click', handleClickOutside, true);
+  document.removeEventListener('scroll', handleScroll, true);
 });
 </script>
 
@@ -95,6 +126,7 @@ onUnmounted(() => {
     </label>
     
     <button 
+      ref="triggerRef"
       type="button" 
       class="select-trigger" 
       :disabled="disabled"
@@ -108,32 +140,34 @@ onUnmounted(() => {
       <iconify-icon icon="ph:caret-up-down-bold" class="caret"></iconify-icon>
     </button>
 
-    <Transition name="dropdown">
-      <div v-if="isOpen" class="dropdown">
-        <div class="dropdown-scroll">
-          <button
-            v-for="(opt, idx) in options"
-            :key="opt.value"
-            type="button"
-            class="dropdown-option"
-            :class="{ 
-              selected: opt.value === modelValue,
-              highlighted: idx === highlightedIndex 
-            }"
-            @click="select(opt)"
-            @mouseenter="highlightedIndex = idx"
-          >
-            <iconify-icon v-if="opt.icon" :icon="opt.icon" class="option-icon"></iconify-icon>
-            <span class="option-label">{{ opt.label }}</span>
-            <iconify-icon 
-              v-if="opt.value === modelValue" 
-              icon="ph:check-bold" 
-              class="check-icon"
-            ></iconify-icon>
-          </button>
+    <Teleport to="body">
+      <Transition name="dropdown">
+        <div v-if="isOpen" class="dropdown base-select-dropdown-portal" :style="dropdownStyle">
+          <div class="dropdown-scroll">
+            <button
+              v-for="(opt, idx) in options"
+              :key="opt.value"
+              type="button"
+              class="dropdown-option"
+              :class="{ 
+                selected: opt.value === modelValue,
+                highlighted: idx === highlightedIndex 
+              }"
+              @click="select(opt)"
+              @mouseenter="highlightedIndex = idx"
+            >
+              <iconify-icon v-if="opt.icon" :icon="opt.icon" class="option-icon"></iconify-icon>
+              <span class="option-label">{{ opt.label }}</span>
+              <iconify-icon 
+                v-if="opt.value === modelValue" 
+                icon="ph:check-bold" 
+                class="check-icon"
+              ></iconify-icon>
+            </button>
+          </div>
         </div>
-      </div>
-    </Transition>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
@@ -227,13 +261,11 @@ onUnmounted(() => {
 .base-select.open .caret {
   color: var(--accent-primary);
 }
+</style>
 
-/* Dropdown */
-.dropdown {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
-  right: 0;
+<!-- Unscoped styles for the teleported dropdown -->
+<style>
+.base-select-dropdown-portal.dropdown {
   background: var(--glass-bg);
   border: 1px solid var(--glass-border);
   border-radius: 12px;
@@ -242,11 +274,10 @@ onUnmounted(() => {
   box-shadow: 
     0 12px 40px rgba(0, 0, 0, 0.4),
     0 0 0 1px rgba(255, 255, 255, 0.05) inset;
-  z-index: 1000;
   overflow: hidden;
 }
 
-.dropdown-scroll {
+.base-select-dropdown-portal .dropdown-scroll {
   max-height: 240px;
   overflow-y: auto;
   padding: 6px;
@@ -254,20 +285,20 @@ onUnmounted(() => {
   scrollbar-color: var(--surface-3) transparent;
 }
 
-.dropdown-scroll::-webkit-scrollbar {
+.base-select-dropdown-portal .dropdown-scroll::-webkit-scrollbar {
   width: 4px;
 }
 
-.dropdown-scroll::-webkit-scrollbar-track {
+.base-select-dropdown-portal .dropdown-scroll::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.dropdown-scroll::-webkit-scrollbar-thumb {
+.base-select-dropdown-portal .dropdown-scroll::-webkit-scrollbar-thumb {
   background: var(--surface-3);
   border-radius: 2px;
 }
 
-.dropdown-option {
+.base-select-dropdown-portal .dropdown-option {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -284,40 +315,40 @@ onUnmounted(() => {
   text-align: left;
 }
 
-.dropdown-option:hover,
-.dropdown-option.highlighted {
+.base-select-dropdown-portal .dropdown-option:hover,
+.base-select-dropdown-portal .dropdown-option.highlighted {
   background: var(--surface-2);
   color: var(--text-primary);
 }
 
-.dropdown-option.selected {
+.base-select-dropdown-portal .dropdown-option.selected {
   color: var(--accent-primary);
   background: var(--accent-glow);
 }
 
-.dropdown-option.selected:hover,
-.dropdown-option.selected.highlighted {
+.base-select-dropdown-portal .dropdown-option.selected:hover,
+.base-select-dropdown-portal .dropdown-option.selected.highlighted {
   background: var(--accent-glow);
 }
 
-.option-icon {
+.base-select-dropdown-portal .option-icon {
   font-size: 16px;
   color: var(--text-muted);
   flex-shrink: 0;
 }
 
-.dropdown-option.selected .option-icon {
+.base-select-dropdown-portal .dropdown-option.selected .option-icon {
   color: var(--accent-primary);
 }
 
-.option-label {
+.base-select-dropdown-portal .option-label {
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.check-icon {
+.base-select-dropdown-portal .check-icon {
   font-size: 14px;
   color: var(--accent-primary);
   flex-shrink: 0;

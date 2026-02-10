@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue';
 import type { InferenceModel, PluginModel } from '@/composables/useModelsApi';
 import RangeBar from './RangeBar.vue';
+import { getFlagIcon } from '@/constants/language-flags';
 
 // Language name mapping
 const LANGUAGE_NAMES: Record<string, string> = {
@@ -62,11 +63,13 @@ const contextDisplay = computed(() => {
 });
 
 // Context percentage (higher context = higher bar = better)
+// Minimum floor of 8% so the bar is never invisible
 const contextPercent = computed(() => {
   if (!props.minContext || !props.maxContext) return 50;
   const range = props.maxContext - props.minContext;
   if (range === 0) return 50;
-  return ((props.model.context_window - props.minContext) / range) * 100;
+  const raw = ((props.model.context_window - props.minContext) / range) * 100;
+  return Math.max(8, raw);
 });
 
 // Get the cheapest input price from providers
@@ -89,12 +92,14 @@ const priceDisplay = computed(() => {
 });
 
 // Price percentage (lower price = higher bar = better, so we invert)
+// Minimum floor of 8% so the bar is never invisible
 const pricePercent = computed(() => {
   if (!props.minPrice || !props.maxPrice || inputPrice.value === null) return 50;
   const range = props.maxPrice - props.minPrice;
   if (range === 0) return 50;
   // Invert: lowest price = 100%, highest price = 0%
-  return 100 - ((inputPrice.value - props.minPrice) / range) * 100;
+  const raw = 100 - ((inputPrice.value - props.minPrice) / range) * 100;
+  return Math.max(8, raw);
 });
 
 // Speed percentage (fast = 100%, standard = 60%, slow = 30%)
@@ -141,6 +146,11 @@ const formattedLanguages = computed(() => {
     name: LANGUAGE_NAMES[code] || code.toUpperCase(),
   }));
 });
+
+// Visible flags (show up to 6, then "+N")
+const MAX_VISIBLE_FLAGS = 6;
+const visibleLanguages = computed(() => formattedLanguages.value.slice(0, MAX_VISIBLE_FLAGS));
+const extraLanguageCount = computed(() => Math.max(0, formattedLanguages.value.length - MAX_VISIBLE_FLAGS));
 
 // Show languages popover
 const showLanguages = ref(false);
@@ -192,39 +202,44 @@ function handleClick() {
         />
         <span class="range-value">{{ priceDisplay }}</span>
       </div>
-      <div 
-        v-if="languageDisplay" 
-        class="range-row lang-row"
-        @mouseenter="showLanguages = true"
-        @mouseleave="showLanguages = false"
-      >
-        <RangeBar 
-          :value="languagePercent" 
-          icon="ph:globe-duotone"
-          label="Lang"
-          :title="`Languages: ${languageDisplay}`"
-        />
-        <span class="range-value">{{ languageDisplay }}</span>
-        
-        <!-- Languages Popover -->
-        <Transition name="fade">
-          <div v-if="showLanguages && model.languages && model.languages.length > 1" class="languages-popover">
-            <div class="popover-header">
-              <iconify-icon icon="ph:globe-duotone"></iconify-icon>
-              <span>{{ model.languages.length }} Languages</span>
+      <!-- Language Flags -->
+      <div v-if="formattedLanguages.length" class="lang-flags-row">
+        <iconify-icon icon="ph:globe-duotone" class="lang-label-icon"></iconify-icon>
+        <div 
+          class="lang-flags"
+          @mouseenter="showLanguages = true"
+          @mouseleave="showLanguages = false"
+        >
+          <iconify-icon 
+            v-for="lang in visibleLanguages" 
+            :key="lang.code" 
+            :icon="getFlagIcon(lang.code)" 
+            class="flag-icon"
+            :title="lang.name"
+          ></iconify-icon>
+          <span v-if="extraLanguageCount > 0" class="lang-more">+{{ extraLanguageCount }}</span>
+          
+          <!-- Languages Popover -->
+          <Transition name="fade">
+            <div v-if="showLanguages && formattedLanguages.length > 1" class="languages-popover">
+              <div class="popover-header">
+                <iconify-icon icon="ph:globe-duotone"></iconify-icon>
+                <span>{{ formattedLanguages.length }} Languages</span>
+              </div>
+              <div class="languages-grid">
+                <span 
+                  v-for="lang in formattedLanguages" 
+                  :key="lang.code" 
+                  class="lang-badge"
+                  :title="lang.name"
+                >
+                  <iconify-icon :icon="getFlagIcon(lang.code)" class="badge-flag"></iconify-icon>
+                  {{ lang.name }}
+                </span>
+              </div>
             </div>
-            <div class="languages-grid">
-              <span 
-                v-for="lang in formattedLanguages" 
-                :key="lang.code" 
-                class="lang-badge"
-                :title="lang.name"
-              >
-                {{ lang.code }}
-              </span>
-            </div>
-          </div>
-        </Transition>
+          </Transition>
+        </div>
       </div>
       <div class="range-row">
         <RangeBar 
@@ -328,9 +343,38 @@ function handleClick() {
   gap: 6px;
 }
 
-.lang-row {
+/* Language Flags Row */
+.lang-flags-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.lang-label-icon {
+  font-size: 10px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.lang-flags {
+  display: flex;
+  align-items: center;
+  gap: 3px;
   position: relative;
   cursor: pointer;
+  flex-wrap: wrap;
+}
+
+.flag-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.lang-more {
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--text-muted);
+  padding: 0 3px;
 }
 
 /* Languages Popover */
@@ -338,7 +382,6 @@ function handleClick() {
   position: absolute;
   top: 100%;
   left: 0;
-  right: 0;
   margin-top: 4px;
   padding: 8px;
   background: var(--surface-2);
@@ -347,6 +390,7 @@ function handleClick() {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   z-index: 100;
   min-width: 180px;
+  max-width: 260px;
 }
 
 .popover-header {
@@ -373,13 +417,19 @@ function handleClick() {
 }
 
 .lang-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   padding: 2px 6px;
   font-size: 9px;
   font-weight: 500;
   background: var(--surface-3);
   border-radius: var(--radius-sm);
   color: var(--text-secondary);
-  text-transform: uppercase;
+}
+
+.badge-flag {
+  font-size: 12px;
 }
 
 .fade-enter-active,
