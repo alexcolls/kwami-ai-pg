@@ -10,13 +10,18 @@ import TTSModelCard from '@/components/ui/TTSModelCard.vue';
 
 const { fetchTTSInferenceModels, ttsInferenceModels, isLoading } = useModelsApi();
 const voiceStore = useVoiceStore();
-const { tts } = storeToRefs(voiceStore);
+const { tts, modelsUI } = storeToRefs(voiceStore);
 const { kwami, isConnected } = useKwami();
 
-// Local state
+// Local state (synced from store)
 const selectedProvider = ref<string>(tts.value.provider);
 const selectedModel = ref<string>(tts.value.model);
-const expandedProvider = ref<string | null>(null);
+
+// Persisted UI state via store
+const expandedProvider = computed({
+  get: () => modelsUI.value.ttsExpandedProvider,
+  set: (v) => { modelsUI.value.ttsExpandedProvider = v; }
+});
 
 // Expand the selected provider's accordion
 function expandSelectedProvider() {
@@ -35,7 +40,9 @@ function handleAccordionToggle(sectionId: string | undefined, wasCollapsed: bool
 
 onMounted(async () => {
   await fetchTTSInferenceModels();
-  expandSelectedProvider();
+  if (expandedProvider.value === null) {
+    expandSelectedProvider();
+  }
 });
 
 // const inferenceModelsByProvider = computed(() => {
@@ -54,8 +61,11 @@ const hasInferenceModels = computed(() => {
   return ttsInferenceModels.value?.models && ttsInferenceModels.value.models.length > 0;
 });
 
-// Sorting
-const sortBy = ref<'provider' | 'price' | 'features' | 'speed'>('provider');
+// Persisted sorting via store
+const sortBy = computed({
+  get: () => modelsUI.value.ttsSortBy,
+  set: (v) => { modelsUI.value.ttsSortBy = v; }
+});
 
 // Min/max calculations
 const minPrice = computed(() => {

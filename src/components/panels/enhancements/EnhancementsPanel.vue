@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { reactive, watch } from 'vue';
+import { panelIcons } from '@/constants/panel-icons';
 import { useKwami } from '@/composables/useKwami';
 import type { VoiceEnhancementsConfig, VADConfig } from 'kwami-ai';
 import PanelSection from '@/components/ui/PanelSection.vue';
@@ -116,7 +117,7 @@ watch(() => performance.preemptiveGeneration, debouncedApply);
 <template>
   <div class="panel-inner">
     <div class="panel-header">
-      <iconify-icon icon="ph:sliders-duotone" class="panel-icon"></iconify-icon>
+      <iconify-icon :icon="panelIcons.enhancements" class="panel-icon"></iconify-icon>
       <h2>Enhancements</h2>
     </div>
 
@@ -280,23 +281,6 @@ watch(() => performance.preemptiveGeneration, debouncedApply);
         </div>
       </PanelSection>
 
-      <!-- Status -->
-      <PanelSection>
-        <div class="status-indicator">
-          <template v-if="isConnected">
-            <p class="live-notice">
-              <iconify-icon icon="ph:broadcast-duotone"></iconify-icon>
-              Connected - Changes apply instantly
-            </p>
-          </template>
-          <template v-else>
-            <p class="saved-notice">
-              <iconify-icon icon="ph:floppy-disk-duotone"></iconify-icon>
-              Settings saved - Will apply on connect
-            </p>
-          </template>
-        </div>
-      </PanelSection>
     </div>
   </div>
 </template>

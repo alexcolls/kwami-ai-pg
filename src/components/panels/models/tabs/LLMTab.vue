@@ -10,14 +10,22 @@ import BaseSlider from '@/components/ui/BaseSlider.vue';
 
 const { fetchLLMInferenceModels, llmInferenceModels, isLoading } = useModelsApi();
 const voiceStore = useVoiceStore();
-const { llm } = storeToRefs(voiceStore);
+const { llm, modelsUI } = storeToRefs(voiceStore);
 const { kwami, isConnected } = useKwami();
 
-// Local state
+// Local state (synced from store)
 const selectedProvider = ref<string>(llm.value.provider);
 const selectedModel = ref<string>(llm.value.model);
-const expandedProvider = ref<string | null>(null);
-const sortBy = ref<'provider' | 'price' | 'context' | 'languages' | 'speed'>('provider');
+
+// Persisted UI state via store
+const expandedProvider = computed({
+  get: () => modelsUI.value.llmExpandedProvider,
+  set: (v) => { modelsUI.value.llmExpandedProvider = v; }
+});
+const sortBy = computed({
+  get: () => modelsUI.value.llmSortBy,
+  set: (v) => { modelsUI.value.llmSortBy = v; }
+});
 
 // Expand the selected provider's accordion
 function expandSelectedProvider() {
@@ -35,10 +43,12 @@ function handleAccordionToggle(sectionId: string | undefined, wasCollapsed: bool
   }
 }
 
-// Fetch models on mount and expand selected provider
+// Fetch models on mount and expand selected provider (only if no stored state)
 onMounted(async () => {
   await fetchLLMInferenceModels();
-  expandSelectedProvider();
+  if (expandedProvider.value === null) {
+    expandSelectedProvider();
+  }
 });
 
 // All models flat list

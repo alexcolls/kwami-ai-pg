@@ -9,13 +9,18 @@ import STTModelCard from '@/components/ui/STTModelCard.vue';
 
 const { fetchSTTInferenceModels, sttInferenceModels, isLoading } = useModelsApi();
 const voiceStore = useVoiceStore();
-const { stt } = storeToRefs(voiceStore);
+const { stt, modelsUI } = storeToRefs(voiceStore);
 const { kwami, isConnected } = useKwami();
 
-// Local state
+// Local state (synced from store)
 const selectedProvider = ref<string>(stt.value.provider);
 const selectedModel = ref<string>(stt.value.model);
-const expandedProvider = ref<string | null>(null);
+
+// Persisted UI state via store
+const expandedProvider = computed({
+  get: () => modelsUI.value.sttExpandedProvider,
+  set: (v) => { modelsUI.value.sttExpandedProvider = v; }
+});
 
 // Expand the selected provider's accordion
 function expandSelectedProvider() {
@@ -34,7 +39,9 @@ function handleAccordionToggle(sectionId: string | undefined, wasCollapsed: bool
 
 onMounted(async () => {
   await fetchSTTInferenceModels();
-  expandSelectedProvider();
+  if (expandedProvider.value === null) {
+    expandSelectedProvider();
+  }
 });
 
 // const inferenceModelsByProvider = computed(() => {
@@ -53,8 +60,11 @@ const hasInferenceModels = computed(() => {
   return sttInferenceModels.value?.models && sttInferenceModels.value.models.length > 0;
 });
 
-// Sorting
-const sortBy = ref<'provider' | 'price' | 'languages' | 'speed'>('provider');
+// Persisted sorting via store
+const sortBy = computed({
+  get: () => modelsUI.value.sttSortBy,
+  set: (v) => { modelsUI.value.sttSortBy = v; }
+});
 
 // Min/max calculations
 const minPrice = computed(() => {

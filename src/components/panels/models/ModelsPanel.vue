@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { computed } from 'vue';
 import { useVoiceStore } from '@/stores/voice';
 import { storeToRefs } from 'pinia';
 import BasePanel from '@/components/ui/BasePanel.vue';
 import PanelSection from '@/components/ui/PanelSection.vue';
+import { panelIcons } from '@/constants/panel-icons';
 import PipelineSelector from './PipelineSelector.vue';
 import ModelTypeTabs, { type ModelType } from './ModelTypeTabs.vue';
 import LLMTab from './tabs/LLMTab.vue';
@@ -12,7 +13,7 @@ import TTSTab from './tabs/TTSTab.vue';
 import RealtimeTab from './tabs/RealtimeTab.vue';
 
 const voiceStore = useVoiceStore();
-const { llm, stt, tts, realtime, pipelineMode } = storeToRefs(voiceStore);
+const { llm, stt, tts, realtime, pipelineMode, modelsUI } = storeToRefs(voiceStore);
 
 // Pipeline type - synced with store (converts between UI value and store value)
 const pipelineType = computed({
@@ -22,8 +23,11 @@ const pipelineType = computed({
   }
 });
 
-// Active model type tab (for standard pipeline)
-const activeModelType = ref<ModelType>('llm');
+// Active model type tab (for standard pipeline) - persisted in store
+const activeModelType = computed({
+  get: () => modelsUI.value.activeModelType as ModelType,
+  set: (value: ModelType) => { modelsUI.value.activeModelType = value; }
+});
 
 // Provider icons
 function getProviderIcon(provider: string): string {
@@ -46,7 +50,7 @@ function getProviderIcon(provider: string): string {
 </script>
 
 <template>
-  <BasePanel icon="ph:cpu-duotone" title="Models">
+  <BasePanel :icon="panelIcons.models" title="Models">
     <!-- Pipeline Selector -->
     <PanelSection>
       <PipelineSelector v-model="pipelineType" />

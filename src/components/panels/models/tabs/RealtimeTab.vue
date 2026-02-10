@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { computed, onMounted } from 'vue';
 import { useModelsApi } from '@/composables/useModelsApi';
 import { useVoiceStore } from '@/stores/voice';
 import { storeToRefs } from 'pinia';
@@ -8,11 +8,17 @@ import PanelSection from '@/components/ui/PanelSection.vue';
 
 const { fetchRealtimeModels, realtimeModels, isLoading } = useModelsApi();
 const voiceStore = useVoiceStore();
-const { realtime } = storeToRefs(voiceStore);
+const { realtime, modelsUI } = storeToRefs(voiceStore);
 
-// Local state
-const videoEnabled = ref(false);
-const expandedProvider = ref<string | null>(null);
+// Persisted UI state via store
+const videoEnabled = computed({
+  get: () => modelsUI.value.realtimeVideoEnabled,
+  set: (v) => { modelsUI.value.realtimeVideoEnabled = v; }
+});
+const expandedProvider = computed({
+  get: () => modelsUI.value.realtimeExpandedProvider,
+  set: (v) => { modelsUI.value.realtimeExpandedProvider = v; }
+});
 
 // Expand selected provider on mount
 function expandSelectedProvider() {
@@ -31,7 +37,9 @@ function handleAccordionToggle(sectionId: string | undefined, wasCollapsed: bool
 
 onMounted(async () => {
   await fetchRealtimeModels();
-  expandSelectedProvider();
+  if (expandedProvider.value === null) {
+    expandSelectedProvider();
+  }
 });
 
 const modelsByProvider = computed(() => {
