@@ -80,6 +80,19 @@ export const useVoiceStore = defineStore('voice', () => {
   // Active preset
   const activePreset = ref('balanced');
 
+  // Models panel UI state (persists across panel switches)
+  const modelsUI = ref({
+    activeModelType: 'llm' as 'llm' | 'stt' | 'tts',
+    llmSortBy: 'provider' as 'provider' | 'price' | 'context' | 'languages' | 'speed',
+    sttSortBy: 'provider' as 'provider' | 'price' | 'languages' | 'speed',
+    ttsSortBy: 'provider' as 'provider' | 'price' | 'features' | 'speed',
+    llmExpandedProvider: null as string | null,
+    sttExpandedProvider: null as string | null,
+    ttsExpandedProvider: null as string | null,
+    realtimeExpandedProvider: null as string | null,
+    realtimeVideoEnabled: false,
+  });
+
   // Update functions
   function updateSTT(config: Partial<STTConfig>) {
     stt.value = { ...stt.value, ...config };
@@ -131,6 +144,7 @@ export const useVoiceStore = defineStore('voice', () => {
     tts,
     realtime,
     activePreset,
+    modelsUI,
     updateSTT,
     updateLLM,
     updateTTS,
