@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, onUnmounted } from 'vue';
+import { panelIcons } from '@/constants/panel-icons';
 import { useKwami } from '@/composables/useKwami';
 import PanelSection from '@/components/ui/PanelSection.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
@@ -144,7 +145,7 @@ onUnmounted(() => {
 <template>
   <div class="panel-inner">
     <div class="panel-header">
-      <iconify-icon icon="ph:chart-line-duotone" class="panel-icon"></iconify-icon>
+      <iconify-icon :icon="panelIcons.metrics" class="panel-icon"></iconify-icon>
       <h2>Metrics</h2>
       <span class="status-pill" :class="{ active: isLive }">
         <span class="pulse-dot"></span>

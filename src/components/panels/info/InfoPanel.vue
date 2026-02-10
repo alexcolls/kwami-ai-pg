@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
+import { panelIcons } from '@/constants/panel-icons';
 import { useKwami } from '@/composables/useKwami';
 
 import { Kwami } from 'kwami-ai';
@@ -110,7 +111,7 @@ onUnmounted(() => {
 <template>
   <div class="panel-inner">
     <div class="panel-header">
-      <iconify-icon icon="ph:info-duotone" class="panel-icon"></iconify-icon>
+      <iconify-icon :icon="panelIcons.info" class="panel-icon"></iconify-icon>
       <h2>Info</h2>
     </div>
 

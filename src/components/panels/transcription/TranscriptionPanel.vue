@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, onUnmounted, nextTick } from 'vue';
+import { panelIcons } from '@/constants/panel-icons';
 import { useKwami } from '@/composables/useKwami';
 
 const { kwami } = useKwami();
@@ -153,7 +154,7 @@ onUnmounted(() => {
 <template>
   <div class="panel-inner">
     <div class="panel-header">
-      <iconify-icon icon="ph:chat-circle-text-duotone" class="panel-icon"></iconify-icon>
+      <iconify-icon :icon="panelIcons.transcription" class="panel-icon"></iconify-icon>
       <h2>Transcription</h2>
       <span class="message-count"
         >{{ messages.length }} message{{ messages.length !== 1 ? 's' : '' }}</span

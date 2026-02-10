@@ -10,6 +10,7 @@ import { useCrystalBallStore } from '@/stores/avatar.crystal-ball';
 import { useBlackHoleStore } from '@/stores/avatar.black-hole';
 import BasePanel from '@/components/ui/BasePanel.vue';
 import PanelSection from '@/components/ui/PanelSection.vue';
+import { panelIcons } from '@/constants/panel-icons';
 import BlobXyzSettings from './BlobXyzSettings.vue';
 import OrbitalShardsSettings from './OrbitalShardsSettings.vue';
 import StarsGenesisSettings from './StarsGenesisSettings.vue';
@@ -505,7 +506,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <BasePanel icon="ph:ghost-duotone" title="3D Avatar">
+  <BasePanel :icon="panelIcons.avatar" title="3D Avatar">
     <!-- Avatar Type Selector -->
     <PanelSection title="Avatar Type" icon="ph:swap-duotone" collapsible>
       <p class="section-desc">Choose the visual style for your avatar</p>

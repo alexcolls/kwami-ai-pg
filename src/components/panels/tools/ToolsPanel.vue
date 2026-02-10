@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
+import { panelIcons } from '@/constants/panel-icons';
 import { useToast } from 'vue-toastification';
 import { useKwami } from '@/composables/useKwami';
 import type { ToolDefinition } from 'kwami-ai';
@@ -136,7 +137,7 @@ onMounted(refreshTools);
 <template>
   <div class="panel-inner">
     <div class="panel-header">
-      <iconify-icon icon="ph:wrench-duotone" class="panel-icon"></iconify-icon>
+      <iconify-icon :icon="panelIcons.tools" class="panel-icon"></iconify-icon>
       <h2>Tools</h2>
     </div>
 

@@ -5,6 +5,7 @@ import { useVoiceStore } from '@/stores/voice';
 import { storeToRefs } from 'pinia';
 import BasePanel from '@/components/ui/BasePanel.vue';
 import PanelSection from '@/components/ui/PanelSection.vue';
+import { panelIcons } from '@/constants/panel-icons';
 import BaseSelect from '@/components/ui/BaseSelect.vue';
 import BaseSlider from '@/components/ui/BaseSlider.vue';
 
@@ -121,7 +122,7 @@ watch(() => stt.value.language, (newLang, oldLang) => {
 </script>
 
 <template>
-  <BasePanel icon="ph:microphone-duotone" title="Voice Pipeline">
+  <BasePanel :icon="panelIcons.voice" title="Voice Pipeline">
     <!-- Mode Selection -->
     <PanelSection>
       <div class="mode-selector">

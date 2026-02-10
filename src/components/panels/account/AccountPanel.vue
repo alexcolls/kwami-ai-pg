@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import { panelIcons } from '@/constants/panel-icons';
 import { useAuthStore } from '@/stores/auth';
 import PanelSection from '@/components/ui/PanelSection.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
@@ -24,7 +25,7 @@ async function handleLogout() {
 <template>
   <div class="panel-inner">
     <div class="panel-header">
-      <iconify-icon icon="ph:user-circle-duotone" class="panel-icon"></iconify-icon>
+      <iconify-icon :icon="panelIcons.account" class="panel-icon"></iconify-icon>
       <h2>Account</h2>
     </div>
 

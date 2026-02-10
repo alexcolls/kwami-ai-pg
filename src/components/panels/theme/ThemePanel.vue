@@ -10,6 +10,7 @@ import {
 import { useUIStore, type PanelSizePreset } from '@/stores/ui';
 import BasePanel from '@/components/ui/BasePanel.vue';
 import PanelSection from '@/components/ui/PanelSection.vue';
+import { panelIcons } from '@/constants/panel-icons';
 import BaseButton from '@/components/ui/BaseButton.vue';
 import BaseSlider from '@/components/ui/BaseSlider.vue';
 import BaseToggle from '@/components/ui/BaseToggle.vue';
@@ -103,7 +104,7 @@ function handleFileImport(event: Event) {
 </script>
 
 <template>
-  <BasePanel icon="ph:palette-duotone" title="Theme">
+  <BasePanel :icon="panelIcons.theme" title="Theme">
     <template #actions>
       <BaseTooltip text="Undo (Ctrl+Z)" position="bottom">
         <button
