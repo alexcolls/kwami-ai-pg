@@ -1,10 +1,14 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, watch, h } from 'vue';
+import { ref, onMounted, computed, watch, h, nextTick } from 'vue';
+import { panelIcons } from '@/constants/panel-icons';
 import { useToast, TYPE } from 'vue-toastification';
 import { useKwami } from '@/composables/useKwami';
 import { useAuthStore } from '@/stores/auth';
 import PanelSection from '@/components/ui/PanelSection.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
+import BaseSelect from '@/components/ui/BaseSelect.vue';
+import ConfirmDialog from '@/components/ui/ConfirmDialog.vue';
+import ReorganizePreview from '@/components/memory/ReorganizePreview.vue';
 import { MemoryGraph } from '@/components/memory';
 
 const toast = useToast();
@@ -19,7 +23,6 @@ const apiBaseUrl = computed(() => {
 });
 
 // User ID with kwami_ prefix (as used by backend)
-// This automatically updates when the connection panel's user ID changes
 const userId = computed(() => `kwami_${sharedUserId.value}`);
 
 // Loading states
@@ -69,20 +72,255 @@ const showDeleteConfirm = ref(false);
 const isDeleting = ref(false);
 const deleteError = ref('');
 
-// Format date for display (short version without time)
-// function formatDate(dateStr: string | null): string {
-//   if (!dateStr) return '';
-//   try {
-//     const date = new Date(dateStr);
-//     return date.toLocaleDateString('en-US', { 
-//       month: 'short', 
-//       day: 'numeric',
-//       year: 'numeric'
-//     });
-//   } catch {
-//     return dateStr;
-//   }
-// }
+// ============================================================================
+// Editing state — Facts
+// ============================================================================
+const editingEdgeUuid = ref<string | null>(null);
+const editEdgeData = ref({ fact: '' });
+const savingEdge = ref(false);
+
+function startEditEdge(edge: Edge) {
+  editingEdgeUuid.value = edge.uuid;
+  editEdgeData.value = { fact: edge.fact || '' };
+  nextTick(() => {
+    const input = document.querySelector('.edit-fact-input') as HTMLInputElement;
+    input?.focus();
+  });
+}
+
+function cancelEditEdge() {
+  editingEdgeUuid.value = null;
+  editEdgeData.value = { fact: '' };
+}
+
+async function saveEdge() {
+  const uuid = editingEdgeUuid.value;
+  if (!uuid || !userId.value) return;
+
+  const newFact = editEdgeData.value.fact.trim();
+  if (!newFact) return;
+
+  // Find original to compare
+  const edge = edges.value.find(e => e.uuid === uuid);
+  if (!edge || edge.fact === newFact) {
+    cancelEditEdge();
+    return;
+  }
+
+  const oldFact = edge.fact;
+  savingEdge.value = true;
+
+  // Optimistic update
+  edge.fact = newFact;
+  cancelEditEdge();
+
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${apiBaseUrl.value}/memory/${userId.value}/edge/${uuid}`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify({ fact: newFact }),
+    });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to update fact');
+    }
+
+    toast.success('Fact updated', { timeout: 2000 });
+  } catch (e) {
+    // Revert
+    edge.fact = oldFact;
+    toast.error('Failed to update: ' + (e as Error).message);
+  } finally {
+    savingEdge.value = false;
+  }
+}
+
+// ============================================================================
+// Editing state — Entities
+// ============================================================================
+const editingNodeUuid = ref<string | null>(null);
+const editNodeData = ref({ name: '', summary: '', labels: [] as string[], newLabel: '' });
+const savingNode = ref(false);
+
+// Available entity types for the labels dropdown
+const entityTypeNames = [
+  'Preference', 'Person', 'Organization', 'Location', 'Event',
+  'Project', 'Topic', 'Product', 'Skill', 'Goal', 'Procedure',
+  'Pet', 'Activity', 'Attribute', 'Genre', 'Artist', 'Tool', 'Venue',
+];
+
+const entityTypeOptions = computed(() =>
+  entityTypeNames
+    .filter(et => !editNodeData.value.labels.includes(et))
+    .map(et => ({ label: et, value: et }))
+);
+
+function startEditNode(node: Node) {
+  editingNodeUuid.value = node.uuid;
+  editNodeData.value = {
+    name: node.name || '',
+    summary: node.summary || '',
+    labels: [...(node.labels || [])],
+    newLabel: '',
+  };
+}
+
+function cancelEditNode() {
+  editingNodeUuid.value = null;
+  editNodeData.value = { name: '', summary: '', labels: [], newLabel: '' };
+}
+
+function removeEditLabel(index: number) {
+  editNodeData.value.labels.splice(index, 1);
+}
+
+function addEditLabel(label: string | number) {
+  const val = String(label).trim();
+  if (val && !editNodeData.value.labels.includes(val)) {
+    editNodeData.value.labels.push(val);
+  }
+  editNodeData.value.newLabel = '';
+}
+
+async function saveNode() {
+  const uuid = editingNodeUuid.value;
+  if (!uuid || !userId.value) return;
+
+  const newName = editNodeData.value.name.trim();
+  if (!newName) return;
+
+  const node = nodes.value.find(n => n.uuid === uuid);
+  if (!node) { cancelEditNode(); return; }
+
+  const oldName = node.name;
+  const oldSummary = node.summary;
+  const oldLabels = [...node.labels];
+  savingNode.value = true;
+
+  // Optimistic update
+  node.name = newName;
+  node.summary = editNodeData.value.summary.trim() || null;
+  node.labels = [...editNodeData.value.labels];
+  cancelEditNode();
+
+  try {
+    const headers = await getAuthHeaders();
+    const body: Record<string, unknown> = { name: newName };
+    if (editNodeData.value.summary.trim()) {
+      body.summary = editNodeData.value.summary.trim();
+    }
+    if (editNodeData.value.labels.length > 0) {
+      body.labels = editNodeData.value.labels;
+    }
+
+    const response = await fetch(`${apiBaseUrl.value}/memory/${userId.value}/node/${uuid}`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to update entity');
+    }
+
+    toast.success('Entity updated', { timeout: 2000 });
+  } catch (e) {
+    // Revert
+    node.name = oldName;
+    node.summary = oldSummary;
+    node.labels = oldLabels;
+    toast.error('Failed to update: ' + (e as Error).message);
+  } finally {
+    savingNode.value = false;
+  }
+}
+
+// ============================================================================
+// Graph Operations: Communities, Duplicates, Merge, Reorganize
+// ============================================================================
+interface CommunityMember { uuid: string; name: string; summary: string | null; labels: string[]; }
+interface Community { id: number; label: string; members: CommunityMember[]; size: number; }
+interface DuplicateNodeInfo { uuid: string; name: string; summary: string | null; labels: string[]; edge_count: number; }
+interface DuplicatePair { score: number; keep: DuplicateNodeInfo; remove: DuplicateNodeInfo; }
+
+const communities = ref<Community[]>([]);
+const communitiesLoading = ref(false);
+
+const duplicates = ref<DuplicatePair[]>([]);
+const duplicatesLoading = ref(false);
+
+const reorganizeRef = ref<InstanceType<typeof ReorganizePreview> | null>(null);
+
+const mergingPair = ref<string | null>(null);
+
+async function loadCommunities() {
+  communitiesLoading.value = true;
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${apiBaseUrl.value}/memory/${userId.value}/communities`, { headers });
+    if (response.ok) {
+      const data = await response.json();
+      communities.value = data.communities || [];
+    }
+  } catch (e) {
+    console.warn('Failed to load communities:', e);
+  } finally {
+    communitiesLoading.value = false;
+  }
+}
+
+async function loadDuplicates() {
+  duplicatesLoading.value = true;
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${apiBaseUrl.value}/memory/${userId.value}/duplicates?threshold=75`, { headers });
+    if (response.ok) {
+      const data = await response.json();
+      duplicates.value = data.duplicates || [];
+    }
+  } catch (e) {
+    console.warn('Failed to load duplicates:', e);
+  } finally {
+    duplicatesLoading.value = false;
+  }
+}
+
+async function mergePair(keepUuid: string, removeUuid: string) {
+  mergingPair.value = `${keepUuid}-${removeUuid}`;
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${apiBaseUrl.value}/memory/${userId.value}/merge`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ keep_uuid: keepUuid, remove_uuid: removeUuid }),
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to merge');
+    }
+    const result = await response.json();
+    toast.success(`Merged into "${result.keep_name}" (${result.recreated_edges} edges moved)`, { timeout: 3000 });
+    // Remove the merged pair from the list
+    duplicates.value = duplicates.value.filter(
+      d => !(d.keep.uuid === keepUuid && d.remove.uuid === removeUuid)
+    );
+    // Refresh data
+    loadMemoryData();
+  } catch (e) {
+    toast.error('Merge failed: ' + (e as Error).message);
+  } finally {
+    mergingPair.value = null;
+  }
+}
+
+function onReorgDone() {
+  loadMemoryData();
+  loadCommunities();
+  loadDuplicates();
+}
 
 // Format date with time (HH:mm:ss) in user's local time
 function formatDateTime(dateStr: string | null): string {
@@ -121,7 +359,7 @@ async function getAuthHeaders(): Promise<HeadersInit> {
 async function loadMemoryData() {
   if (!userId.value) return;
   
-  console.log('📊 Loading memory for user:', userId.value);
+  console.log('Loading memory for user:', userId.value);
   isLoading.value = true;
   loadError.value = '';
   
@@ -228,21 +466,19 @@ const deletingEdge = ref<string | null>(null);
 function deleteEdge(edgeUuid: string | null) {
   if (!edgeUuid || !userId.value) return;
   
-  // Find the edge and its index
+  // Cancel any ongoing edit
+  if (editingEdgeUuid.value === edgeUuid) cancelEditEdge();
+  
   const index = edges.value.findIndex(e => e.uuid === edgeUuid);
   if (index === -1) return;
   
   const edge = edges.value[index]!;
-  
-  // Remove from UI immediately (optimistic)
   edges.value.splice(index, 1);
   
-  // Create timeout for actual deletion (5 seconds)
   const timeoutId = setTimeout(() => {
     performEdgeDeletion(edgeUuid);
   }, 5000);
   
-  // Show toast with undo action
   const toastId = toast(
     createUndoToast('Fact removed', () => undoDeletion(edgeUuid)),
     {
@@ -254,7 +490,6 @@ function deleteEdge(edgeUuid: string | null) {
     }
   );
   
-  // Store pending deletion
   pendingDeletions.value.set(edgeUuid, {
     type: 'edge',
     uuid: edgeUuid,
@@ -269,13 +504,9 @@ function undoDeletion(uuid: string) {
   const pending = pendingDeletions.value.get(uuid);
   if (!pending) return;
   
-  // Cancel the timeout
   clearTimeout(pending.timeoutId);
-  
-  // Dismiss the toast
   toast.dismiss(pending.toastId);
   
-  // Restore the item at original position
   if (pending.type === 'edge') {
     const insertIndex = Math.min(pending.index, edges.value.length);
     edges.value.splice(insertIndex, 0, pending.item as Edge);
@@ -284,15 +515,13 @@ function undoDeletion(uuid: string) {
     nodes.value.splice(insertIndex, 0, pending.item as Node);
   }
   
-  // Remove from pending
   pendingDeletions.value.delete(uuid);
-  
   toast.success('Restored!', { timeout: 2000 });
 }
 
 async function performEdgeDeletion(edgeUuid: string) {
   const pending = pendingDeletions.value.get(edgeUuid);
-  if (!pending) return; // Already undone
+  if (!pending) return;
   
   const savedPending = { ...pending };
   pendingDeletions.value.delete(edgeUuid);
@@ -309,7 +538,6 @@ async function performEdgeDeletion(edgeUuid: string) {
       throw new Error(result.detail || 'Failed to delete fact');
     }
   } catch (e) {
-    // Restore on error
     const insertIndex = Math.min(savedPending.index, edges.value.length);
     edges.value.splice(insertIndex, 0, savedPending.item as Edge);
     toast.error('Failed to delete: ' + (e as Error).message);
@@ -322,21 +550,19 @@ const deletingNode = ref<string | null>(null);
 function deleteNode(nodeUuid: string | null) {
   if (!nodeUuid || !userId.value) return;
   
-  // Find the node and its index
+  // Cancel any ongoing edit
+  if (editingNodeUuid.value === nodeUuid) cancelEditNode();
+  
   const index = nodes.value.findIndex(n => n.uuid === nodeUuid);
   if (index === -1) return;
   
   const node = nodes.value[index]!;
-  
-  // Remove from UI immediately (optimistic)
   nodes.value.splice(index, 1);
   
-  // Create timeout for actual deletion (5 seconds)
   const timeoutId = setTimeout(() => {
     performNodeDeletion(nodeUuid);
   }, 5000);
   
-  // Show toast with undo action
   const toastId = toast(
     createUndoToast('Entity removed', () => undoDeletion(nodeUuid)),
     {
@@ -348,7 +574,6 @@ function deleteNode(nodeUuid: string | null) {
     }
   );
   
-  // Store pending deletion
   pendingDeletions.value.set(nodeUuid, {
     type: 'node',
     uuid: nodeUuid,
@@ -361,7 +586,7 @@ function deleteNode(nodeUuid: string | null) {
 
 async function performNodeDeletion(nodeUuid: string) {
   const pending = pendingDeletions.value.get(nodeUuid);
-  if (!pending) return; // Already undone
+  if (!pending) return;
   
   const savedPending = { ...pending };
   pendingDeletions.value.delete(nodeUuid);
@@ -378,7 +603,6 @@ async function performNodeDeletion(nodeUuid: string) {
       throw new Error(result.detail || 'Failed to delete entity');
     }
   } catch (e) {
-    // Restore on error
     const insertIndex = Math.min(savedPending.index, nodes.value.length);
     nodes.value.splice(insertIndex, 0, savedPending.item as Node);
     toast.error('Failed to delete: ' + (e as Error).message);
@@ -389,7 +613,7 @@ async function performNodeDeletion(nodeUuid: string) {
 watch(
   () => sharedUserId.value,
   (newId, oldId) => {
-    console.log('🔄 User ID changed:', oldId, '->', newId);
+    console.log('User ID changed:', oldId, '->', newId);
     if (newId) {
       loadMemoryData();
     }
@@ -406,9 +630,8 @@ onMounted(() => {
 <template>
   <div class="panel-inner">
     <div class="panel-header">
-      <iconify-icon icon="ph:brain-duotone" class="panel-icon"></iconify-icon>
+      <iconify-icon :icon="panelIcons.memory" class="panel-icon"></iconify-icon>
       <h2>Memory</h2>
-      <span class="memory-badge"><iconify-icon icon="ph:database-duotone"></iconify-icon> Temporal</span>
     </div>
 
     <div class="panel-body">
@@ -442,7 +665,7 @@ onMounted(() => {
       </PanelSection>
 
       <!-- Facts with Temporal Data -->
-      <PanelSection v-if="activeTab === 'facts'" title="Facts (Temporal)">
+      <PanelSection v-if="activeTab === 'facts'" title="Facts (Chronological)">
         <div v-if="isLoading" class="loading-state small">
           <iconify-icon icon="ph:spinner-gap-duotone" class="spin"></iconify-icon>
         </div>
@@ -451,38 +674,70 @@ onMounted(() => {
           No facts learned yet
         </div>
         <div v-else class="facts-list">
-          <div v-for="(edge, i) in edges" :key="i" class="fact-item">
-            <div class="fact-row">
-              <div class="fact-content">
-                <iconify-icon 
-                  :icon="edge.invalid_at ? 'ph:x-circle-duotone' : 'ph:check-circle-duotone'" 
-                  :class="edge.invalid_at ? 'invalid' : 'valid'"
-                ></iconify-icon>
-                <span :class="{ 'strikethrough': edge.invalid_at }">{{ edge.fact }}</span>
+          <div v-for="(edge, i) in edges" :key="edge.uuid || i" class="fact-item" :class="{ editing: editingEdgeUuid === edge.uuid }">
+            <!-- Normal view -->
+            <template v-if="editingEdgeUuid !== edge.uuid">
+              <div class="fact-row">
+                <div class="fact-content">
+                  <iconify-icon 
+                    :icon="edge.invalid_at ? 'ph:x-circle-duotone' : 'ph:check-circle-duotone'" 
+                    :class="edge.invalid_at ? 'invalid' : 'valid'"
+                  ></iconify-icon>
+                  <span :class="{ 'strikethrough': edge.invalid_at }">{{ edge.fact }}</span>
+                </div>
+                <div class="item-actions">
+                  <button 
+                    class="action-btn edit-btn" 
+                    @click="startEditEdge(edge)"
+                    title="Edit this fact"
+                  >
+                    <iconify-icon icon="ph:pencil-simple-duotone"></iconify-icon>
+                  </button>
+                  <button 
+                    class="action-btn delete-btn" 
+                    @click="deleteEdge(edge.uuid)"
+                    :disabled="deletingEdge === edge.uuid"
+                    title="Delete this fact"
+                  >
+                    <iconify-icon :icon="deletingEdge === edge.uuid ? 'ph:spinner-gap-duotone' : 'ph:trash-simple-duotone'" :class="{ spin: deletingEdge === edge.uuid }"></iconify-icon>
+                  </button>
+                </div>
               </div>
-              <button 
-                class="delete-btn" 
-                @click="deleteEdge(edge.uuid)"
-                :disabled="deletingEdge === edge.uuid"
-                title="Delete this fact"
-              >
-                <iconify-icon :icon="deletingEdge === edge.uuid ? 'ph:spinner-gap-duotone' : 'ph:trash-simple-duotone'" :class="{ spin: deletingEdge === edge.uuid }"></iconify-icon>
-              </button>
-            </div>
-            <div class="fact-meta">
-              <span v-if="edge.valid_at" class="date valid">
-                <iconify-icon icon="ph:calendar-check-duotone"></iconify-icon>
-                {{ formatDateTime(edge.valid_at) }}
-              </span>
-              <span v-if="edge.invalid_at" class="date invalid">
-                <iconify-icon icon="ph:calendar-x-duotone"></iconify-icon>
-                {{ formatDateTime(edge.invalid_at) }}
-              </span>
-              <span v-if="!edge.valid_at && !edge.invalid_at && edge.created_at" class="date">
-                <iconify-icon icon="ph:clock-duotone"></iconify-icon>
-                {{ formatDateTime(edge.created_at) }}
-              </span>
-            </div>
+              <div class="fact-meta">
+                <span v-if="edge.valid_at" class="date valid">
+                  <iconify-icon icon="ph:calendar-check-duotone"></iconify-icon>
+                  {{ formatDateTime(edge.valid_at) }}
+                </span>
+                <span v-if="edge.invalid_at" class="date invalid">
+                  <iconify-icon icon="ph:calendar-x-duotone"></iconify-icon>
+                  {{ formatDateTime(edge.invalid_at) }}
+                </span>
+                <span v-if="!edge.valid_at && !edge.invalid_at && edge.created_at" class="date">
+                  <iconify-icon icon="ph:clock-duotone"></iconify-icon>
+                  {{ formatDateTime(edge.created_at) }}
+                </span>
+              </div>
+            </template>
+            <!-- Edit view -->
+            <template v-else>
+              <div class="edit-row">
+                <input
+                  v-model="editEdgeData.fact"
+                  class="edit-fact-input"
+                  placeholder="Enter fact..."
+                  @keydown.enter="saveEdge"
+                  @keydown.escape="cancelEditEdge"
+                />
+                <div class="edit-actions">
+                  <button class="action-btn save-btn" @click="saveEdge" :disabled="savingEdge" title="Save">
+                    <iconify-icon :icon="savingEdge ? 'ph:spinner-gap-duotone' : 'ph:check-bold'" :class="{ spin: savingEdge }"></iconify-icon>
+                  </button>
+                  <button class="action-btn cancel-btn" @click="cancelEditEdge" title="Cancel">
+                    <iconify-icon icon="ph:x-bold"></iconify-icon>
+                  </button>
+                </div>
+              </div>
+            </template>
           </div>
         </div>
       </PanelSection>
@@ -497,26 +752,95 @@ onMounted(() => {
           No entities discovered
         </div>
         <div v-else class="entities-list">
-          <div v-for="(node, i) in nodes" :key="i" class="entity-item">
-            <div class="entity-row">
-              <div class="entity-header">
-                <span class="entity-name">{{ node.name }}</span>
-                <span v-for="label in node.labels" :key="label" class="entity-label">{{ label }}</span>
+          <div v-for="(node, i) in nodes" :key="node.uuid || i" class="entity-item" :class="{ editing: editingNodeUuid === node.uuid }">
+            <!-- Normal view -->
+            <template v-if="editingNodeUuid !== node.uuid">
+              <div class="entity-row">
+                <div class="entity-header">
+                  <span class="entity-name">{{ node.name }}</span>
+                  <span v-for="label in node.labels" :key="label" class="entity-label">{{ label }}</span>
+                </div>
+                <div class="item-actions">
+                  <button 
+                    class="action-btn edit-btn" 
+                    @click="startEditNode(node)"
+                    title="Edit this entity"
+                  >
+                    <iconify-icon icon="ph:pencil-simple-duotone"></iconify-icon>
+                  </button>
+                  <button 
+                    class="action-btn delete-btn" 
+                    @click="deleteNode(node.uuid)"
+                    :disabled="deletingNode === node.uuid"
+                    title="Delete this entity"
+                  >
+                    <iconify-icon :icon="deletingNode === node.uuid ? 'ph:spinner-gap-duotone' : 'ph:trash-simple-duotone'" :class="{ spin: deletingNode === node.uuid }"></iconify-icon>
+                  </button>
+                </div>
               </div>
-              <button 
-                class="delete-btn" 
-                @click="deleteNode(node.uuid)"
-                :disabled="deletingNode === node.uuid"
-                title="Delete this entity"
-              >
-                <iconify-icon :icon="deletingNode === node.uuid ? 'ph:spinner-gap-duotone' : 'ph:trash-simple-duotone'" :class="{ spin: deletingNode === node.uuid }"></iconify-icon>
-              </button>
-            </div>
-            <p v-if="node.summary" class="entity-summary">{{ node.summary }}</p>
-            <span v-if="node.created_at" class="entity-date">
-              <iconify-icon icon="ph:clock-duotone"></iconify-icon>
-              {{ formatDateTime(node.created_at) }}
-            </span>
+              <p v-if="node.summary" class="entity-summary">{{ node.summary }}</p>
+              <span v-if="node.created_at" class="entity-date">
+                <iconify-icon icon="ph:clock-duotone"></iconify-icon>
+                {{ formatDateTime(node.created_at) }}
+              </span>
+            </template>
+            <!-- Edit view -->
+            <template v-else>
+              <div class="edit-entity-form">
+                <div class="edit-field">
+                  <label class="edit-label">Name</label>
+                  <input
+                    v-model="editNodeData.name"
+                    class="edit-input"
+                    placeholder="Entity name..."
+                    @keydown.escape="cancelEditNode"
+                  />
+                </div>
+                <div class="edit-field">
+                  <label class="edit-label">Summary</label>
+                  <textarea
+                    v-model="editNodeData.summary"
+                    class="edit-textarea"
+                    placeholder="Summary..."
+                    rows="2"
+                    @keydown.escape="cancelEditNode"
+                  ></textarea>
+                </div>
+                <div class="edit-field">
+                  <label class="edit-label">Labels</label>
+                  <div class="edit-labels">
+                    <span 
+                      v-for="(label, li) in editNodeData.labels" 
+                      :key="li" 
+                      class="edit-label-chip"
+                    >
+                      {{ label }}
+                      <button class="chip-remove" @click="removeEditLabel(li)">
+                        <iconify-icon icon="ph:x-bold"></iconify-icon>
+                      </button>
+                    </span>
+                    <div class="add-label-row">
+                      <BaseSelect
+                        :modelValue="editNodeData.newLabel"
+                        @update:modelValue="addEditLabel"
+                        :options="entityTypeOptions"
+                        placeholder="+ Add label"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div class="edit-actions-row">
+                  <button class="action-btn save-btn" @click="saveNode" :disabled="savingNode">
+                    <iconify-icon :icon="savingNode ? 'ph:spinner-gap-duotone' : 'ph:check-bold'" :class="{ spin: savingNode }"></iconify-icon>
+                    Save
+                  </button>
+                  <button class="action-btn cancel-btn" @click="cancelEditNode">
+                    <iconify-icon icon="ph:x-bold"></iconify-icon>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </template>
           </div>
         </div>
       </PanelSection>
@@ -589,6 +913,135 @@ onMounted(() => {
         </Transition>
       </Teleport>
 
+      <!-- Graph Operations -->
+      <PanelSection title="Graph Operations">
+        <!-- Reorganize -->
+        <div class="graph-ops-section">
+          <div class="graph-ops-row">
+            <div class="graph-ops-info">
+              <h4><iconify-icon icon="ph:broom-duotone"></iconify-icon> Reorganize</h4>
+              <p>Remove orphan nodes, auto-merge high-confidence duplicates, and detect communities.</p>
+            </div>
+            <BaseButton
+              variant="primary"
+              size="sm"
+              icon="ph:broom-duotone"
+              :loading="reorganizeRef?.loading || reorganizeRef?.applying"
+              :disabled="reorganizeRef?.loading || reorganizeRef?.applying"
+              @click="reorganizeRef?.fetchPreview()"
+            >
+              {{ reorganizeRef?.loading ? 'Scanning...' : reorganizeRef?.applying ? 'Applying...' : 'Reorganize' }}
+            </BaseButton>
+          </div>
+        </div>
+
+        <!-- Duplicate Detection -->
+        <div class="graph-ops-section">
+          <div class="graph-ops-row">
+            <div class="graph-ops-info">
+              <h4><iconify-icon icon="ph:copy-duotone"></iconify-icon> Duplicates</h4>
+              <p>Find nodes with similar names that may represent the same entity. Merge them to consolidate edges and clean up the graph.</p>
+            </div>
+            <BaseButton
+              variant="secondary"
+              size="sm"
+              icon="ph:magnifying-glass-duotone"
+              :loading="duplicatesLoading"
+              :disabled="duplicatesLoading"
+              @click="loadDuplicates"
+            >
+              Scan
+            </BaseButton>
+          </div>
+          <div v-if="duplicatesLoading" class="loading-state small">
+            <iconify-icon icon="ph:spinner-gap-duotone" class="spin"></iconify-icon>
+          </div>
+          <div v-else-if="duplicates.length === 0 && !duplicatesLoading" class="empty-state small">
+            <iconify-icon icon="ph:check-circle-duotone"></iconify-icon>
+            No duplicates found
+          </div>
+          <div v-else class="duplicates-list">
+            <div v-for="dup in duplicates" :key="`${dup.keep.uuid}-${dup.remove.uuid}`" class="dup-item">
+              <div class="dup-header">
+                <span class="dup-score">{{ dup.score }}%</span>
+                <span class="dup-match">match</span>
+              </div>
+              <div class="dup-nodes">
+                <div class="dup-node keep">
+                  <iconify-icon icon="ph:check-circle-duotone" class="keep-icon"></iconify-icon>
+                  <div>
+                    <span class="dup-name">{{ dup.keep.name }}</span>
+                    <span class="dup-edges">{{ dup.keep.edge_count }} edges</span>
+                  </div>
+                </div>
+                <iconify-icon icon="ph:arrows-merge-duotone" class="merge-arrow"></iconify-icon>
+                <div class="dup-node remove">
+                  <iconify-icon icon="ph:x-circle-duotone" class="remove-icon"></iconify-icon>
+                  <div>
+                    <span class="dup-name">{{ dup.remove.name }}</span>
+                    <span class="dup-edges">{{ dup.remove.edge_count }} edges</span>
+                  </div>
+                </div>
+              </div>
+              <BaseButton
+                variant="accent"
+                size="sm"
+                icon="ph:git-merge-duotone"
+                :loading="mergingPair === `${dup.keep.uuid}-${dup.remove.uuid}`"
+                :disabled="mergingPair !== null"
+                @click="mergePair(dup.keep.uuid, dup.remove.uuid)"
+                block
+              >
+                Merge
+              </BaseButton>
+            </div>
+          </div>
+        </div>
+
+        <!-- Communities -->
+        <div class="graph-ops-section">
+          <div class="graph-ops-row">
+            <div class="graph-ops-info">
+              <h4><iconify-icon icon="ph:circles-three-plus-duotone"></iconify-icon> Communities</h4>
+              <p>Group strongly connected entities into clusters using the Louvain algorithm. Reveals the natural topic areas in your memory.</p>
+            </div>
+            <BaseButton
+              variant="secondary"
+              size="sm"
+              icon="ph:graph-duotone"
+              :loading="communitiesLoading"
+              :disabled="communitiesLoading"
+              @click="loadCommunities"
+            >
+              Detect
+            </BaseButton>
+          </div>
+          <div v-if="communitiesLoading" class="loading-state small">
+            <iconify-icon icon="ph:spinner-gap-duotone" class="spin"></iconify-icon>
+          </div>
+          <div v-else-if="communities.length === 0 && !communitiesLoading" class="empty-state small">
+            <iconify-icon icon="ph:circles-three-plus-duotone"></iconify-icon>
+            Click Detect to find communities
+          </div>
+          <div v-else class="communities-list">
+            <div v-for="comm in communities" :key="comm.id" class="community-item">
+              <div class="community-header">
+                <span class="community-id">{{ comm.members.slice(0, 2).map(m => m.name).join(' & ') }}</span>
+                <span class="community-size">{{ comm.size }} node{{ comm.size !== 1 ? 's' : '' }}</span>
+              </div>
+              <div class="community-members">
+                <span v-for="m in comm.members.slice(0, 6)" :key="m.uuid" class="member-chip">
+                  {{ m.name }}
+                </span>
+                <span v-if="comm.members.length > 6" class="member-more">
+                  +{{ comm.members.length - 6 }} more
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </PanelSection>
+
       <!-- Danger Zone -->
       <PanelSection title="Danger Zone">
         <div class="danger-zone">
@@ -604,64 +1057,42 @@ onMounted(() => {
         </div>
       </PanelSection>
       
-      <!-- Delete Confirmation Modal -->
-      <Teleport to="body">
-        <Transition name="confirm-modal">
-          <div v-if="showDeleteConfirm" class="confirm-modal-overlay" @click.self="showDeleteConfirm = false">
-            <div class="confirm-modal">
-              <div class="confirm-modal-header">
-                <iconify-icon icon="ph:warning-duotone" class="warning-icon"></iconify-icon>
-                <h3>Delete All Memory?</h3>
-              </div>
-              <div class="confirm-modal-body">
-                <p>You are about to permanently delete all memory for:</p>
-                <code class="user-id-display">{{ userId }}</code>
-                <p class="warning-text">
-                  <strong>This action cannot be undone.</strong> All threads, facts, entities, 
-                  and the knowledge graph will be permanently deleted.
-                </p>
-                <div v-if="deleteError" class="delete-error">
-                  <iconify-icon icon="ph:x-circle-duotone"></iconify-icon>
-                  {{ deleteError }}
-                </div>
-              </div>
-              <div class="confirm-modal-footer">
-                <BaseButton 
-                  variant="secondary" 
-                  @click="showDeleteConfirm = false"
-                  :disabled="isDeleting"
-                >
-                  Cancel
-                </BaseButton>
-                <BaseButton 
-                  variant="danger" 
-                  icon="ph:trash-simple-duotone"
-                  @click="deleteUserMemory"
-                  :disabled="isDeleting"
-                >
-                  {{ isDeleting ? 'Deleting...' : 'Delete Forever' }}
-                </BaseButton>
-              </div>
-            </div>
-          </div>
-        </Transition>
-      </Teleport>
+      <!-- Reorganize Preview -->
+      <ReorganizePreview
+        ref="reorganizeRef"
+        :userId="userId"
+        :apiBaseUrl="apiBaseUrl"
+        @done="onReorgDone"
+      />
+
+      <!-- Delete Confirmation -->
+      <ConfirmDialog
+        :open="showDeleteConfirm"
+        title="Delete All Memory?"
+        icon="ph:warning-duotone"
+        confirmLabel="Delete Forever"
+        confirmIcon="ph:trash-simple-duotone"
+        confirmVariant="danger"
+        :loading="isDeleting"
+        @confirm="deleteUserMemory"
+        @cancel="showDeleteConfirm = false"
+      >
+        <p>You are about to permanently delete all memory for:</p>
+        <code>{{ userId }}</code>
+        <p class="warning-text">
+          <strong>This action cannot be undone.</strong> All threads, facts, entities,
+          and the knowledge graph will be permanently deleted.
+        </p>
+        <div v-if="deleteError" class="delete-error">
+          <iconify-icon icon="ph:x-circle-duotone"></iconify-icon>
+          {{ deleteError }}
+        </div>
+      </ConfirmDialog>
     </div>
   </div>
 </template>
 
 <style scoped>
-.memory-badge {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 11px;
-  padding: 4px 8px;
-  background: var(--surface-2);
-  border-radius: 12px;
-  color: var(--text-secondary);
-}
-
 /* Stats Grid */
 .stats-grid {
   display: grid;
@@ -738,8 +1169,13 @@ onMounted(() => {
   100% { transform: rotate(360deg); }
 }
 
-/* Delete Button */
-.delete-btn {
+/* Item action buttons (edit + delete) */
+.item-actions {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.action-btn {
   background: transparent;
   border: none;
   padding: 4px 6px;
@@ -748,18 +1184,40 @@ onMounted(() => {
   cursor: pointer;
   opacity: 0;
   transition: all 0.2s;
-  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
 }
-.delete-btn:hover {
-  background: rgba(239, 68, 68, 0.15);
-  color: var(--accent-error);
-}
-.delete-btn:disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
-}
-.delete-btn iconify-icon {
+.action-btn iconify-icon {
   font-size: 14px;
+}
+.action-btn.edit-btn:hover {
+  background: rgba(var(--accent-primary-rgb), 0.15);
+  color: var(--accent-primary);
+}
+.action-btn.delete-btn:hover {
+  background: var(--error-glow, rgba(239, 68, 68, 0.15));
+  color: var(--accent-error, var(--error));
+}
+.action-btn.save-btn {
+  opacity: 1;
+  color: var(--accent-success, var(--accent-primary));
+}
+.action-btn.save-btn:hover {
+  background: var(--accent-glow);
+}
+.action-btn.cancel-btn {
+  opacity: 1;
+  color: var(--text-tertiary);
+}
+.action-btn.cancel-btn:hover {
+  background: var(--surface-3);
+  color: var(--text-secondary);
+}
+.action-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5 !important;
 }
 
 /* Facts List */
@@ -770,12 +1228,17 @@ onMounted(() => {
 .fact-item {
   padding: 10px 12px;
   border-bottom: 1px solid var(--glass-border);
+  transition: background 0.2s;
 }
 .fact-item:last-child {
   border-bottom: none;
 }
-.fact-item:hover .delete-btn {
+.fact-item:hover .action-btn {
   opacity: 1;
+}
+.fact-item.editing {
+  background: rgba(var(--accent-primary-rgb), 0.05);
+  border-radius: 6px;
 }
 .fact-row {
   display: flex;
@@ -827,9 +1290,34 @@ onMounted(() => {
   color: var(--accent-error);
 }
 
+/* Fact inline edit */
+.edit-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.edit-fact-input {
+  flex: 1;
+  background: var(--surface-1);
+  border: 1px solid var(--accent-primary);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 12px;
+  color: var(--text-primary);
+  outline: none;
+  font-family: inherit;
+}
+.edit-fact-input:focus {
+  box-shadow: 0 0 0 2px rgba(var(--accent-primary-rgb), 0.2);
+}
+.edit-actions {
+  display: flex;
+  gap: 2px;
+}
+
 /* Entities List */
 .entities-list {
-  max-height: 300px;
+  max-height: 400px;
   overflow-y: auto;
 }
 .entity-item {
@@ -837,12 +1325,17 @@ onMounted(() => {
   background: var(--surface-2);
   border-radius: 8px;
   margin-bottom: 8px;
+  transition: background 0.2s;
 }
 .entity-item:last-child {
   margin-bottom: 0;
 }
-.entity-item:hover .delete-btn {
+.entity-item:hover .action-btn {
   opacity: 1;
+}
+.entity-item.editing {
+  background: rgba(var(--accent-primary-rgb), 0.08);
+  border: 1px solid rgba(var(--accent-primary-rgb), 0.2);
 }
 .entity-row {
   display: flex;
@@ -883,6 +1376,115 @@ onMounted(() => {
   font-size: 10px;
   color: var(--text-tertiary);
   margin-top: 8px;
+}
+
+/* Entity edit form */
+.edit-entity-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.edit-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.edit-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-tertiary);
+  font-weight: 600;
+}
+.edit-input {
+  background: var(--surface-1);
+  border: 1px solid var(--glass-border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 13px;
+  color: var(--text-primary);
+  outline: none;
+  font-family: inherit;
+  font-weight: 600;
+}
+.edit-input:focus {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px rgba(var(--accent-primary-rgb), 0.2);
+}
+.edit-textarea {
+  background: var(--surface-1);
+  border: 1px solid var(--glass-border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 12px;
+  color: var(--text-primary);
+  outline: none;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 40px;
+}
+.edit-textarea:focus {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px rgba(var(--accent-primary-rgb), 0.2);
+}
+.edit-labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.edit-label-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  padding: 3px 8px;
+  background: var(--accent-primary);
+  color: var(--surface-0);
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+.chip-remove {
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  opacity: 0.7;
+}
+.chip-remove:hover {
+  opacity: 1;
+}
+.chip-remove iconify-icon {
+  font-size: 10px;
+}
+.add-label-row {
+  display: flex;
+  min-width: 120px;
+}
+.edit-actions-row {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  padding-top: 4px;
+  border-top: 1px solid var(--glass-border);
+}
+.edit-actions-row .action-btn {
+  opacity: 1;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-weight: 500;
+}
+.edit-actions-row .save-btn {
+  background: var(--accent-glow);
+  color: var(--accent-primary);
+}
+.edit-actions-row .save-btn:hover {
+  background: var(--surface-3);
+}
+.edit-actions-row .cancel-btn {
+  background: var(--surface-3);
 }
 
 /* Messages List */
@@ -1061,36 +1663,7 @@ onMounted(() => {
   }
 }
 
-/* Confirm modal animations */
-.confirm-modal-enter-active {
-  animation: modal-in var(--duration-normal, 0.3s) cubic-bezier(0.16, 1, 0.3, 1);
-}
 
-.confirm-modal-leave-active {
-  animation: modal-out var(--duration-fast, 0.2s) cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.confirm-modal-enter-active .confirm-modal {
-  animation: confirm-in var(--duration-normal, 0.3s) cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-.confirm-modal-leave-active .confirm-modal {
-  animation: modal-content-out var(--duration-fast, 0.2s) cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-@keyframes confirm-in {
-  from {
-    opacity: 0;
-    transform: scale(0.85) translateY(-20px);
-  }
-  50% {
-    transform: scale(1.02) translateY(0);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
-}
 
 /* Danger Zone */
 .danger-zone {
@@ -1115,91 +1688,245 @@ onMounted(() => {
   line-height: 1.4;
 }
 
-/* Delete Confirmation Modal */
-.confirm-modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.85);
-  backdrop-filter: blur(8px);
-  z-index: 10000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-}
-.confirm-modal {
-  width: 100%;
-  max-width: 420px;
-  background: var(--surface-1);
-  border-radius: 16px;
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  overflow: hidden;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-}
-.confirm-modal-header {
-  padding: 20px 24px;
-  background: rgba(239, 68, 68, 0.1);
-  border-bottom: 1px solid rgba(239, 68, 68, 0.2);
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.confirm-modal-header .warning-icon {
-  font-size: 28px;
-  color: var(--accent-error);
-}
-.confirm-modal-header h3 {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-.confirm-modal-body {
-  padding: 20px 24px;
-}
-.confirm-modal-body p {
-  margin: 0 0 12px 0;
-  font-size: 14px;
-  color: var(--text-secondary);
-  line-height: 1.5;
-}
-.user-id-display {
-  display: block;
-  padding: 10px 14px;
-  background: var(--surface-2);
-  border: 1px solid var(--glass-border);
-  border-radius: 6px;
-  font-family: monospace;
-  font-size: 13px;
-  color: var(--accent-primary);
-  margin-bottom: 16px;
-  word-break: break-all;
-}
-.warning-text {
-  padding: 12px;
-  background: rgba(239, 68, 68, 0.08);
-  border-radius: 6px;
-  font-size: 13px;
-  color: var(--accent-error);
-}
+/* Delete error (inside ConfirmDialog slot) */
 .delete-error {
   margin-top: 12px;
   padding: 10px 12px;
-  background: rgba(239, 68, 68, 0.15);
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  border-radius: 6px;
+  background: var(--error-glow, rgba(239, 68, 68, 0.15));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
   font-size: 12px;
-  color: var(--accent-error);
+  color: var(--error, var(--accent-error));
   display: flex;
   align-items: center;
   gap: 8px;
 }
-.confirm-modal-footer {
-  padding: 16px 24px;
-  background: var(--surface-0);
-  border-top: 1px solid var(--glass-border);
+
+/* Graph Operations */
+.graph-ops-section {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--glass-border);
+}
+.graph-ops-section:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.graph-ops-section:first-child {
+  padding-top: 0;
+}
+.graph-ops-row {
   display: flex;
-  justify-content: flex-end;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.graph-ops-row h4 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.graph-ops-row h4 iconify-icon {
+  font-size: 16px;
+  color: var(--accent-secondary);
+}
+.graph-ops-info {
+  flex: 1;
+}
+.graph-ops-info h4 {
+  margin: 0 0 4px 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.graph-ops-info h4 iconify-icon {
+  font-size: 16px;
+  color: var(--accent-secondary);
+}
+.graph-ops-info p {
+  margin: 0;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  line-height: 1.4;
+}
+
+/* Reorganize report */
+.reorg-report {
+  display: flex;
   gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+  padding: 10px 12px;
+  background: var(--surface-1);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+}
+.reorg-stat {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.reorg-stat iconify-icon {
+  font-size: 14px;
+  color: var(--accent-primary);
+}
+
+/* Duplicates */
+.duplicates-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+.dup-item {
+  padding: 10px 12px;
+  background: var(--surface-1);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--glass-border);
+  transition: border-color var(--duration-fast) ease;
+}
+.dup-item:hover {
+  border-color: var(--surface-3);
+}
+.dup-header {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.dup-score {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--accent-primary);
+}
+.dup-match {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.dup-nodes {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.dup-node {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  min-width: 0;
+  transition: border-color var(--duration-fast) ease;
+}
+.dup-node.keep {
+  border-color: rgba(var(--accent-primary-rgb), 0.15);
+}
+.dup-name {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dup-edges {
+  font-size: 9px;
+  color: var(--text-muted);
+}
+.keep-icon {
+  color: var(--accent-success, var(--accent-primary));
+  font-size: 14px;
+  flex-shrink: 0;
+}
+.remove-icon {
+  color: var(--accent-error, var(--text-muted));
+  font-size: 14px;
+  flex-shrink: 0;
+}
+.merge-arrow {
+  color: var(--text-muted);
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+/* Communities */
+.communities-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 250px;
+  overflow-y: auto;
+}
+.community-item {
+  padding: 10px 12px;
+  background: var(--surface-1);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  transition: border-color var(--duration-fast) ease;
+}
+.community-item:hover {
+  border-color: var(--surface-3);
+}
+.community-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.community-id {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent-secondary);
+  padding: 2px 8px;
+  background: var(--accent-glow);
+  border-radius: var(--radius-sm);
+}
+.community-size {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+.community-members {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.member-chip {
+  font-size: 10px;
+  padding: 3px 10px;
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  border-radius: 12px;
+  border: 1px solid var(--glass-border);
+  white-space: nowrap;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: all var(--duration-fast) ease;
+}
+.member-chip:hover {
+  background: var(--surface-3);
+  color: var(--text-primary);
+}
+.member-more {
+  font-size: 10px;
+  padding: 3px 10px;
+  color: var(--text-muted);
+  font-style: italic;
 }
 </style>

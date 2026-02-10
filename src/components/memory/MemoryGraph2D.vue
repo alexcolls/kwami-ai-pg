@@ -12,10 +12,14 @@ const props = defineProps<{
   graph: MemoryGraph
   showEdgeLabels: boolean
   selectedNodeId: string | null
+  linkingNodeId: string | null
 }>()
 
 const emit = defineEmits<{
   (e: 'select-node', node: MemoryNode | null): void
+  (e: 'link-start', node: MemoryNode): void
+  (e: 'link-end', node: MemoryNode): void
+  (e: 'link-cancel'): void
 }>()
 
 const canvasRef = ref<HTMLCanvasElement | null>(null)
@@ -36,6 +40,7 @@ const transform = ref({
 let isDragging = false
 let lastMousePos = { x: 0, y: 0 }
 let hoveredNodeId: string | null = null
+let currentMouseCanvas: Position2D = { x: 0, y: 0 }
 
 const canvasSize = ref({ width: 800, height: 600 })
 
@@ -229,6 +234,48 @@ function draw() {
     c.fillText(label, pos.x, pos.y + radius + 6)
   })
   
+  // Draw link preview line when in linking mode
+  if (props.linkingNodeId) {
+    const sourcePos = positions.get(props.linkingNodeId)
+    if (sourcePos) {
+      const targetPos = currentMouseCanvas
+      
+      // Snap to hovered node
+      let snapPos = targetPos
+      if (hoveredNodeId && hoveredNodeId !== props.linkingNodeId) {
+        const hp = positions.get(hoveredNodeId)
+        if (hp) snapPos = hp
+      }
+      
+      c.beginPath()
+      c.moveTo(sourcePos.x, sourcePos.y)
+      c.lineTo(snapPos.x, snapPos.y)
+      c.strokeStyle = '#00d9ff'
+      c.lineWidth = 2
+      c.setLineDash([8, 5])
+      c.globalAlpha = 0.7
+      c.stroke()
+      c.setLineDash([])
+      c.globalAlpha = 1.0
+    }
+    
+    // Draw highlight ring on source node
+    const srcPos = positions.get(props.linkingNodeId)
+    if (srcPos) {
+      const srcNode = props.graph.nodes.find(n => n.id === props.linkingNodeId)
+      if (srcNode) {
+        const deg = degrees.get(srcNode.id) || 1
+        const isUser = srcNode.type === 'user'
+        const r = calculateNodeRadius(deg, Math.max(...Array.from(degrees.values()), 1), isUser, 8, 24)
+        c.beginPath()
+        c.arc(srcPos.x, srcPos.y, r + 4, 0, Math.PI * 2)
+        c.strokeStyle = '#00d9ff'
+        c.lineWidth = 2.5
+        c.stroke()
+      }
+    }
+  }
+
   ctx.restore()
   
   animationId = requestAnimationFrame(draw)
@@ -297,8 +344,9 @@ function onMouseMove(e: MouseEvent) {
   
   const mouseX = e.clientX - rect.left
   const mouseY = e.clientY - rect.top
+  currentMouseCanvas = screenToCanvas(mouseX, mouseY)
   
-  if (isDragging) {
+  if (isDragging && !props.linkingNodeId) {
     const dx = e.clientX - lastMousePos.x
     const dy = e.clientY - lastMousePos.y
     transform.value.x += dx
@@ -306,12 +354,15 @@ function onMouseMove(e: MouseEvent) {
     lastMousePos = { x: e.clientX, y: e.clientY }
   } else {
     // Check for hover
-    const canvasPos = screenToCanvas(mouseX, mouseY)
-    const node = findNodeAtPosition(canvasPos)
+    const node = findNodeAtPosition(currentMouseCanvas)
     hoveredNodeId = node?.id || null
     
     if (canvasRef.value) {
-      canvasRef.value.style.cursor = node ? 'pointer' : 'grab'
+      if (props.linkingNodeId) {
+        canvasRef.value.style.cursor = node ? 'cell' : 'crosshair'
+      } else {
+        canvasRef.value.style.cursor = node ? 'pointer' : 'grab'
+      }
     }
   }
 }
@@ -327,9 +378,39 @@ function onClick(e: MouseEvent) {
   const mouseX = e.clientX - rect.left
   const mouseY = e.clientY - rect.top
   const canvasPos = screenToCanvas(mouseX, mouseY)
-  
   const node = findNodeAtPosition(canvasPos)
+
+  // If in linking mode, complete the link
+  if (props.linkingNodeId) {
+    if (node && node.id !== props.linkingNodeId) {
+      emit('link-end', node)
+    } else if (!node) {
+      emit('link-cancel')
+    }
+    return
+  }
+
   emit('select-node', node)
+}
+
+function onDoubleClick(e: MouseEvent) {
+  const rect = canvasRef.value?.getBoundingClientRect()
+  if (!rect) return
+  
+  const mouseX = e.clientX - rect.left
+  const mouseY = e.clientY - rect.top
+  const canvasPos = screenToCanvas(mouseX, mouseY)
+  const node = findNodeAtPosition(canvasPos)
+  
+  if (node) {
+    emit('link-start', node)
+  }
+}
+
+function onKeyDown(e: KeyboardEvent) {
+  if (e.key === 'Escape' && props.linkingNodeId) {
+    emit('link-cancel')
+  }
 }
 
 function onWheel(e: WheelEvent) {
@@ -368,6 +449,7 @@ onMounted(() => {
   rebuild()
   draw()
   window.addEventListener('resize', onResize)
+  window.addEventListener('keydown', onKeyDown)
 })
 
 watch(() => props.graph, rebuild, { deep: true })
@@ -375,6 +457,7 @@ watch(() => props.graph, rebuild, { deep: true })
 onUnmounted(() => {
   if (animationId) cancelAnimationFrame(animationId)
   window.removeEventListener('resize', onResize)
+  window.removeEventListener('keydown', onKeyDown)
 })
 </script>
 
@@ -387,6 +470,7 @@ onUnmounted(() => {
       @mouseup="onMouseUp"
       @mouseleave="onMouseUp"
       @click="onClick"
+      @dblclick="onDoubleClick"
       @wheel="onWheel"
     />
   </div>

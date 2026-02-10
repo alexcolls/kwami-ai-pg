@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import type { MemoryNode, MemoryEdge, MemoryGraph } from './types'
+import { ref, watch, computed } from 'vue'
+import type { MemoryNode, MemoryEdge, MemoryGraph, UpdateNodePayload, UpdateEdgePayload } from './types'
 import { getNodeColorHex, formatDate } from './utils'
+import BaseSelect from '@/components/ui/BaseSelect.vue'
 
 const props = defineProps<{
   node: MemoryNode | null
@@ -10,12 +12,138 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'close'): void
+  (e: 'update-node', nodeUuid: string, data: UpdateNodePayload): void
+  (e: 'update-edge', edgeIndex: number, edge: MemoryEdge, data: UpdateEdgePayload): void
+  (e: 'delete-edge', edgeIndex: number, edge: MemoryEdge): void
 }>()
+
+// Edit mode state
+const isEditing = ref(false)
+const editData = ref({
+  name: '',
+  summary: '',
+  type: '',
+  labels: [] as string[],
+  newLabel: '',
+})
+
+// Edge editing
+const editingEdgeIndex = ref<number | null>(null)
+const editEdgeRelation = ref('')
+
+// Available entity types
+const entityTypeNames = [
+  'user', 'assistant', 'person', 'pet', 'location', 'place',
+  'preference', 'topic', 'skill', 'project', 'organization',
+  'product', 'event', 'activity', 'goal', 'procedure',
+  'attribute', 'genre', 'artist', 'fact', 'tool', 'venue', 'entity',
+]
+
+const entityTypeOptions = entityTypeNames.map(t => ({
+  label: t.charAt(0).toUpperCase() + t.slice(1),
+  value: t,
+}))
+
+const labelAddOptions = computed(() =>
+  entityTypeNames
+    .filter(t => !editData.value.labels.includes(t.charAt(0).toUpperCase() + t.slice(1)))
+    .map(t => ({
+      label: t.charAt(0).toUpperCase() + t.slice(1),
+      value: t.charAt(0).toUpperCase() + t.slice(1),
+    }))
+)
 
 function getConnectedNodeLabel(nodeId: string): string {
   const node = props.graph.nodes.find(n => n.id === nodeId)
   return node?.label || nodeId
 }
+
+function startEditing() {
+  if (!props.node) return
+  isEditing.value = true
+  editData.value = {
+    name: props.node.label || '',
+    summary: props.node.summary || '',
+    type: props.node.type || 'entity',
+    labels: [...(props.node.labels || [])],
+    newLabel: '',
+  }
+}
+
+function cancelEditing() {
+  isEditing.value = false
+  editingEdgeIndex.value = null
+}
+
+function saveNode() {
+  if (!props.node?.uuid) return
+  const payload: UpdateNodePayload = {}
+  
+  if (editData.value.name.trim() && editData.value.name !== props.node.label) {
+    payload.name = editData.value.name.trim()
+  }
+  if (editData.value.summary !== (props.node.summary || '')) {
+    payload.summary = editData.value.summary.trim()
+  }
+  if (JSON.stringify(editData.value.labels) !== JSON.stringify(props.node.labels || [])) {
+    payload.labels = editData.value.labels
+  }
+  
+  // Only emit if there are changes
+  if (Object.keys(payload).length > 0) {
+    emit('update-node', props.node.uuid, payload)
+  }
+  
+  isEditing.value = false
+}
+
+function removeLabel(index: number) {
+  editData.value.labels.splice(index, 1)
+}
+
+function addLabel(val: string | number) {
+  const label = String(val).trim()
+  if (label && !editData.value.labels.includes(label)) {
+    editData.value.labels.push(label)
+  }
+  editData.value.newLabel = ''
+}
+
+// Edge editing
+function startEditEdge(index: number) {
+  editingEdgeIndex.value = index
+  editEdgeRelation.value = props.edges[index]?.relation || ''
+}
+
+function cancelEditEdge() {
+  editingEdgeIndex.value = null
+  editEdgeRelation.value = ''
+}
+
+function saveEdge(index: number) {
+  const edge = props.edges[index]
+  if (!edge) return
+  
+  const newRelation = editEdgeRelation.value.trim()
+  if (newRelation && newRelation !== edge.relation) {
+    emit('update-edge', index, edge, { name: newRelation })
+  }
+  
+  editingEdgeIndex.value = null
+}
+
+function handleDeleteEdge(index: number) {
+  const edge = props.edges[index]
+  if (edge) {
+    emit('delete-edge', index, edge)
+  }
+}
+
+// Reset editing state when node changes
+watch(() => props.node, () => {
+  isEditing.value = false
+  editingEdgeIndex.value = null
+})
 </script>
 
 <template>
@@ -24,90 +152,233 @@ function getConnectedNodeLabel(nodeId: string): string {
       <div class="panel-header">
         <h3 class="panel-title">Node Details</h3>
         <span 
+          v-if="!isEditing"
           class="type-badge-header" 
           :style="{ background: getNodeColorHex(node.type) }"
         >
           {{ node.type }}
         </span>
-        <button class="close-btn" @click="emit('close')">
-          <iconify-icon icon="ph:x"></iconify-icon>
-        </button>
+        <div class="header-actions">
+          <button 
+            v-if="!isEditing"
+            class="header-btn edit-btn" 
+            @click="startEditing" 
+            title="Edit node"
+          >
+            <iconify-icon icon="ph:pencil-simple-duotone"></iconify-icon>
+          </button>
+          <button class="header-btn close-btn" @click="emit('close')">
+            <iconify-icon icon="ph:x"></iconify-icon>
+          </button>
+        </div>
       </div>
       
       <div class="panel-content">
-        <!-- Name -->
-        <div class="detail-section">
-          <span class="detail-label">Name:</span>
-          <span class="detail-value name-value">{{ node.label }}</span>
-        </div>
-        
-        <!-- UUID -->
-        <div v-if="node.uuid" class="detail-section">
-          <span class="detail-label">UUID:</span>
-          <span class="detail-value mono uuid-value">{{ node.uuid }}</span>
-        </div>
-        
-        <!-- Created date -->
-        <div v-if="node.created_at" class="detail-section">
-          <span class="detail-label">Created:</span>
-          <span class="detail-value">{{ formatDate(node.created_at) }}</span>
-        </div>
-        
-        <!-- Summary -->
-        <div v-if="node.summary" class="detail-section summary-section">
-          <span class="detail-label">Summary:</span>
-          <p class="summary-text">{{ node.summary }}</p>
-        </div>
-        
-        <!-- Labels -->
-        <div v-if="node.labels && node.labels.length > 0" class="detail-section">
-          <span class="detail-label">Labels:</span>
-          <div class="labels-container">
-            <span 
-              v-for="label in node.labels" 
-              :key="label" 
-              class="label-badge"
-            >
-              {{ label }}
-            </span>
+        <!-- ======== Read Mode ======== -->
+        <template v-if="!isEditing">
+          <!-- Name -->
+          <div class="detail-section">
+            <span class="detail-label">Name:</span>
+            <span class="detail-value name-value">{{ node.label }}</span>
           </div>
-        </div>
-        
-        <!-- Connections -->
-        <div v-if="edges.length > 0" class="connections-section">
-          <span class="section-title">
-            <iconify-icon icon="ph:link"></iconify-icon>
-            Connections ({{ edges.length }})
-          </span>
-          <div class="connections-list">
-            <div 
-              v-for="(edge, idx) in edges" 
-              :key="idx" 
-              class="connection-item"
-            >
-              <span class="connection-direction">
-                <template v-if="edge.source === node?.id">
-                  <iconify-icon icon="ph:arrow-right"></iconify-icon>
-                </template>
-                <template v-else>
-                  <iconify-icon icon="ph:arrow-left"></iconify-icon>
-                </template>
-              </span>
-              <span class="connection-relation">{{ edge.relation }}</span>
-              <span class="connection-target">
-                {{ edge.source === node?.id 
-                  ? getConnectedNodeLabel(edge.target) 
-                  : getConnectedNodeLabel(edge.source) 
-                }}
+          
+          <!-- UUID -->
+          <div v-if="node.uuid" class="detail-section">
+            <span class="detail-label">UUID:</span>
+            <span class="detail-value mono uuid-value">{{ node.uuid }}</span>
+          </div>
+          
+          <!-- Created date -->
+          <div v-if="node.created_at" class="detail-section">
+            <span class="detail-label">Created:</span>
+            <span class="detail-value">{{ formatDate(node.created_at) }}</span>
+          </div>
+          
+          <!-- Summary -->
+          <div v-if="node.summary" class="detail-section summary-section">
+            <span class="detail-label">Summary:</span>
+            <p class="summary-text">{{ node.summary }}</p>
+          </div>
+          
+          <!-- Labels -->
+          <div v-if="node.labels && node.labels.length > 0" class="detail-section">
+            <span class="detail-label">Labels:</span>
+            <div class="labels-container">
+              <span 
+                v-for="label in node.labels" 
+                :key="label" 
+                class="label-badge"
+              >
+                {{ label }}
               </span>
             </div>
           </div>
-        </div>
+          
+          <!-- Connections -->
+          <div v-if="edges.length > 0" class="connections-section">
+            <span class="section-title">
+              <iconify-icon icon="ph:link"></iconify-icon>
+              Connections ({{ edges.length }})
+            </span>
+            <div class="connections-list">
+              <div 
+                v-for="(edge, idx) in edges" 
+                :key="idx" 
+                class="connection-item"
+              >
+                <span class="connection-direction">
+                  <template v-if="edge.source === node?.id">
+                    <iconify-icon icon="ph:arrow-right"></iconify-icon>
+                  </template>
+                  <template v-else>
+                    <iconify-icon icon="ph:arrow-left"></iconify-icon>
+                  </template>
+                </span>
+                <span class="connection-relation">{{ edge.relation }}</span>
+                <span class="connection-target">
+                  {{ edge.source === node?.id 
+                    ? getConnectedNodeLabel(edge.target) 
+                    : getConnectedNodeLabel(edge.source) 
+                  }}
+                </span>
+              </div>
+            </div>
+          </div>
+          
+          <div v-else class="no-connections">
+            <iconify-icon icon="ph:link-break"></iconify-icon>
+            No connections found
+          </div>
+        </template>
         
-        <div v-else class="no-connections">
-          <iconify-icon icon="ph:link-break"></iconify-icon>
-          No connections found
-        </div>
+        <!-- ======== Edit Mode ======== -->
+        <template v-else>
+          <!-- Name -->
+          <div class="edit-field">
+            <label class="edit-field-label">Name</label>
+            <input
+              v-model="editData.name"
+              class="edit-input"
+              placeholder="Entity name..."
+            />
+          </div>
+          
+          <!-- Type -->
+          <div class="edit-field">
+            <BaseSelect
+              v-model="editData.type"
+              :options="entityTypeOptions"
+              label="Type"
+              icon="ph:tag-duotone"
+            />
+          </div>
+          
+          <!-- Summary -->
+          <div class="edit-field">
+            <label class="edit-field-label">Summary</label>
+            <textarea
+              v-model="editData.summary"
+              class="edit-textarea"
+              placeholder="Summary..."
+              rows="3"
+            ></textarea>
+          </div>
+          
+          <!-- Labels -->
+          <div class="edit-field">
+            <label class="edit-field-label">Labels</label>
+            <div class="edit-labels-wrap">
+              <span 
+                v-for="(label, li) in editData.labels" 
+                :key="li" 
+                class="edit-chip"
+              >
+                {{ label }}
+                <button class="chip-x" @click="removeLabel(li)">
+                  <iconify-icon icon="ph:x-bold"></iconify-icon>
+                </button>
+              </span>
+              <div class="chip-add-wrap">
+                <BaseSelect
+                  :modelValue="editData.newLabel"
+                  @update:modelValue="addLabel"
+                  :options="labelAddOptions"
+                  placeholder="+ Add"
+                />
+              </div>
+            </div>
+          </div>
+          
+          <!-- Connections (editable) -->
+          <div v-if="edges.length > 0" class="connections-section">
+            <span class="section-title">
+              <iconify-icon icon="ph:link"></iconify-icon>
+              Connections ({{ edges.length }})
+            </span>
+            <div class="connections-list">
+              <div 
+                v-for="(edge, idx) in edges" 
+                :key="idx" 
+                class="connection-item editable"
+              >
+                <template v-if="editingEdgeIndex !== idx">
+                  <span class="connection-direction">
+                    <template v-if="edge.source === node?.id">
+                      <iconify-icon icon="ph:arrow-right"></iconify-icon>
+                    </template>
+                    <template v-else>
+                      <iconify-icon icon="ph:arrow-left"></iconify-icon>
+                    </template>
+                  </span>
+                  <span class="connection-relation">{{ edge.relation }}</span>
+                  <span class="connection-target">
+                    {{ edge.source === node?.id 
+                      ? getConnectedNodeLabel(edge.target) 
+                      : getConnectedNodeLabel(edge.source) 
+                    }}
+                  </span>
+                  <div class="connection-actions">
+                    <button class="conn-btn" @click="startEditEdge(idx)" title="Edit relation">
+                      <iconify-icon icon="ph:pencil-simple"></iconify-icon>
+                    </button>
+                    <button class="conn-btn danger" @click="handleDeleteEdge(idx)" title="Delete connection">
+                      <iconify-icon icon="ph:trash-simple"></iconify-icon>
+                    </button>
+                  </div>
+                </template>
+                <template v-else>
+                  <div class="edit-connection-row">
+                    <input
+                      v-model="editEdgeRelation"
+                      class="edit-relation-input"
+                      placeholder="Relation..."
+                      @keydown.enter="saveEdge(idx)"
+                      @keydown.escape="cancelEditEdge"
+                    />
+                    <button class="conn-btn save" @click="saveEdge(idx)">
+                      <iconify-icon icon="ph:check-bold"></iconify-icon>
+                    </button>
+                    <button class="conn-btn" @click="cancelEditEdge">
+                      <iconify-icon icon="ph:x-bold"></iconify-icon>
+                    </button>
+                  </div>
+                </template>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Save / Cancel -->
+          <div class="edit-footer">
+            <button class="footer-btn save" @click="saveNode">
+              <iconify-icon icon="ph:check-bold"></iconify-icon>
+              Save Changes
+            </button>
+            <button class="footer-btn cancel" @click="cancelEditing">
+              <iconify-icon icon="ph:x-bold"></iconify-icon>
+              Cancel
+            </button>
+          </div>
+        </template>
       </div>
     </div>
   </Transition>
@@ -158,7 +429,12 @@ function getConnectedNodeLabel(nodeId: string): string {
   text-transform: capitalize;
 }
 
-.close-btn {
+.header-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.header-btn {
   background: transparent;
   border: none;
   color: var(--text-muted);
@@ -171,9 +447,13 @@ function getConnectedNodeLabel(nodeId: string): string {
   justify-content: center;
 }
 
-.close-btn:hover {
+.header-btn:hover {
   background: var(--surface-2);
   color: var(--text-primary);
+}
+
+.header-btn.edit-btn:hover {
+  color: var(--accent-primary);
 }
 
 .panel-content {
@@ -278,6 +558,10 @@ function getConnectedNodeLabel(nodeId: string): string {
   border: 1px solid var(--glass-border);
 }
 
+.connection-item.editable:hover .connection-actions {
+  opacity: 1;
+}
+
 .connection-direction {
   color: var(--text-muted);
   font-size: 14px;
@@ -300,6 +584,63 @@ function getConnectedNodeLabel(nodeId: string): string {
   text-align: right;
 }
 
+.connection-actions {
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.conn-btn {
+  background: transparent;
+  border: none;
+  padding: 4px;
+  border-radius: 4px;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  transition: all 0.15s;
+}
+.conn-btn:hover {
+  background: var(--surface-2);
+  color: var(--text-primary);
+}
+.conn-btn.danger:hover {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--accent-error, #ef4444);
+}
+.conn-btn.save {
+  color: var(--accent-success, #22c55e);
+}
+.conn-btn.save:hover {
+  background: rgba(34, 197, 94, 0.15);
+}
+
+.conn-btn iconify-icon {
+  font-size: 13px;
+}
+
+.edit-connection-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  width: 100%;
+}
+
+.edit-relation-input {
+  flex: 1;
+  background: var(--surface-0);
+  border: 1px solid var(--accent-primary);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 11px;
+  color: var(--text-primary);
+  outline: none;
+  font-family: inherit;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
 .no-connections {
   display: flex;
   align-items: center;
@@ -308,6 +649,141 @@ function getConnectedNodeLabel(nodeId: string): string {
   padding: 24px;
   color: var(--text-muted);
   font-size: 13px;
+}
+
+/* Edit mode fields */
+.edit-field {
+  margin-bottom: 14px;
+}
+
+.edit-field-label {
+  display: block;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+
+.edit-input {
+  width: 100%;
+  background: var(--surface-1);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  padding: 8px 12px;
+  font-size: 14px;
+  color: var(--text-primary);
+  outline: none;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.edit-input:focus,
+.edit-textarea:focus {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px rgba(var(--accent-primary-rgb, 0, 217, 255), 0.15);
+}
+
+.edit-textarea {
+  width: 100%;
+  background: var(--surface-1);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--text-primary);
+  outline: none;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 50px;
+  box-sizing: border-box;
+}
+
+.edit-labels-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.edit-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  padding: 4px 8px;
+  background: var(--accent-primary);
+  color: #fff;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+.chip-x {
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  opacity: 0.7;
+}
+.chip-x:hover {
+  opacity: 1;
+}
+.chip-x iconify-icon {
+  font-size: 10px;
+}
+
+.chip-add-wrap {
+  min-width: 110px;
+}
+
+/* Footer save/cancel */
+.edit-footer {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--glass-border);
+}
+
+.footer-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px;
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: inherit;
+}
+
+.footer-btn.save {
+  background: var(--accent-primary);
+  color: #fff;
+}
+.footer-btn.save:hover {
+  filter: brightness(1.1);
+}
+
+.footer-btn.cancel {
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  border: 1px solid var(--glass-border);
+}
+.footer-btn.cancel:hover {
+  background: var(--surface-3);
+  color: var(--text-primary);
+}
+
+.footer-btn iconify-icon {
+  font-size: 14px;
 }
 
 /* Transitions */

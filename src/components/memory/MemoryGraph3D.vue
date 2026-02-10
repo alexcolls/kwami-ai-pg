@@ -9,10 +9,14 @@ const props = defineProps<{
   graph: MemoryGraph
   showEdgeLabels: boolean
   selectedNodeId: string | null
+  linkingNodeId: string | null
 }>()
 
 const emit = defineEmits<{
   (e: 'select-node', node: MemoryNode | null): void
+  (e: 'link-start', node: MemoryNode): void
+  (e: 'link-end', node: MemoryNode): void
+  (e: 'link-cancel'): void
 }>()
 
 const containerRef = ref<HTMLDivElement | null>(null)
@@ -30,6 +34,7 @@ let positions3D: Map<string, THREE.Vector3> = new Map()
 let nodeDegrees: Map<string, number> = new Map()
 let raycaster: THREE.Raycaster
 let mouse: THREE.Vector2
+let linkPreviewLine: THREE.Line | null = null
 
 // Get CSS variable value
 function getCSSVar(name: string): string {
@@ -89,8 +94,10 @@ function initScene() {
   mouse = new THREE.Vector2()
 
   renderer.domElement.addEventListener('click', onMouseClick)
+  renderer.domElement.addEventListener('dblclick', onDoubleClick)
   renderer.domElement.addEventListener('mousemove', onMouseMove)
   window.addEventListener('resize', onWindowResize)
+  window.addEventListener('keydown', onKeyDown)
 
   animate()
 }
@@ -445,37 +452,60 @@ function createTextSprite(
   return sprite
 }
 
-function onMouseClick(event: MouseEvent) {
-  if (!containerRef.value) return
-  
+function hitTestNode(event: MouseEvent): MemoryNode | null {
+  if (!containerRef.value) return null
   const rect = renderer.domElement.getBoundingClientRect()
   mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1
   mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1
-  
   raycaster.setFromCamera(mouse, camera)
-  
   const meshes = Array.from(nodeObjects.values())
   const intersects = raycaster.intersectObjects(meshes)
-  
   if (intersects.length > 0) {
-    const obj = intersects[0]!.object as THREE.Mesh
-    const nodeData = (obj as any).nodeData as MemoryNode
-    
-    if (nodeData) {
-      emit('select-node', nodeData)
-      
-      nodeObjects.forEach((mesh, id) => {
-        const mat = mesh.material as THREE.MeshPhongMaterial
-        mat.emissiveIntensity = id === nodeData.id ? 0.8 : 0.3
-      })
+    return (intersects[0]!.object as any).nodeData as MemoryNode || null
+  }
+  return null
+}
+
+function onMouseClick(event: MouseEvent) {
+  const node = hitTestNode(event)
+
+  // If we're in linking mode, a click completes the link
+  if (props.linkingNodeId) {
+    if (node && node.id !== props.linkingNodeId) {
+      emit('link-end', node)
+    } else if (!node) {
+      // Clicked empty space -- cancel linking
+      emit('link-cancel')
     }
+    return
+  }
+
+  // Normal selection
+  if (node) {
+    emit('select-node', node)
+    nodeObjects.forEach((mesh, id) => {
+      const mat = mesh.material as THREE.MeshPhongMaterial
+      mat.emissiveIntensity = id === node.id ? 0.8 : 0.3
+    })
   } else {
     emit('select-node', null)
-    
     nodeObjects.forEach((mesh) => {
       const mat = mesh.material as THREE.MeshPhongMaterial
       mat.emissiveIntensity = 0.3
     })
+  }
+}
+
+function onDoubleClick(event: MouseEvent) {
+  const node = hitTestNode(event)
+  if (node) {
+    emit('link-start', node)
+  }
+}
+
+function onKeyDown(event: KeyboardEvent) {
+  if (event.key === 'Escape' && props.linkingNodeId) {
+    emit('link-cancel')
   }
 }
 
@@ -490,8 +520,63 @@ function onMouseMove(event: MouseEvent) {
   
   const meshes = Array.from(nodeObjects.values())
   const intersects = raycaster.intersectObjects(meshes)
-  
-  renderer.domElement.style.cursor = intersects.length > 0 ? 'pointer' : 'grab'
+
+  // Update cursor based on linking mode
+  if (props.linkingNodeId) {
+    renderer.domElement.style.cursor = intersects.length > 0 ? 'cell' : 'crosshair'
+  } else {
+    renderer.domElement.style.cursor = intersects.length > 0 ? 'pointer' : 'grab'
+  }
+
+  // Update link preview line
+  updateLinkPreview()
+}
+
+function updateLinkPreview() {
+  // Remove old preview
+  if (linkPreviewLine && scene) {
+    scene.remove(linkPreviewLine)
+    linkPreviewLine.geometry.dispose()
+    ;(linkPreviewLine.material as THREE.Material).dispose()
+    linkPreviewLine = null
+  }
+
+  if (!props.linkingNodeId || !scene || !camera) return
+
+  const sourcePos = positions3D.get(props.linkingNodeId)
+  if (!sourcePos) return
+
+  // Project mouse into 3D space on a plane facing the camera
+  raycaster.setFromCamera(mouse, camera)
+  const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1).applyQuaternion(camera.quaternion), 0)
+  plane.constant = -sourcePos.dot(plane.normal)
+  const targetPos = new THREE.Vector3()
+  raycaster.ray.intersectPlane(plane, targetPos)
+  if (!targetPos) return
+
+  // Check if hovering over a node -- snap to it
+  const meshes = Array.from(nodeObjects.values())
+  const intersects = raycaster.intersectObjects(meshes)
+  if (intersects.length > 0) {
+    const hoveredNode = (intersects[0]!.object as any).nodeData as MemoryNode
+    if (hoveredNode && hoveredNode.id !== props.linkingNodeId) {
+      const snapPos = positions3D.get(hoveredNode.id)
+      if (snapPos) targetPos.copy(snapPos)
+    }
+  }
+
+  const points = [sourcePos.clone(), targetPos]
+  const geometry = new THREE.BufferGeometry().setFromPoints(points)
+  const material = new THREE.LineDashedMaterial({
+    color: 0x00d9ff,
+    dashSize: 6,
+    gapSize: 4,
+    opacity: 0.7,
+    transparent: true,
+  })
+  linkPreviewLine = new THREE.Line(geometry, material)
+  linkPreviewLine.computeLineDistances()
+  scene.add(linkPreviewLine)
 }
 
 function onWindowResize() {
@@ -538,8 +623,13 @@ function animate() {
 
 function cleanup() {
   if (animationId) cancelAnimationFrame(animationId)
+  if (linkPreviewLine && scene) {
+    scene.remove(linkPreviewLine)
+    linkPreviewLine = null
+  }
   if (renderer) {
     renderer.domElement.removeEventListener('click', onMouseClick)
+    renderer.domElement.removeEventListener('dblclick', onDoubleClick)
     renderer.domElement.removeEventListener('mousemove', onMouseMove)
     renderer.dispose()
     if (renderer.domElement.parentNode === containerRef.value) {
@@ -547,6 +637,7 @@ function cleanup() {
     }
   }
   window.removeEventListener('resize', onWindowResize)
+  window.removeEventListener('keydown', onKeyDown)
   nodeObjects.clear()
   labelSprites.clear()
   edgeObjects = []
@@ -572,6 +663,33 @@ watch(() => props.selectedNodeId, (newId) => {
     const mat = mesh.material as THREE.MeshPhongMaterial
     mat.emissiveIntensity = id === newId ? 0.8 : 0.3
   })
+})
+
+// Highlight linking source node with a pulsing glow
+watch(() => props.linkingNodeId, (newId, oldId) => {
+  // Reset old source
+  if (oldId) {
+    const mesh = nodeObjects.get(oldId)
+    if (mesh) {
+      const mat = mesh.material as THREE.MeshPhongMaterial
+      mat.emissiveIntensity = 0.3
+    }
+  }
+  // Highlight new source
+  if (newId) {
+    const mesh = nodeObjects.get(newId)
+    if (mesh) {
+      const mat = mesh.material as THREE.MeshPhongMaterial
+      mat.emissiveIntensity = 1.0
+    }
+  }
+  // Remove preview line when linking is cancelled
+  if (!newId && linkPreviewLine && scene) {
+    scene.remove(linkPreviewLine)
+    linkPreviewLine.geometry.dispose()
+    ;(linkPreviewLine.material as THREE.Material).dispose()
+    linkPreviewLine = null
+  }
 })
 
 onUnmounted(cleanup)

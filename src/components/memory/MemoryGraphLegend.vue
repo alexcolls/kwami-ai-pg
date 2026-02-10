@@ -28,7 +28,7 @@ const uniqueTypes = (nodes: MemoryNode[]) => {
     <span class="legend-hint">
       <template v-if="viewMode === '3d'">
         <iconify-icon icon="ph:hand-grabbing"></iconify-icon>
-        Drag to rotate • Scroll to zoom • Click nodes for details
+        Drag to rotate • Scroll to zoom • Right click to move • Click nodes for details
       </template>
       <template v-else>
         <iconify-icon icon="ph:cursor-click"></iconify-icon>
