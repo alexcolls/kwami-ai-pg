@@ -1,14 +1,22 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted, onUnmounted } from 'vue';
+import { reactive, onMounted, onUnmounted } from 'vue';
 import { panelIcons } from '@/constants/panel-icons';
 import { useKwami } from '@/composables/useKwami';
+import { useMetricsState } from '@/composables/useMetricsState';
 import PanelSection from '@/components/ui/PanelSection.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
-import type { VoicePipelineConfig, VoicePipelineMetrics } from 'kwami-ai';
+import type { VoicePipelineConfig } from 'kwami-ai';
 
 const { kwami } = useKwami();
+const {
+  latency,
+  stats,
+  isLive,
+  latencyHistory,
+  resetMetrics,
+} = useMetricsState();
 
-// State
+// Config display state (derived from kwami, re-synced on mount)
 const config = reactive({
   vad: 'SILERO',
   stt: { provider: 'DEEPGRAM', model: 'NOVA-3' },
@@ -16,38 +24,6 @@ const config = reactive({
   tts: { provider: 'OPENAI', model: 'TTS-1', voice: '—' },
   enhancements: { turnDetection: true, noiseCancellation: true },
 });
-
-const latency = reactive({
-  stt: '—',
-  eot: '—',
-  llm: '—',
-  tts: '—',
-  overall: '—',
-});
-
-const stats = reactive({
-  turns: 0,
-  interruptions: 0,
-  agentTime: '0s',
-  userTime: '0s',
-});
-
-const isLive = ref(false);
-const latencyHistory = ref<number[]>([]);
-const MAX_HISTORY = 10;
-
-// Helpers
-function formatMs(ms: number | undefined): string {
-  if (ms === undefined || ms === null) return '—';
-  return `${Math.round(ms)}MS`;
-}
-
-function formatSeconds(ms: number): string {
-  const secs = Math.floor(ms / 1000);
-  if (secs < 60) return `${secs}s`;
-  const mins = Math.floor(secs / 60);
-  return `${mins}m ${secs % 60}s`;
-}
 
 function updateConfig(newConfig?: VoicePipelineConfig) {
   if (!newConfig && kwami.value) {
@@ -68,31 +44,6 @@ function updateConfig(newConfig?: VoicePipelineConfig) {
     newConfig.enhancements?.noiseCancellation?.enabled ?? true;
 }
 
-function updateMetrics(metrics: VoicePipelineMetrics) {
-  latency.stt = formatMs(metrics.latency.stt);
-  latency.eot = formatMs(metrics.latency.endOfTurn);
-  latency.llm = formatMs(metrics.latency.llm);
-  latency.tts = formatMs(metrics.latency.tts);
-  latency.overall = formatMs(metrics.latency.overall);
-
-  stats.turns = metrics.turnsCompleted;
-  stats.interruptions = metrics.interruptions;
-  stats.agentTime = formatSeconds(metrics.agentSpeakingTime);
-  stats.userTime = formatSeconds(metrics.userSpeakingTime);
-
-  if (metrics.latency.overall !== undefined) {
-    latencyHistory.value.push(metrics.latency.overall);
-    if (latencyHistory.value.length > MAX_HISTORY) latencyHistory.value.shift();
-  }
-}
-
-function resetMetrics() {
-  latencyHistory.value = [];
-  latency.stt = latency.eot = latency.llm = latency.tts = latency.overall = '—';
-  stats.turns = stats.interruptions = 0;
-  stats.agentTime = stats.userTime = '0s';
-}
-
 function exportMetrics() {
   const data = {
     timestamp: new Date().toISOString(),
@@ -110,15 +61,7 @@ function exportMetrics() {
   URL.revokeObjectURL(url);
 }
 
-// Events
-const onConnected = () => {
-  isLive.value = true;
-  resetMetrics();
-};
-const onDisconnected = () => {
-  isLive.value = false;
-};
-const onMetrics = (e: Event) => updateMetrics((e as CustomEvent).detail);
+// Config change listeners (panel-local since config is derived display state)
 const onConfigChanged = () => updateConfig();
 
 onMounted(() => {
@@ -126,17 +69,11 @@ onMounted(() => {
     updateConfig();
     isLive.value = kwami.value.isConnected();
   }
-  window.addEventListener('kwami:connected', onConnected);
-  window.addEventListener('kwami:disconnected', onDisconnected);
-  window.addEventListener('kwami:metrics', onMetrics);
   window.addEventListener('kwami:voiceConfigChanged', onConfigChanged);
   window.addEventListener('kwami:enhancementsChanged', onConfigChanged);
 });
 
 onUnmounted(() => {
-  window.removeEventListener('kwami:connected', onConnected);
-  window.removeEventListener('kwami:disconnected', onDisconnected);
-  window.removeEventListener('kwami:metrics', onMetrics);
   window.removeEventListener('kwami:voiceConfigChanged', onConfigChanged);
   window.removeEventListener('kwami:enhancementsChanged', onConfigChanged);
 });
