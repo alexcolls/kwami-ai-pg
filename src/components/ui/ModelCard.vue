@@ -91,14 +91,13 @@ const priceDisplay = computed(() => {
   return `$${price.toFixed(1)}`;
 });
 
-// Price percentage (lower price = higher bar = better, so we invert)
+// Price percentage (proportional: lowest price = small bar, highest = 100%)
 // Minimum floor of 8% so the bar is never invisible
 const pricePercent = computed(() => {
   if (!props.minPrice || !props.maxPrice || inputPrice.value === null) return 50;
   const range = props.maxPrice - props.minPrice;
   if (range === 0) return 50;
-  // Invert: lowest price = 100%, highest price = 0%
-  const raw = 100 - ((inputPrice.value - props.minPrice) / range) * 100;
+  const raw = ((inputPrice.value - props.minPrice) / range) * 100;
   return Math.max(8, raw);
 });
 

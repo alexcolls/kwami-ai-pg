@@ -61,12 +61,14 @@ const priceDisplay = computed(() => {
   return `$${price.toFixed(0)}`;
 });
 
-// Price percentage (lower price = higher bar = better, inverted)
+// Price percentage (proportional: lowest price = small bar, highest = 100%)
+// Minimum floor of 8% so the bar is never invisible
 const pricePercent = computed(() => {
   if (!props.minPrice || !props.maxPrice || pricePer1M.value === null) return 50;
   const range = props.maxPrice - props.minPrice;
   if (range === 0) return 50;
-  return 100 - ((pricePer1M.value - props.minPrice) / range) * 100;
+  const raw = ((pricePer1M.value - props.minPrice) / range) * 100;
+  return Math.max(8, raw);
 });
 
 // Speed percentage and display
