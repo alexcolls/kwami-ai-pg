@@ -183,7 +183,7 @@ export function calculateNodeRadius(
 }
 
 /**
- * 2D Force-directed layout algorithm
+ * 2D Force-directed layout algorithm — scales with graph density
  */
 export function calculate2DLayout(
   nodes: MemoryNode[],
@@ -196,6 +196,10 @@ export function calculate2DLayout(
   const degrees = calculateDegrees(nodes, edges)
   const centralNodeId = findCentralNode(degrees)
   
+  // Gentle scale factor for larger graphs
+  const n = nodes.length
+  const scale = n <= 20 ? 1 : 1 + Math.log10(n / 15) * 0.65
+  
   // Find nodes connected to central node
   const connectedToCentral = new Set<string>()
   edges.forEach(edge => {
@@ -203,11 +207,12 @@ export function calculate2DLayout(
     if (edge.target === centralNodeId) connectedToCentral.add(edge.source)
   })
   
-  // Initial positions: radial layout
+  // Initial positions: radial layout — scale radii with density
   const centerX = width / 2
   const centerY = height / 2
-  const directRadius = Math.min(width, height) * 0.25
-  const indirectRadius = Math.min(width, height) * 0.4
+  const baseSize = Math.min(width, height)
+  const directRadius = baseSize * 0.12 * scale
+  const indirectRadius = baseSize * 0.22 * scale
   
   let directAngle = 0
   let indirectAngle = 0
@@ -233,13 +238,14 @@ export function calculate2DLayout(
     }
   })
   
-  // Force-directed refinement
+  // Force-directed refinement — scale params with graph size
+  const totalIterations = Math.min(iterations + n * 2, 600)
   const k = 0.15
-  const baseRepulsion = 8000
-  const minDistance = 40
+  const baseRepulsion = 8000 * scale
+  const minDistance = 30 + 15 * scale
   
-  for (let i = 0; i < iterations; i++) {
-    const cooling = 1 - (i / iterations) * 0.7
+  for (let i = 0; i < totalIterations; i++) {
+    const cooling = 1 - (i / totalIterations) * 0.7
     
     // Repulsion
     for (let a = 0; a < nodes.length; a++) {
@@ -292,7 +298,7 @@ export function calculate2DLayout(
         
         const degreeA = degrees.get(edge.source) || 1
         const degreeB = degrees.get(edge.target) || 1
-        const targetLength = 50 + Math.max(degreeA, degreeB) * 6
+        const targetLength = 30 * scale + Math.max(degreeA, degreeB) * 4
         
         const force = (dist - targetLength) * k * cooling
         const fx = (dx / dist) * force
@@ -309,12 +315,16 @@ export function calculate2DLayout(
       }
     })
     
-    // Boundary constraints
+    // Boundary constraints — expand for dense graphs
     const padding = 50
+    const boundsW = width * scale
+    const boundsH = height * scale
+    const offsetX = (width - boundsW) / 2
+    const offsetY = (height - boundsH) / 2
     positions.forEach((pos, id) => {
       if (id !== centralNodeId) {
-        pos.x = Math.max(padding, Math.min(width - padding, pos.x))
-        pos.y = Math.max(padding, Math.min(height - padding, pos.y))
+        pos.x = Math.max(offsetX + padding, Math.min(offsetX + boundsW - padding, pos.x))
+        pos.y = Math.max(offsetY + padding, Math.min(offsetY + boundsH - padding, pos.y))
       }
     })
   }

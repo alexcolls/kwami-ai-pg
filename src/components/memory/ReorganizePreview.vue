@@ -192,7 +192,7 @@ defineExpose({ fetchPreview, loading, applying })
 }
 .reorg-section-header iconify-icon {
   font-size: 16px;
-  color: var(--accent-secondary);
+  color: var(--accent-primary);
 }
 .reorg-hint {
   font-size: 10px;
@@ -286,7 +286,7 @@ defineExpose({ fetchPreview, loading, applying })
 }
 .communities-info iconify-icon {
   font-size: 16px;
-  color: var(--accent-secondary);
+  color: var(--accent-primary);
 }
 .reorg-warning {
   margin-top: 12px;

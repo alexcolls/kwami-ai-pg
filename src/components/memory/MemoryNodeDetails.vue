@@ -536,7 +536,7 @@ watch(() => props.node, () => {
   align-items: center;
   gap: 6px;
   font-size: 12px;
-  color: var(--accent-secondary);
+  color: var(--accent-primary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   margin-bottom: 12px;

@@ -88,6 +88,11 @@ async function fetchGraph() {
     const options = await getApiOptions()
     graph.value = await getMemoryGraph(baseUrl.value, props.userId, options)
     
+    // Auto-hide edge labels for dense graphs
+    if (graph.value.edges.length > 40) {
+      showEdgeLabels.value = false
+    }
+    
     if (graph.value.nodes.length === 0) {
       console.log('No nodes returned - memory might be empty or user_id mismatch')
     }
@@ -283,12 +288,6 @@ watch(() => props.userId, fetchGraph)
       @refresh="fetchGraph"
     />
     
-    <!-- Legend -->
-    <MemoryGraphLegend 
-      :nodes="graph.nodes"
-      :view-mode="viewMode"
-    />
-    
     <!-- Loading / Error / Empty states -->
     <div v-if="loading" class="loading">
       <iconify-icon icon="ph:spinner-gap" class="spin"></iconify-icon>
@@ -310,6 +309,13 @@ watch(() => props.userId, fetchGraph)
     
     <!-- Graph visualization -->
     <div v-else class="graph-wrapper">
+      <!-- Entity types legend — top overlay -->
+      <MemoryGraphLegend 
+        :nodes="graph.nodes"
+        :view-mode="viewMode"
+        class="graph-legend-overlay"
+      />
+
       <!-- Linking status indicator -->
       <div v-if="linkSource" class="linking-indicator">
         <iconify-icon icon="ph:link-duotone"></iconify-icon>
@@ -357,10 +363,20 @@ watch(() => props.userId, fetchGraph)
         @delete-edge="handleDeleteEdge"
       />
       
-      <!-- Metrics + Reorganize -->
-      <div class="metrics">
-        <span>{{ filteredGraph.nodes.length }} nodes</span>
-        <span>{{ filteredGraph.edges.length }} edges</span>
+      <!-- Footer bar: hint + metrics + reorganize -->
+      <div class="graph-footer">
+        <span class="footer-hint">
+          <template v-if="viewMode === '3d'">
+            <iconify-icon icon="ph:hand-grabbing"></iconify-icon>
+            Drag to rotate &bull; Scroll to zoom &bull; Right click to move &bull; Click nodes for details
+          </template>
+          <template v-else>
+            <iconify-icon icon="ph:cursor-click"></iconify-icon>
+            Click and drag to pan &bull; Scroll to zoom &bull; Click nodes for details
+          </template>
+        </span>
+        <span class="footer-stats">{{ filteredGraph.nodes.length }} nodes</span>
+        <span class="footer-stats">{{ filteredGraph.edges.length }} edges</span>
         <button 
           class="reorg-btn" 
           :class="{ working: reorganizeRef?.loading || reorganizeRef?.applying }"
@@ -446,6 +462,15 @@ watch(() => props.userId, fetchGraph)
   overflow: hidden;
 }
 
+.graph-legend-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
 .loading, .error, .empty {
   padding: 60px 20px;
   text-align: center;
@@ -480,19 +505,34 @@ watch(() => props.userId, fetchGraph)
   text-align: center;
 }
 
-.metrics {
+.graph-footer {
   position: absolute;
   bottom: 0;
   left: 0;
   right: 0;
   display: flex;
   align-items: center;
-  justify-content: flex-end;
   gap: 16px;
   padding: 8px 12px;
   font-size: 12px;
   color: var(--text-muted);
   background: var(--glass-bg);
+  z-index: 2;
+}
+.footer-hint {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  opacity: 0.7;
+  margin-right: auto;
+}
+.footer-hint iconify-icon {
+  font-size: 12px;
+}
+.footer-stats {
+  font-size: 12px;
+  white-space: nowrap;
 }
 
 .reorg-btn {

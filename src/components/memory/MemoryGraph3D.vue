@@ -58,6 +58,14 @@ function getSceneBgColor(): number {
   }
 }
 
+// Gentle scale factor for graph size — just enough extra space for dense graphs
+function graphScale(): number {
+  const n = props.graph.nodes.length
+  if (n <= 20) return 1
+  // Logarithmic growth: 50 nodes → ~1.3x, 88 → ~1.5x, 200 → ~1.8x
+  return 1 + Math.log10(n / 15) * 0.65
+}
+
 function initScene() {
   if (!containerRef.value) return
   
@@ -65,12 +73,13 @@ function initScene() {
   
   const width = containerRef.value.clientWidth
   const height = containerRef.value.clientHeight || 500
+  const scale = graphScale()
 
   scene = new THREE.Scene()
   scene.background = new THREE.Color(getSceneBgColor())
 
-  camera = new THREE.PerspectiveCamera(55, width / height, 0.1, 2000)
-  camera.position.set(0, 50, 280)
+  camera = new THREE.PerspectiveCamera(55, width / height, 0.1, 6000)
+  camera.position.set(0, 40 * scale, 220 * scale)
 
   renderer = new THREE.WebGLRenderer({ antialias: true })
   renderer.setSize(width, height)
@@ -81,7 +90,7 @@ function initScene() {
   controls.enableDamping = true
   controls.dampingFactor = 0.05
   controls.minDistance = 50
-  controls.maxDistance = 800
+  controls.maxDistance = 800 * scale * 2
 
   const ambientLight = new THREE.AmbientLight(0xffffff, 0.6)
   scene.add(ambientLight)
@@ -105,6 +114,7 @@ function initScene() {
 function init3DLayout() {
   const nodes = props.graph.nodes
   const edges = props.graph.edges
+  const scale = graphScale()
   
   positions3D.clear()
   nodeDegrees = calculateDegrees(nodes, edges)
@@ -116,8 +126,9 @@ function init3DLayout() {
     if (edge.target === centralNodeId) connectedToCentral.add(edge.source)
   })
   
-  const directRadius = 120
-  const indirectRadius = 220
+  // Scale radii based on graph density — keep nodes close to the hub
+  const directRadius = 80 * scale
+  const indirectRadius = 150 * scale
   let directAngle = 0
   let indirectAngle = 0
   const directAngleStep = (2 * Math.PI) / Math.max(connectedToCentral.size, 1)
@@ -148,11 +159,11 @@ function init3DLayout() {
     }
   })
   
-  // Force-directed layout
-  const iterations = 300
+  // Force-directed layout — scale parameters with graph size
+  const iterations = Math.min(300 + nodes.length * 2, 600)
   const k = 0.15
-  const baseRepulsion = 15000
-  const minDistance = 50
+  const baseRepulsion = 15000 * scale
+  const minDistance = 40 + 15 * scale
   
   for (let i = 0; i < iterations; i++) {
     const cooling = 1 - (i / iterations) * 0.7
@@ -200,7 +211,7 @@ function init3DLayout() {
         
         const degreeA = nodeDegrees.get(edge.source) || 1
         const degreeB = nodeDegrees.get(edge.target) || 1
-        const targetLength = 60 + Math.max(degreeA, degreeB) * 8
+        const targetLength = 45 * scale + Math.max(degreeA, degreeB) * 5
         
         const force = (dist - targetLength) * k * cooling
         delta.normalize().multiplyScalar(force)
@@ -253,6 +264,11 @@ function buildGraphObjects() {
   
   const edgeLabelPositions: THREE.Vector3[] = []
   
+  // Reduce edge opacity for dense graphs to avoid spider-web effect
+  const nodeCount = nodes.length
+  const edgeOpacity = nodeCount > 80 ? 0.15 : nodeCount > 50 ? 0.25 : nodeCount > 30 ? 0.35 : 0.5
+  const edgeColor = nodeCount > 50 ? 0x2d3a4c : 0x3d4a5c
+  
   edges.forEach((edge, index) => {
     const startPos = positions3D.get(edge.source)
     const endPos = positions3D.get(edge.target)
@@ -277,8 +293,8 @@ function buildGraphObjects() {
       
       const geometry = new THREE.BufferGeometry().setFromPoints(points)
       const material = new THREE.LineBasicMaterial({ 
-        color: 0x3d4a5c, 
-        opacity: 0.5,
+        color: edgeColor, 
+        opacity: edgeOpacity,
         transparent: true,
       })
       
@@ -303,6 +319,7 @@ function buildGraphObjects() {
       const relationLabel = truncateText(edge.relation, 20)
       const edgeLabelColor = isLightMode() ? 0x334155 : 0x8fa4bd
       const labelSprite = createTextSprite(relationLabel, edgeLabelColor, 0.7, 8, true)
+      labelSprite.scale.multiplyScalar(graphScale())
       labelSprite.position.copy(labelPos)
       scene.add(labelSprite)
       edgeLabelSprites.push(labelSprite)
@@ -349,8 +366,11 @@ function buildGraphObjects() {
     const fontSize = 10 + Math.floor(degreeScale * 4)
     const nodeLabelColor = isLightMode() ? 0x0f172a : 0xe2e8f0
     const labelSprite = createTextSprite(label, nodeLabelColor, 1, fontSize)
+    // Scale labels up proportionally to camera distance so they stay readable
+    const scale = graphScale()
+    labelSprite.scale.multiplyScalar(scale)
     labelSprite.position.copy(pos)
-    labelSprite.position.y -= radius + 10 + radius * 0.3
+    labelSprite.position.y -= radius + 10 * scale + radius * 0.3
     scene.add(labelSprite)
     labelSprites.set(node.id, labelSprite)
   })
@@ -591,12 +611,14 @@ function onWindowResize() {
 }
 
 function updateEdgeLabelVisibility() {
-  if (!camera || !edgeLabelSprites.length) return
+  if (!camera) return
   
   const cameraDistance = camera.position.length()
-  const fadeStart = 350
-  const fadeEnd = 500
+  const scale = graphScale()
+  const fadeStart = 350 * scale
+  const fadeEnd = 500 * scale
   
+  // Edge labels
   edgeLabelSprites.forEach(sprite => {
     if (props.showEdgeLabels && cameraDistance < fadeEnd) {
       const opacity = cameraDistance < fadeStart 
@@ -608,6 +630,39 @@ function updateEdgeLabelVisibility() {
       sprite.visible = false
     }
   })
+  
+  // Node labels — only fade when zoomed very far out
+  if (labelSprites.size === 0) return
+  const nodeCount = props.graph.nodes.length
+  
+  if (nodeCount > 40) {
+    // Only start fading labels at 2x the default camera distance
+    const defaultCamDist = Math.sqrt((50 * scale) ** 2 + (280 * scale) ** 2)
+    const labelFadeStart = defaultCamDist * 2
+    const labelFadeEnd = defaultCamDist * 3.5
+    
+    labelSprites.forEach((sprite, nodeId) => {
+      if (cameraDistance < labelFadeStart) {
+        // Normal zoom — all labels fully visible
+        ;(sprite.material as THREE.SpriteMaterial).opacity = 1
+        sprite.visible = true
+      } else if (cameraDistance < labelFadeEnd) {
+        const t = (cameraDistance - labelFadeStart) / (labelFadeEnd - labelFadeStart)
+        const degree = nodeDegrees.get(nodeId) || 0
+        const degreeBonus = Math.min(degree / 8, 0.4)
+        const opacity = Math.max(0, 1 - t + degreeBonus)
+        ;(sprite.material as THREE.SpriteMaterial).opacity = Math.max(0.05, opacity)
+        sprite.visible = opacity > 0.05
+      } else {
+        // Very far zoom — only show high-degree labels
+        const degree = nodeDegrees.get(nodeId) || 0
+        sprite.visible = degree >= 5
+        if (sprite.visible) {
+          ;(sprite.material as THREE.SpriteMaterial).opacity = 0.5
+        }
+      }
+    })
+  }
 }
 
 function animate() {

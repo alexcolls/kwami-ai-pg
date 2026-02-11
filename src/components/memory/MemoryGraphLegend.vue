@@ -25,16 +25,6 @@ const uniqueTypes = (nodes: MemoryNode[]) => {
         {{ type }}
       </span>
     </div>
-    <span class="legend-hint">
-      <template v-if="viewMode === '3d'">
-        <iconify-icon icon="ph:hand-grabbing"></iconify-icon>
-        Drag to rotate • Scroll to zoom • Right click to move • Click nodes for details
-      </template>
-      <template v-else>
-        <iconify-icon icon="ph:cursor-click"></iconify-icon>
-        Click and drag to pan • Scroll to zoom • Click nodes for details
-      </template>
-    </span>
   </div>
 </template>
 
@@ -43,16 +33,14 @@ const uniqueTypes = (nodes: MemoryNode[]) => {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 12px;
   padding: 8px 12px;
-  background: var(--surface-1);
-  border-radius: var(--radius-sm);
+  background: var(--glass-bg);
   flex-wrap: wrap;
 }
 
 .legend-label {
   font-size: 11px;
-  color: var(--accent-secondary);
+  color: var(--accent-primary);
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -79,11 +67,4 @@ const uniqueTypes = (nodes: MemoryNode[]) => {
   border-radius: 50%;
 }
 
-.legend-hint {
-  font-size: 11px;
-  color: var(--text-muted);
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
 </style>

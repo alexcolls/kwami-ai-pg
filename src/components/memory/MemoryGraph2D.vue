@@ -107,9 +107,15 @@ function draw() {
   // Get theme colors - use black text in light mode for readability
   const textColor = lightMode ? '#0f172a' : '#e2e8f0'
   const textMuted = lightMode ? '#334155' : '#94a3b8'
-  const edgeColor = lightMode ? 'rgba(71, 85, 105, 0.6)' : 'rgba(61, 74, 92, 0.6)'
   const labelBg = lightMode ? 'rgba(255, 255, 255, 0.95)' : 'rgba(0, 0, 0, 0.8)'
   const textShadow = lightMode ? 'rgba(255, 255, 255, 0.9)' : 'rgba(0, 0, 0, 0.8)'
+  
+  // Reduce edge opacity for dense graphs
+  const nodeCount = props.graph.nodes.length
+  const edgeAlpha = nodeCount > 80 ? 0.15 : nodeCount > 50 ? 0.25 : nodeCount > 30 ? 0.35 : 0.6
+  const edgeColor = lightMode
+    ? `rgba(71, 85, 105, ${edgeAlpha})`
+    : `rgba(61, 74, 92, ${edgeAlpha})`
   
   // Clear canvas with theme background
   c.fillStyle = getCanvasBg()
@@ -441,8 +447,21 @@ function rebuild() {
   initCanvas()
   calculateLayout()
   
-  // Center the graph
-  transform.value = { x: 0, y: 0, scale: 1 }
+  // Auto-fit: zoom out for dense graphs so everything is visible
+  const n = props.graph.nodes.length
+  if (n > 40) {
+    // Scale factor matches the layout expansion
+    const layoutScale = 1 + Math.log10(n / 15) * 0.65
+    const fitZoom = Math.max(0.4, 1 / layoutScale)
+    // Center the zoom on the canvas center
+    const cx = canvasSize.value.width / 2
+    const cy = canvasSize.value.height / 2
+    const offsetX = cx - cx * fitZoom
+    const offsetY = cy - cy * fitZoom
+    transform.value = { x: offsetX, y: offsetY, scale: fitZoom }
+  } else {
+    transform.value = { x: 0, y: 0, scale: 1 }
+  }
 }
 
 onMounted(() => {
