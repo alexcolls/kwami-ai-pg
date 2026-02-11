@@ -180,6 +180,16 @@ function handlePanelClick(panel: string) {
 
     <div class="nav-spacer"></div>
 
+    <!-- Energy -->
+    <button
+      class="nav-btn energy-btn"
+      :class="{ active: uiStore.activePanel === 'credits' && uiStore.isPanelOpen }"
+      @click="handlePanelClick('credits')"
+      title="Energy"
+    >
+      <iconify-icon :icon="panelIcons.credits"></iconify-icon>
+    </button>
+
     <!-- Account -->
     <button
       class="nav-btn account-btn"

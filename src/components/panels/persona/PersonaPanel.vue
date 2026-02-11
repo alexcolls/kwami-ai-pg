@@ -310,9 +310,13 @@ function resetPersona() {
   }
 }
 
-// Auto-sync when connection state changes (in case persona was modified during conversation)
-watch(isConnected, () => {
+// Auto-sync when connection state changes
+watch(isConnected, (connected) => {
   syncFromKwami();
+  // When becoming connected, also push persona config to the backend agent
+  if (connected) {
+    syncPersonaToBackend();
+  }
 });
 
 onMounted(() => {

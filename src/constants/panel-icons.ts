@@ -18,4 +18,5 @@ export const panelIcons: Record<string, string> = {
   account: 'ph:user-duotone',
   theme: 'ph:palette-duotone',
   models: 'ph:cpu-duotone',
+  credits: 'ph:lightning-duotone',
 };
