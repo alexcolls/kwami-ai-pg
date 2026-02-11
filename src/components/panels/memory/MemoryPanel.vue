@@ -4,6 +4,8 @@ import { panelIcons } from '@/constants/panel-icons';
 import { useToast, TYPE } from 'vue-toastification';
 import { useKwami } from '@/composables/useKwami';
 import { useAuthStore } from '@/stores/auth';
+import { useVoiceStore } from '@/stores/voice';
+import { storeToRefs } from 'pinia';
 import PanelSection from '@/components/ui/PanelSection.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
 import BaseSelect from '@/components/ui/BaseSelect.vue';
@@ -15,6 +17,7 @@ const toast = useToast();
 
 const { userId: sharedUserId } = useKwami();
 const authStore = useAuthStore();
+const { memoryUI } = storeToRefs(useVoiceStore());
 
 // API base URL derived from token endpoint
 const apiBaseUrl = computed(() => {
@@ -29,8 +32,11 @@ const userId = computed(() => `kwami_${sharedUserId.value}`);
 const isLoading = ref(false);
 const loadError = ref('');
 
-// Tab state
-const activeTab = ref<'facts' | 'entities' | 'messages'>('facts');
+// Tab state (persisted via store)
+const activeTab = computed({
+  get: () => memoryUI.value.activeTab,
+  set: (v) => { memoryUI.value.activeTab = v; }
+});
 
 // Memory data
 interface Edge {
@@ -63,6 +69,15 @@ const edges = ref<Edge[]>([]);
 const nodes = ref<Node[]>([]);
 const messages = ref<Message[]>([]);
 const sessionCount = ref(0);
+
+// Pagination state
+const PAGE_SIZE = 50;
+const edgesTotal = ref(0);
+const nodesTotal = ref(0);
+const edgesHasMore = ref(false);
+const nodesHasMore = ref(false);
+const isLoadingMoreEdges = ref(false);
+const isLoadingMoreNodes = ref(false);
 
 // Graph modal state
 const showGraphModal = ref(false);
@@ -355,7 +370,7 @@ async function getAuthHeaders(): Promise<HeadersInit> {
   return { 'Content-Type': 'application/json' };
 }
 
-// Fetch all memory data from API
+// Fetch memory data from API with pagination (first page)
 async function loadMemoryData() {
   if (!userId.value) return;
   
@@ -363,13 +378,23 @@ async function loadMemoryData() {
   isLoading.value = true;
   loadError.value = '';
   
+  // Reset pagination state
+  edges.value = [];
+  nodes.value = [];
+  messages.value = [];
+  edgesTotal.value = 0;
+  nodesTotal.value = 0;
+  edgesHasMore.value = false;
+  nodesHasMore.value = false;
+  sessionCount.value = 0;
+  
   try {
     const headers = await getAuthHeaders();
     
-    // Fetch all data in parallel
+    // Fetch first page of edges/nodes + all messages in parallel
     const [edgesRes, nodesRes, messagesRes] = await Promise.all([
-      fetch(`${apiBaseUrl.value}/memory/${userId.value}/edges`, { headers }),
-      fetch(`${apiBaseUrl.value}/memory/${userId.value}/nodes`, { headers }),
+      fetch(`${apiBaseUrl.value}/memory/${userId.value}/edges?limit=${PAGE_SIZE}&offset=0`, { headers }),
+      fetch(`${apiBaseUrl.value}/memory/${userId.value}/nodes?limit=${PAGE_SIZE}&offset=0`, { headers }),
       fetch(`${apiBaseUrl.value}/memory/${userId.value}/messages`, { headers }),
     ]);
     
@@ -384,18 +409,111 @@ async function loadMemoryData() {
     ]);
     
     edges.value = edgesData.edges || [];
+    edgesTotal.value = edgesData.total ?? edges.value.length;
+    edgesHasMore.value = edgesData.has_more ?? false;
+    
     nodes.value = nodesData.nodes || [];
+    nodesTotal.value = nodesData.total ?? nodes.value.length;
+    nodesHasMore.value = nodesData.has_more ?? false;
+    
     messages.value = messagesData.messages || [];
     sessionCount.value = messagesData.session_count || 0;
+    
+    // Auto-load remaining pages in the background
+    loadRemainingPages();
     
   } catch (e) {
     loadError.value = (e as Error).message;
     edges.value = [];
     nodes.value = [];
     messages.value = [];
+    edgesTotal.value = 0;
+    nodesTotal.value = 0;
+    edgesHasMore.value = false;
+    nodesHasMore.value = false;
     sessionCount.value = 0;
   } finally {
     isLoading.value = false;
+  }
+}
+
+// Auto-load remaining pages in background after initial load
+async function loadRemainingPages() {
+  const promises: Promise<void>[] = [];
+  if (edgesHasMore.value) promises.push(loadAllRemainingEdges());
+  if (nodesHasMore.value) promises.push(loadAllRemainingNodes());
+  await Promise.all(promises);
+}
+
+// Load all remaining edge pages in sequence
+async function loadAllRemainingEdges() {
+  while (edgesHasMore.value) {
+    await loadMoreEdges();
+  }
+}
+
+// Load all remaining node pages in sequence
+async function loadAllRemainingNodes() {
+  while (nodesHasMore.value) {
+    await loadMoreNodes();
+  }
+}
+
+// Load next page of edges
+async function loadMoreEdges() {
+  if (!userId.value || !edgesHasMore.value || isLoadingMoreEdges.value) return;
+  
+  isLoadingMoreEdges.value = true;
+  try {
+    const headers = await getAuthHeaders();
+    const offset = edges.value.length;
+    const res = await fetch(
+      `${apiBaseUrl.value}/memory/${userId.value}/edges?limit=${PAGE_SIZE}&offset=${offset}`,
+      { headers }
+    );
+    
+    if (!res.ok) throw new Error('Failed to load more edges');
+    
+    const data = await res.json();
+    edges.value.push(...(data.edges || []));
+    edgesTotal.value = data.total ?? edges.value.length;
+    edgesHasMore.value = data.has_more ?? false;
+    
+    console.log(`Loaded edges: ${edges.value.length}/${edgesTotal.value}`);
+  } catch (e) {
+    console.error('Failed to load more edges:', e);
+    edgesHasMore.value = false;
+  } finally {
+    isLoadingMoreEdges.value = false;
+  }
+}
+
+// Load next page of nodes
+async function loadMoreNodes() {
+  if (!userId.value || !nodesHasMore.value || isLoadingMoreNodes.value) return;
+  
+  isLoadingMoreNodes.value = true;
+  try {
+    const headers = await getAuthHeaders();
+    const offset = nodes.value.length;
+    const res = await fetch(
+      `${apiBaseUrl.value}/memory/${userId.value}/nodes?limit=${PAGE_SIZE}&offset=${offset}`,
+      { headers }
+    );
+    
+    if (!res.ok) throw new Error('Failed to load more nodes');
+    
+    const data = await res.json();
+    nodes.value.push(...(data.nodes || []));
+    nodesTotal.value = data.total ?? nodes.value.length;
+    nodesHasMore.value = data.has_more ?? false;
+    
+    console.log(`Loaded nodes: ${nodes.value.length}/${nodesTotal.value}`);
+  } catch (e) {
+    console.error('Failed to load more nodes:', e);
+    nodesHasMore.value = false;
+  } finally {
+    isLoadingMoreNodes.value = false;
   }
 }
 
@@ -424,6 +542,10 @@ async function deleteUserMemory() {
       nodes.value = [];
       messages.value = [];
       sessionCount.value = 0;
+      edgesTotal.value = 0;
+      nodesTotal.value = 0;
+      edgesHasMore.value = false;
+      nodesHasMore.value = false;
       toast.success(`Memory deleted! ${result.deleted_threads} thread(s) removed`);
     } else {
       throw new Error(result.errors?.join(', ') || 'Delete operation failed');
@@ -649,12 +771,20 @@ onMounted(() => {
         </div>
         <div v-else class="stats-grid">
           <div class="stat-card" :class="{ active: activeTab === 'facts' }" @click="activeTab = 'facts'">
-            <div class="stat-value">{{ edges.length }}</div>
+            <div class="stat-value">{{ edgesTotal || edges.length }}</div>
             <div class="stat-label">Facts</div>
+            <div v-if="isLoadingMoreEdges" class="stat-sub loading-sub">
+              <iconify-icon icon="ph:spinner-gap-duotone" class="spin"></iconify-icon>
+              {{ edges.length }}/{{ edgesTotal }}
+            </div>
           </div>
           <div class="stat-card" :class="{ active: activeTab === 'entities' }" @click="activeTab = 'entities'">
-            <div class="stat-value">{{ nodes.length }}</div>
+            <div class="stat-value">{{ nodesTotal || nodes.length }}</div>
             <div class="stat-label">Entities</div>
+            <div v-if="isLoadingMoreNodes" class="stat-sub loading-sub">
+              <iconify-icon icon="ph:spinner-gap-duotone" class="spin"></iconify-icon>
+              {{ nodes.length }}/{{ nodesTotal }}
+            </div>
           </div>
           <div class="stat-card" :class="{ active: activeTab === 'messages' }" @click="activeTab = 'messages'">
             <div class="stat-value">{{ messages.length }}</div>
@@ -740,6 +870,19 @@ onMounted(() => {
             </template>
           </div>
         </div>
+        <!-- Lazy loading progress for facts -->
+        <div v-if="isLoadingMoreEdges" class="load-more-bar">
+          <iconify-icon icon="ph:spinner-gap-duotone" class="spin"></iconify-icon>
+          <span>Loading facts... {{ edges.length }} / {{ edgesTotal }}</span>
+        </div>
+        <button 
+          v-else-if="edgesHasMore" 
+          class="load-more-btn" 
+          @click="loadMoreEdges"
+        >
+          <iconify-icon icon="ph:arrow-down-duotone"></iconify-icon>
+          Load more ({{ edges.length }} / {{ edgesTotal }})
+        </button>
       </PanelSection>
 
       <!-- Entities with Summaries -->
@@ -843,6 +986,19 @@ onMounted(() => {
             </template>
           </div>
         </div>
+        <!-- Lazy loading progress for entities -->
+        <div v-if="isLoadingMoreNodes" class="load-more-bar">
+          <iconify-icon icon="ph:spinner-gap-duotone" class="spin"></iconify-icon>
+          <span>Loading entities... {{ nodes.length }} / {{ nodesTotal }}</span>
+        </div>
+        <button 
+          v-else-if="nodesHasMore" 
+          class="load-more-btn" 
+          @click="loadMoreNodes"
+        >
+          <iconify-icon icon="ph:arrow-down-duotone"></iconify-icon>
+          Load more ({{ nodes.length }} / {{ nodesTotal }})
+        </button>
       </PanelSection>
 
       <!-- Messages (Conversation History) -->
@@ -1133,6 +1289,60 @@ onMounted(() => {
   color: var(--text-tertiary);
   margin-top: 2px;
   opacity: 0.7;
+}
+.stat-sub.loading-sub {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  color: var(--accent-primary);
+  opacity: 1;
+}
+.stat-sub.loading-sub iconify-icon {
+  font-size: 10px;
+}
+
+/* Load More */
+.load-more-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px;
+  font-size: 12px;
+  color: var(--text-muted);
+  background: var(--surface-1);
+  border-radius: var(--radius-sm);
+  margin-top: 8px;
+}
+.load-more-bar iconify-icon {
+  font-size: 14px;
+  color: var(--accent-primary);
+}
+.load-more-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 10px;
+  margin-top: 8px;
+  font-size: 12px;
+  font-family: inherit;
+  font-weight: 500;
+  color: var(--accent-primary);
+  background: var(--surface-1);
+  border: 1px dashed var(--glass-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.load-more-btn:hover {
+  background: var(--surface-2);
+  border-color: var(--accent-primary);
+}
+.load-more-btn iconify-icon {
+  font-size: 14px;
 }
 
 /* Loading / Empty / Error States */
@@ -1580,7 +1790,7 @@ onMounted(() => {
   gap: 10px;
 }
 .graph-modal-header h2 iconify-icon {
-  color: var(--accent-secondary);
+  color: var(--accent-primary);
 }
 .close-btn {
   background: var(--surface-1);

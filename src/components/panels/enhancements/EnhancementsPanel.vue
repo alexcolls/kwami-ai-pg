@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { reactive, watch } from 'vue';
+import { onMounted, watch } from 'vue';
 import { panelIcons } from '@/constants/panel-icons';
 import { useKwami } from '@/composables/useKwami';
+import { useVoiceStore } from '@/stores/voice';
+import { storeToRefs } from 'pinia';
 import type { VoiceEnhancementsConfig, VADConfig } from 'kwami-ai';
 import PanelSection from '@/components/ui/PanelSection.vue';
 import BaseToggle from '@/components/ui/BaseToggle.vue';
@@ -9,21 +11,56 @@ import BaseSlider from '@/components/ui/BaseSlider.vue';
 import BaseSelect from '@/components/ui/BaseSelect.vue';
 
 const { kwami, isConnected } = useKwami();
+const voiceStore = useVoiceStore();
+const { enhancementsState } = storeToRefs(voiceStore);
 
-// State
-const turnDetection = reactive({
-  enabled: true,
-  mode: 'model' as 'vad' | 'stt' | 'model' | 'manual',
-  model: 'multilingual' as 'english' | 'multilingual',
-  minEndpointingDelay: 0.5,
-  maxEndpointingDelay: 3.0,
+// Reactive references backed by store (persist across panel switches)
+const turnDetection = enhancementsState.value.turnDetection;
+const interruptions = enhancementsState.value.interruptions;
+const noiseCancellation = enhancementsState.value.noiseCancellation;
+const vad = enhancementsState.value.vad;
+const audioProcessing = enhancementsState.value.audioProcessing;
+const performance = enhancementsState.value.performance;
+
+// Restore from kwami agent config on first mount
+onMounted(() => {
+  if (enhancementsState.value.initialized || !kwami.value) return;
+
+  try {
+    const livekitVoice = kwami.value.agent.getConfig().livekit?.voice;
+    if (livekitVoice?.enhancements) {
+      const e = livekitVoice.enhancements;
+      if (e.turnDetection) {
+        turnDetection.enabled = e.turnDetection.enabled ?? turnDetection.enabled;
+        turnDetection.mode = (e.turnDetection.mode as typeof turnDetection.mode) ?? turnDetection.mode;
+        turnDetection.model = (e.turnDetection.model as typeof turnDetection.model) ?? turnDetection.model;
+        turnDetection.minEndpointingDelay = e.turnDetection.minEndpointingDelay ?? turnDetection.minEndpointingDelay;
+        turnDetection.maxEndpointingDelay = e.turnDetection.maxEndpointingDelay ?? turnDetection.maxEndpointingDelay;
+        interruptions.enabled = e.turnDetection.allowInterruptions ?? interruptions.enabled;
+        interruptions.minDuration = e.turnDetection.minInterruptionDuration ?? interruptions.minDuration;
+        interruptions.minWords = e.turnDetection.minInterruptionWords ?? interruptions.minWords;
+      }
+      if (e.noiseCancellation) {
+        noiseCancellation.enabled = e.noiseCancellation.enabled ?? noiseCancellation.enabled;
+        noiseCancellation.mode = (e.noiseCancellation.mode as typeof noiseCancellation.mode) ?? noiseCancellation.mode;
+      }
+      if (e.echoCancellation !== undefined) audioProcessing.echoCancellation = e.echoCancellation;
+      if (e.autoGainControl !== undefined) audioProcessing.autoGainControl = e.autoGainControl;
+      if (e.preemptiveGeneration !== undefined) performance.preemptiveGeneration = e.preemptiveGeneration;
+    }
+    if (livekitVoice?.vad) {
+      const v = livekitVoice.vad;
+      vad.provider = v.provider ?? vad.provider;
+      vad.threshold = v.threshold ?? vad.threshold;
+      vad.minSpeech = v.minSpeechDuration ?? vad.minSpeech;
+      vad.minSilence = v.minSilenceDuration ?? vad.minSilence;
+    }
+  } catch (e) {
+    console.warn('Failed to restore enhancements from kwami:', e);
+  }
+
+  enhancementsState.value.initialized = true;
 });
-
-const interruptions = reactive({ enabled: true, minDuration: 0.5, minWords: 0 });
-const noiseCancellation = reactive({ enabled: true, mode: 'bvc' as 'bvc' | 'krisp' | 'default' });
-const vad = reactive({ provider: 'silero', threshold: 0.5, minSpeech: 0.1, minSilence: 0.5 });
-const audioProcessing = reactive({ echoCancellation: true, autoGainControl: true });
-const performance = reactive({ preemptiveGeneration: false });
 
 function applySettings() {
   if (!kwami.value) return;

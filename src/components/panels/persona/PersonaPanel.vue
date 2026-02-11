@@ -2,6 +2,8 @@
 import { ref, reactive, onMounted, watch, computed } from 'vue';
 import { useToast } from 'vue-toastification';
 import { useKwami } from '@/composables/useKwami';
+import { useVoiceStore } from '@/stores/voice';
+import { storeToRefs } from 'pinia';
 import PanelSection from '@/components/ui/PanelSection.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
 import BaseInput from '@/components/ui/BaseInput.vue';
@@ -14,10 +16,18 @@ import { panelIcons } from '@/constants/panel-icons';
 const toast = useToast();
 
 const { kwami, isConnected } = useKwami();
+const voiceStore = useVoiceStore();
+const { personaUI, personaConfig: savedPersonaConfig } = storeToRefs(voiceStore);
 
-// Template selection state
-const selectedCategory = ref<string | null>(null);
-const selectedTemplateId = ref<string | null>(null);
+// Persisted template selection state via store
+const selectedCategory = computed({
+  get: () => personaUI.value.selectedCategory,
+  set: (v) => { personaUI.value.selectedCategory = v; }
+});
+const selectedTemplateId = computed({
+  get: () => personaUI.value.selectedTemplateId,
+  set: (v) => { personaUI.value.selectedTemplateId = v; }
+});
 
 const filteredTemplates = computed(() => {
   if (!selectedCategory.value) return personaPresets;
@@ -105,7 +115,7 @@ const emotionalTraitDefs = [
   { key: 'creativity', label: 'Creativity', icon: 'ph:paint-brush-duotone' },
 ] as const;
 
-// Sync from Kwami
+// Sync from Kwami and mirror to persisted store
 function syncFromKwami() {
   if (!kwami.value) return;
   
@@ -128,10 +138,47 @@ function syncFromKwami() {
     if (pConfig.emotionalTraits) {
       Object.assign(emotionalTraits, pConfig.emotionalTraits);
     }
+
+    // Mirror to store for persistence across reloads
+    saveToStore();
   } finally {
     // Re-enable watchers after sync completes (use setTimeout to ensure all reactive updates are processed)
     setTimeout(() => { isSyncing = false; }, 0);
   }
+}
+
+// Save current local state to the persisted store
+function saveToStore() {
+  savedPersonaConfig.value = {
+    name: config.name,
+    personality: config.personality,
+    conversationStyle: config.conversationStyle,
+    language: config.language,
+    responseLength: config.responseLength,
+    emotionalTone: config.emotionalTone,
+    systemPrompt: config.systemPrompt,
+    traits: [...traits.value],
+    emotionalTraits: { ...emotionalTraits },
+  };
+}
+
+// Restore saved persona config to kwami (on page reload)
+function restoreSavedPersonaToKwami() {
+  if (!kwami.value) return;
+  const saved = savedPersonaConfig.value;
+  // Only restore if it looks like a non-default config
+  if (!saved.personality && saved.name === 'Kwami' && saved.traits.length === 0) return;
+
+  kwami.value.persona.updateConfig({
+    name: saved.name,
+    personality: saved.personality,
+    systemPrompt: saved.systemPrompt,
+    traits: [...saved.traits],
+    conversationStyle: saved.conversationStyle,
+    responseLength: saved.responseLength,
+    emotionalTone: saved.emotionalTone,
+    emotionalTraits: { ...saved.emotionalTraits },
+  });
 }
 
 // Live sync watchers - sync changes to kwami automatically
@@ -141,6 +188,7 @@ watch(() => config.name, (v) => {
   if (!isSyncing && kwami.value) {
     kwami.value.persona.setName(v);
     syncPersonaToBackend();
+    saveToStore();
   }
 });
 
@@ -148,6 +196,7 @@ watch(() => config.personality, (v) => {
   if (!isSyncing && kwami.value) {
     kwami.value.persona.updateConfig({ personality: v });
     syncPersonaToBackend();
+    saveToStore();
   }
 });
 
@@ -155,17 +204,22 @@ watch(() => config.conversationStyle, (v) => {
   if (!isSyncing && kwami.value) {
     kwami.value.persona.setConversationStyle(v);
     syncPersonaToBackend();
+    saveToStore();
   }
 });
 
 watch(() => config.language, (v) => {
-  if (!isSyncing && kwami.value) kwami.value.persona.setLanguage(v);
+  if (!isSyncing && kwami.value) {
+    kwami.value.persona.setLanguage(v);
+    saveToStore();
+  }
 });
 
 watch(() => config.responseLength, (v) => {
   if (!isSyncing && kwami.value) {
     kwami.value.persona.setResponseLength(v);
     syncPersonaToBackend();
+    saveToStore();
   }
 });
 
@@ -173,6 +227,7 @@ watch(() => config.emotionalTone, (v) => {
   if (!isSyncing && kwami.value) {
     kwami.value.persona.setEmotionalTone(v);
     syncPersonaToBackend();
+    saveToStore();
   }
 });
 
@@ -180,6 +235,7 @@ watch(() => config.systemPrompt, (v) => {
   if (!isSyncing && kwami.value) {
     kwami.value.persona.updateConfig({ systemPrompt: v });
     syncPersonaToBackend();
+    saveToStore();
   }
 });
 
@@ -191,14 +247,14 @@ watch(emotionalTraits, (v) => {
         v[key as keyof typeof v]
       );
     });
+    saveToStore();
   }
 }, { deep: true });
 
 function updateTraits(newTraits: string[]) {
-  // We need to sync the difference
   kwami.value?.persona.updateConfig({ traits: newTraits });
-  syncFromKwami(); // Refresh local reference
-  syncPersonaToBackend(); // Sync to backend if connected
+  syncFromKwami();
+  syncPersonaToBackend();
 }
 
 function previewPrompt() {
@@ -260,6 +316,8 @@ watch(isConnected, () => {
 });
 
 onMounted(() => {
+  // Restore saved persona to kwami before syncing (handles page reload)
+  restoreSavedPersonaToKwami();
   syncFromKwami();
 });
 </script>

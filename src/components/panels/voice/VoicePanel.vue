@@ -13,7 +13,7 @@ import { useVoicesApi, type Voice } from '@/composables/useVoicesApi';
 import { useLanguagesApi, type Language } from '@/composables/useLanguagesApi';
 
 const voiceStore = useVoiceStore();
-const { pipelineMode, tts, realtime } = storeToRefs(voiceStore);
+const { pipelineMode, tts, realtime, voiceUI } = storeToRefs(voiceStore);
 const { kwami, isConnected } = useKwami();
 
 const { 
@@ -27,16 +27,25 @@ const {
   fetchRealtimeLanguagesByProvider,
 } = useLanguagesApi();
 
-// Local state
+// Local state (fetched data — composables already cache these)
 const ttsVoices = ref<Voice[]>([]);
 const realtimeVoices = ref<Voice[]>([]);
 const ttsLanguages = ref<Language[]>([]);
 const realtimeLanguages = ref<Language[]>([]);
 
-// Filters
-const languageFilter = ref<string>('all');
-const genderFilter = ref<string>('all');
-const searchQuery = ref('');
+// Persisted filter state via store
+const languageFilter = computed({
+  get: () => voiceUI.value.languageFilter,
+  set: (v) => { voiceUI.value.languageFilter = v; }
+});
+const genderFilter = computed({
+  get: () => voiceUI.value.genderFilter,
+  set: (v) => { voiceUI.value.genderFilter = v; }
+});
+const searchQuery = computed({
+  get: () => voiceUI.value.searchQuery,
+  set: (v) => { voiceUI.value.searchQuery = v; }
+});
 
 import { getFlagIcon } from '@/constants/language-flags';
 
@@ -267,22 +276,36 @@ function resetFilters() {
   searchQuery.value = '';
 }
 
-// Watch provider changes
-watch(() => tts.value.provider, () => {
+// Track previous providers so we only reset filters on actual provider *changes*
+let prevTtsProvider = tts.value.provider;
+let prevRealtimeProvider = realtime.value.provider;
+
+// Watch provider changes (immediate loads data; only resets filters on actual change)
+watch(() => tts.value.provider, (newProvider) => {
   loadTTSVoices();
   loadTTSLanguages();
-  resetFilters();
+  if (newProvider !== prevTtsProvider) {
+    resetFilters();
+    prevTtsProvider = newProvider;
+  }
 }, { immediate: true });
 
-watch(() => realtime.value.provider, () => {
+watch(() => realtime.value.provider, (newProvider) => {
   loadRealtimeVoices();
   loadRealtimeLanguages();
-  resetFilters();
+  if (newProvider !== prevRealtimeProvider) {
+    resetFilters();
+    prevRealtimeProvider = newProvider;
+  }
 }, { immediate: true });
 
-// Watch pipeline mode changes
-watch(pipelineMode, () => {
-  resetFilters();
+// Watch pipeline mode changes — only reset if mode actually changed since last visit
+let prevPipelineMode = pipelineMode.value;
+watch(pipelineMode, (newMode) => {
+  if (newMode !== prevPipelineMode) {
+    resetFilters();
+    prevPipelineMode = newMode;
+  }
 });
 
 // Watch TTS speed changes for live updates
