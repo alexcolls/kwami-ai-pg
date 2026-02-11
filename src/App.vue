@@ -22,10 +22,43 @@ import AccountPanel from '@/components/panels/account/AccountPanel.vue';
 import ThemePanel from '@/components/panels/theme/ThemePanel.vue';
 import ModelsPanel from '@/components/panels/models/ModelsPanel.vue';
 
-const { kwami, init, switchRenderer } = useKwami();
+import { useAvatarStore } from '@/stores/avatar';
+import { useBlobXyzSync } from '@/composables/avatar/sync/useBlobXyzSync';
+import { useOrbitalShardsSync } from '@/composables/avatar/sync/useOrbitalShardsSync';
+import { useStarsGenesisSync } from '@/composables/avatar/sync/useStarsGenesisSync';
+import { useCrystalBallSync } from '@/composables/avatar/sync/useCrystalBallSync';
+import { useBlackHoleSync } from '@/composables/avatar/sync/useBlackHoleSync';
+
+const { kwami, init, switchRenderer, rendererType: kwamiRendererType } = useKwami();
 const { initialize: initSceneBackground } = useSceneBackground();
+import { useVoiceStore } from '@/stores/voice';
+
 const uiStore = useUIStore();
 const authStore = useAuthStore();
+const avatarStore = useAvatarStore();
+const voiceStore = useVoiceStore();
+
+// Avatar sync composables (used to apply saved state on init)
+const { applyToKwami: applyBlobToKwami } = useBlobXyzSync({
+  kwami,
+  getBlob: () => kwami.value?.avatar.getBlob(),
+});
+const { applyToKwami: applyOrbitalShardsToKwami } = useOrbitalShardsSync({
+  kwami,
+  getOrbitalShards: () => kwami.value?.avatar.getOrbitalShards(),
+});
+const { applyToKwami: applyStarsGenesisToKwami } = useStarsGenesisSync({
+  kwami,
+  getStarsGenesis: () => kwami.value?.avatar.getStarsGenesis(),
+});
+const { applyToKwami: applyCrystalBallToKwami } = useCrystalBallSync({
+  kwami,
+  getCrystalBall: () => (kwami.value?.avatar as any)?.getCrystalBall?.(),
+});
+const { applyToKwami: applyBlackHoleToKwami } = useBlackHoleSync({
+  kwami,
+  getBlackHole: () => (kwami.value?.avatar as any)?.getBlackHole?.(),
+});
 
 const canvasRef = ref<HTMLCanvasElement | null>(null);
 
@@ -49,11 +82,48 @@ function onWelcomeComplete() {
 // Track if Kwami has been initialized
 const isInitialized = ref(false);
 
+// Apply saved avatar state to kwami instance
+function applySavedAvatarState() {
+  const savedRenderer = avatarStore.rendererType;
+
+  // Switch to saved renderer if different from default
+  if (kwamiRendererType.value !== savedRenderer) {
+    switchRenderer(savedRenderer as any);
+  }
+
+  // Apply the saved state for the active renderer
+  switch (savedRenderer) {
+    case 'blob-xyz': applyBlobToKwami(); break;
+    case 'orbital-shards': applyOrbitalShardsToKwami(); break;
+    case 'stars-genesis': applyStarsGenesisToKwami(); break;
+    case 'crystal-ball': applyCrystalBallToKwami(); break;
+    case 'black-hole': applyBlackHoleToKwami(); break;
+  }
+}
+
+// Apply saved persona config to kwami on startup
+function applySavedPersonaState() {
+  if (!kwami.value) return;
+  const saved = voiceStore.personaConfig;
+  if (!saved.personality && saved.name === 'Kwami' && saved.traits.length === 0) return;
+
+  kwami.value.persona.updateConfig({
+    name: saved.name,
+    personality: saved.personality,
+    systemPrompt: saved.systemPrompt,
+    traits: [...saved.traits],
+    conversationStyle: saved.conversationStyle,
+    responseLength: saved.responseLength,
+    emotionalTone: saved.emotionalTone,
+    emotionalTraits: { ...saved.emotionalTraits },
+  });
+}
+
 // Initialize Kwami when canvas becomes available (after auth)
 function initializeKwami() {
   if (isInitialized.value || !canvasRef.value) return;
 
-  // Default to blob renderer
+  // Default to blob renderer (will be overridden by saved state if available)
   const rendererType = 'blob-xyz';
 
   init(canvasRef.value, rendererType);
@@ -61,6 +131,14 @@ function initializeKwami() {
 
   // Initialize scene background from saved settings
   initSceneBackground();
+
+  // Apply saved avatar state (renderer type + settings) from localStorage
+  if (avatarStore.isInitialized) {
+    applySavedAvatarState();
+  }
+
+  // Apply saved persona config to kwami
+  applySavedPersonaState();
 
   // Trigger initial resize to ensure proper sizing
   requestAnimationFrame(() => {

@@ -10,6 +10,7 @@ import App from './App.vue';
 import { useThemeStore } from './stores/theme';
 import { useSceneStore } from './stores/scene';
 import { useAvatarStore } from './stores/avatar';
+import { useVoiceStore } from './stores/voice';
 
 const app = createApp(App);
 const pinia = createPinia();
@@ -42,5 +43,9 @@ sceneStore.loadSettings();
 // Initialize avatar settings
 const avatarStore = useAvatarStore();
 avatarStore.loadSettings();
+
+// Initialize voice/model settings
+const voiceStore = useVoiceStore();
+voiceStore.loadSettings();
 
 app.mount('#app');
