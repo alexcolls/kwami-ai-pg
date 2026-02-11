@@ -21,6 +21,8 @@ import MetricsPanel from '@/components/panels/metrics/MetricsPanel.vue';
 import AccountPanel from '@/components/panels/account/AccountPanel.vue';
 import ThemePanel from '@/components/panels/theme/ThemePanel.vue';
 import ModelsPanel from '@/components/panels/models/ModelsPanel.vue';
+import EnergyPanel from '@/components/panels/energy/EnergyPanel.vue';
+import EnergyBadge from '@/components/energy/EnergyBadge.vue';
 
 import { useAvatarStore } from '@/stores/avatar';
 import { useBlobXyzSync } from '@/composables/avatar/sync/useBlobXyzSync';
@@ -32,11 +34,13 @@ import { useBlackHoleSync } from '@/composables/avatar/sync/useBlackHoleSync';
 const { kwami, init, switchRenderer, rendererType: kwamiRendererType } = useKwami();
 const { initialize: initSceneBackground } = useSceneBackground();
 import { useVoiceStore } from '@/stores/voice';
+import { useCreditsStore } from '@/stores/credits';
 
 const uiStore = useUIStore();
 const authStore = useAuthStore();
 const avatarStore = useAvatarStore();
 const voiceStore = useVoiceStore();
+const creditsStore = useCreditsStore();
 
 // Avatar sync composables (used to apply saved state on init)
 const { applyToKwami: applyBlobToKwami } = useBlobXyzSync({
@@ -66,12 +70,16 @@ const canvasRef = ref<HTMLCanvasElement | null>(null);
 const showWelcome = ref(false);
 const hasShownWelcome = ref(false);
 
-// Watch for authentication to show welcome screen
+// Watch for authentication to show welcome screen and init credits
 watch(() => authStore.isAuthenticated, (isAuth, wasAuth) => {
   // Show welcome when user just logged in (was not auth, now is auth)
   if (isAuth && !wasAuth && !hasShownWelcome.value) {
     showWelcome.value = true;
     hasShownWelcome.value = true;
+  }
+  // Init credits when authenticated
+  if (isAuth) {
+    creditsStore.init();
   }
 });
 
@@ -256,6 +264,7 @@ onUnmounted(() => {
       <template v-if="authStore.isAuthenticated && !showWelcome">
         <!-- Control Bar (top-right) -->
         <div class="control-bar-container">
+          <EnergyBadge />
           <ControlBar />
         </div>
 
@@ -273,6 +282,7 @@ onUnmounted(() => {
           <AccountPanel v-if="uiStore.activePanel === 'account'" />
           <ThemePanel v-if="uiStore.activePanel === 'theme'" />
           <ModelsPanel v-if="uiStore.activePanel === 'models'" />
+          <EnergyPanel v-if="uiStore.activePanel === 'credits'" />
         </TheSidebar>
       </template>
     </div>
@@ -296,5 +306,8 @@ onUnmounted(() => {
   top: 16px;
   right: 16px;
   z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 </style>

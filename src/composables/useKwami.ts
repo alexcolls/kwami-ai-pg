@@ -147,6 +147,92 @@ export function useKwami() {
   }
 
   /**
+   * Sync all persisted panel configs to the backend agent after connecting.
+   * This ensures persona, enhancements, voice, and model settings are applied
+   * regardless of which panel is currently mounted.
+   */
+  function syncAllConfigToBackend(kwami: Kwami, voiceStore: ReturnType<typeof useVoiceStore>) {
+    const agent = kwami.agent;
+
+    // 1. Persona config
+    const personaConfig = kwami.persona.getConfig();
+    agent.syncConfigToBackend('persona', {
+      name: personaConfig.name,
+      personality: personaConfig.personality,
+      systemPrompt: personaConfig.systemPrompt,
+      traits: personaConfig.traits || [],
+      conversationStyle: personaConfig.conversationStyle,
+      responseLength: personaConfig.responseLength,
+      emotionalTone: personaConfig.emotionalTone,
+    });
+
+    // 2. Enhancements + VAD config
+    const eState = voiceStore.enhancementsState;
+    agent.syncConfigToBackend('voice', {
+      enhancements: {
+        turnDetection: {
+          enabled: eState.turnDetection.enabled,
+          mode: eState.turnDetection.mode,
+          model: eState.turnDetection.model,
+          minEndpointingDelay: eState.turnDetection.minEndpointingDelay,
+          maxEndpointingDelay: eState.turnDetection.maxEndpointingDelay,
+          allowInterruptions: eState.interruptions.enabled,
+          minInterruptionDuration: eState.interruptions.minDuration,
+          minInterruptionWords: eState.interruptions.minWords,
+        },
+        noiseCancellation: {
+          enabled: eState.noiseCancellation.enabled,
+          mode: eState.noiseCancellation.mode,
+        },
+        echoCancellation: eState.audioProcessing.echoCancellation,
+        autoGainControl: eState.audioProcessing.autoGainControl,
+        preemptiveGeneration: eState.performance.preemptiveGeneration,
+      },
+      vad: {
+        provider: eState.vad.provider,
+        threshold: eState.vad.threshold,
+        minSpeechDuration: eState.vad.minSpeech,
+        minSilenceDuration: eState.vad.minSilence,
+      },
+    });
+
+    // 3. LLM live params (temperature)
+    if ('updateLlmLive' in agent && typeof agent.updateLlmLive === 'function') {
+      agent.updateLlmLive({
+        provider: voiceStore.llm.provider,
+        model: voiceStore.llm.model,
+        temperature: voiceStore.llm.temperature,
+      });
+    }
+
+    // 4. TTS/Realtime voice + speed
+    if (voiceStore.pipelineMode === 'realtime') {
+      if ('updateRealtimeLive' in agent && typeof agent.updateRealtimeLive === 'function') {
+        agent.updateRealtimeLive({
+          voice: voiceStore.realtime.voice,
+        });
+      }
+    } else {
+      if ('updateTtsLive' in agent && typeof agent.updateTtsLive === 'function') {
+        agent.updateTtsLive({
+          voice: voiceStore.tts.voice,
+          speed: voiceStore.tts.speed,
+        });
+      }
+    }
+
+    // 5. STT model
+    if ('updateSttLive' in agent && typeof agent.updateSttLive === 'function') {
+      (agent as any).updateSttLive({
+        provider: voiceStore.stt.provider,
+        model: voiceStore.stt.model,
+      });
+    }
+
+    console.log('📤 Synced all configs to backend on connect');
+  }
+
+  /**
    * Connect to the agent
    */
   async function connect() {
@@ -173,9 +259,18 @@ export function useKwami() {
       await kwamiInstance.value.agent.connect();
       isConnected.value = true;
       console.log(`✅ Connected to agent as user: ${userId.value}`);
-    } catch (error) {
+
+      // Sync all persisted panel configs to the backend agent after connecting
+      syncAllConfigToBackend(kwamiInstance.value, voiceStore);
+    } catch (error: any) {
       console.error('Failed to connect:', error);
       isConnected.value = false;
+
+      // Handle insufficient credits (402 from /token endpoint)
+      const msg = error?.message || String(error);
+      if (msg.includes('402') || msg.includes('Insufficient credits')) {
+        window.dispatchEvent(new CustomEvent('kwami:insufficient-credits'));
+      }
     }
   }
 
