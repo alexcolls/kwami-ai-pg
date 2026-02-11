@@ -101,6 +101,17 @@ export const useUIStore = defineStore('ui', () => {
 
   // Load settings from localStorage
   function loadSettings() {
+    // Load active panel and open state
+    const savedPanel = localStorage.getItem('kwami-active-panel');
+    if (savedPanel) {
+      activePanel.value = savedPanel;
+    }
+
+    const savedPanelOpen = localStorage.getItem('kwami-panel-open');
+    if (savedPanelOpen !== null) {
+      isPanelOpen.value = savedPanelOpen === 'true';
+    }
+
     // Load panel width
     const savedWidth = localStorage.getItem('kwami-panel-width');
     if (savedWidth) {
@@ -136,6 +147,8 @@ export const useUIStore = defineStore('ui', () => {
 
   // Save settings to localStorage
   function saveSettings() {
+    localStorage.setItem('kwami-active-panel', activePanel.value);
+    localStorage.setItem('kwami-panel-open', String(isPanelOpen.value));
     localStorage.setItem('kwami-panel-width', String(panelWidth.value));
     localStorage.setItem('kwami-size-presets', JSON.stringify(sizePresets.value));
     localStorage.setItem('kwami-active-preset', activeSizePreset.value);
@@ -214,6 +227,11 @@ export const useUIStore = defineStore('ui', () => {
       theme.setCompactMode(true);
     }
   }
+
+  // Auto-save active panel and open state on change
+  watch([activePanel, isPanelOpen], () => {
+    saveSettings();
+  });
 
   // Watch for compact mode changes and disable allowCustomResize when compact mode is activated
   const { compactMode } = storeToRefs(useThemeStore());
