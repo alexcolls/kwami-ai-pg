@@ -1,27 +1,23 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted, onUnmounted, nextTick } from 'vue';
+import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue';
 import { panelIcons } from '@/constants/panel-icons';
 import { useKwami } from '@/composables/useKwami';
+import { useTranscriptionState } from '@/composables/useTranscriptionState';
 
 const { kwami } = useKwami();
+const {
+  messages,
+  interimTranscript,
+  isConnected,
+  indicators,
+  addMessage,
+  clearMessages,
+  updateIndicators,
+} = useTranscriptionState();
 
-interface Message {
-  role: 'user' | 'assistant' | 'system';
-  content: string;
-  timestamp: number;
-}
-
-// State
-const messages = ref<Message[]>([]);
-const isConnected = ref(false);
-const interimTranscript = ref<string | null>(null);
+// Local-only UI state
 const inputMessage = ref('');
 const conversationLog = ref<HTMLElement | null>(null);
-
-const indicators = reactive({
-  user: false, // listening
-  agent: false, // speaking
-});
 
 // Helpers
 function formatTime(timestamp: number): string {
@@ -41,42 +37,11 @@ function scrollToBottom() {
   });
 }
 
-function addMessage(role: 'user' | 'assistant' | 'system', content: string) {
-  messages.value.push({
-    role,
-    content,
-    timestamp: Date.now(),
-  });
-  scrollToBottom();
-
-  // Logic from legacy:
-  if (role === 'user') {
-    updateIndicators('thinking');
-    interimTranscript.value = null;
-  } else if (role === 'assistant') {
-    updateIndicators('listening');
-  }
-}
+// Scroll when messages change
+watch(() => messages.value.length, () => scrollToBottom());
 
 function clearLog() {
-  messages.value = [];
-}
-
-function updateIndicators(state: 'idle' | 'listening' | 'thinking' | 'speaking') {
-  indicators.user = false;
-  indicators.agent = false;
-
-  switch (state) {
-    case 'listening':
-      indicators.user = true;
-      break;
-    case 'speaking':
-      indicators.agent = true;
-      break;
-    case 'thinking':
-      // both false
-      break;
-  }
+  clearMessages();
 }
 
 function sendMessage() {
@@ -94,59 +59,24 @@ function interrupt() {
   updateIndicators('listening');
 }
 
-// Event Handlers
-const onMessage = (e: Event) => {
-  const detail = (e as CustomEvent).detail;
-  addMessage(detail.role, detail.content);
-};
-
-const onConnected = () => {
-  isConnected.value = true;
-  updateIndicators('listening');
-};
-
-const onDisconnected = () => {
-  isConnected.value = false;
-  updateIndicators('idle');
-  interimTranscript.value = null;
-};
-
-const onStateChanged = (e: Event) => {
-  const state = (e as CustomEvent).detail as 'idle' | 'listening' | 'thinking' | 'speaking';
-  updateIndicators(state);
-};
-
-const onInterim = (e: Event) => {
-  interimTranscript.value = (e as CustomEvent).detail as string;
-};
-
+// Keyboard shortcut (panel-local since it needs panel context)
 const onKeydown = (e: KeyboardEvent) => {
   if (e.key === 'Escape' && isConnected.value) {
     interrupt();
-    addMessage('system', '🛑 Interrupted (Esc)'); // Slightly different msg in legacy
+    addMessage('system', '🛑 Interrupted (Esc)');
   }
 };
 
 onMounted(() => {
-  // Initial state
+  // Sync initial connection state
   if (kwami.value) {
     isConnected.value = kwami.value.isConnected();
   }
-
-  window.addEventListener('kwami:message', onMessage);
-  window.addEventListener('kwami:connected', onConnected);
-  window.addEventListener('kwami:disconnected', onDisconnected);
-  window.addEventListener('kwami:stateChanged', onStateChanged);
-  window.addEventListener('kwami:interim', onInterim);
   document.addEventListener('keydown', onKeydown);
+  scrollToBottom();
 });
 
 onUnmounted(() => {
-  window.removeEventListener('kwami:message', onMessage);
-  window.removeEventListener('kwami:connected', onConnected);
-  window.removeEventListener('kwami:disconnected', onDisconnected);
-  window.removeEventListener('kwami:stateChanged', onStateChanged);
-  window.removeEventListener('kwami:interim', onInterim);
   document.removeEventListener('keydown', onKeydown);
 });
 </script>
