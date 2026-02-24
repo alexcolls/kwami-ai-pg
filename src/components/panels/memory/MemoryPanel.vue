@@ -15,7 +15,7 @@ import { MemoryGraph } from '@/components/memory';
 
 const toast = useToast();
 
-const { userId: sharedUserId } = useKwami();
+const { memoryUserId } = useKwami();
 const authStore = useAuthStore();
 const { memoryUI } = storeToRefs(useVoiceStore());
 
@@ -25,8 +25,8 @@ const apiBaseUrl = computed(() => {
   return tokenEndpoint.replace(/\/token\/?$/, '') || 'http://localhost:8080';
 });
 
-// User ID with kwami_ prefix (as used by backend)
-const userId = computed(() => `kwami_${sharedUserId.value}`);
+// Per-kwami memory user id (each kwami has its own memory)
+const userId = computed(() => memoryUserId.value);
 
 // Loading states
 const isLoading = ref(false);
@@ -733,10 +733,9 @@ async function performNodeDeletion(nodeUuid: string) {
 
 // Auto-load when user ID changes (from connection panel)
 watch(
-  () => sharedUserId.value,
+  () => userId.value,
   (newId, oldId) => {
-    console.log('User ID changed:', oldId, '->', newId);
-    if (newId) {
+    if (newId && newId !== oldId) {
       loadMemoryData();
     }
   }

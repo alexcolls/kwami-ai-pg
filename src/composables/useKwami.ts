@@ -2,6 +2,7 @@ import { shallowRef, ref, computed } from 'vue';
 import { Kwami } from 'kwami-ai';
 import { useVoiceStore } from '@/stores/voice';
 import { useAuthStore } from '@/stores/auth';
+import { useWorkspaceStore } from '@/stores/workspace';
 
 declare global {
   interface Window {
@@ -15,10 +16,17 @@ const rendererType = ref<'blob-xyz' | 'orbital-shards' | 'stars-genesis' | 'crys
 const isConnected = ref(false);
 
 export function useKwami() {
-  // Get auth store for user ID
   const authStore = useAuthStore();
+  const workspaceStore = useWorkspaceStore();
 
-  // User ID from authenticated user, fallback to 'anonymous'
+  /** Per-kwami memory user id: kwami_<authUserId>_<activeKwamiId>. Each kwami has its own memory. */
+  const memoryUserId = computed(() => {
+    const uid = authStore.userId || 'anonymous';
+    const kwamiId = workspaceStore.activeWorkspaceId;
+    return kwamiId ? `kwami_${uid}_${kwamiId}` : `kwami_${uid}`;
+  });
+
+  /** @deprecated Use memoryUserId for memory/agent. Kept for compatibility. */
   const userId = computed(() => authStore.userId || 'anonymous');
 
   function init(canvas: HTMLCanvasElement, renderer: 'blob-xyz' | 'orbital-shards' | 'stars-genesis' | 'crystal-ball' | 'black-hole' = 'blob-xyz') {
@@ -109,7 +117,7 @@ export function useKwami() {
         livekit: {
           url: import.meta.env.VITE_LIVEKIT_URL || '',
           tokenEndpoint: import.meta.env.VITE_LIVEKIT_TOKEN_ENDPOINT || '',
-          userId: userId.value, // Use authenticated user ID for memory recall
+          userId: memoryUserId.value, // Per-kwami memory id so each kwami has its own memory
           voice: voiceStore.voiceConfig,
         },
       },
@@ -252,19 +260,19 @@ export function useKwami() {
       const voiceStore = useVoiceStore();
       const authToken = await authStore.getAccessToken();
 
-      // Update config with current user ID, auth token, and voice settings
+      // Update config with per-kwami memory id, auth token, and voice settings
       kwamiInstance.value.agent.updateConfig({
         livekit: {
           ...kwamiInstance.value.agent.getConfig().livekit,
-          userId: userId.value, // Use current authenticated user ID
-          authToken: authToken || undefined, // Include auth token for API calls
+          userId: memoryUserId.value, // Per-kwami so each kwami has its own memory
+          authToken: authToken || undefined,
           voice: voiceStore.voiceConfig,
         },
       });
 
       await kwamiInstance.value.agent.connect();
       isConnected.value = true;
-      console.log(`✅ Connected to agent as user: ${userId.value}`);
+      console.log(`✅ Connected to agent as user: ${memoryUserId.value}`);
 
       // Sync all persisted panel configs to the backend agent after connecting
       syncAllConfigToBackend(kwamiInstance.value, voiceStore);
@@ -340,6 +348,7 @@ export function useKwami() {
     rendererType,
     isConnected,
     userId,
+    memoryUserId,
     init,
     switchRenderer,
     connect,

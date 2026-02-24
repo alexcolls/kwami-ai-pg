@@ -871,6 +871,7 @@ export const useThemeStore = defineStore('theme', () => {
 
     // Snapshot for per-kwami config
     getSnapshot: getCurrentSnapshot,
+    applySnapshot,
 
     // Actions
     loadSettings,
