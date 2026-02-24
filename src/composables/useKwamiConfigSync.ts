@@ -1,4 +1,4 @@
-import { watch } from 'vue';
+import { watch, nextTick } from 'vue';
 import { useWorkspaceStore } from '@/stores/workspace';
 import { useAuthStore } from '@/stores/auth';
 import { useAvatarStore } from '@/stores/avatar';
@@ -50,6 +50,10 @@ export function useKwamiConfigSync() {
   function applyConfig(config: KwamiConfig) {
     if (!config) return;
     try {
+      if (config.theme && typeof config.theme === 'object' && Object.keys(config.theme as object).length > 0) {
+        themeStore.applySnapshot(config.theme as Parameters<typeof themeStore.applySnapshot>[0]);
+        nextTick(() => themeStore.applyTheme());
+      }
       if (config.avatar && typeof config.avatar === 'object') {
         avatarStore.applySnapshot(config.avatar as Parameters<typeof avatarStore.applySnapshot>[0]);
       }
@@ -58,10 +62,6 @@ export function useKwamiConfigSync() {
       }
       if (config.scene && typeof config.scene === 'object') {
         sceneStore.applySnapshot(config.scene as Parameters<typeof sceneStore.applySnapshot>[0]);
-      }
-      if (config.theme && typeof config.theme === 'object' && Object.keys(config.theme as object).length > 0) {
-        themeStore.applySnapshot(config.theme as Parameters<typeof themeStore.applySnapshot>[0]);
-        themeStore.applyTheme();
       }
       window.dispatchEvent(new CustomEvent('kwami:configApplied'));
     } catch (e) {
@@ -80,17 +80,19 @@ export function useKwamiConfigWatchers() {
   const sceneStore = useSceneStore();
   const themeStore = useThemeStore();
 
-  // When active workspace changes, apply that kwami's config
+  // When active workspace (or its config) changes, apply that kwami's config
   watch(
-    () => workspaceStore.activeWorkspaceId,
-    (id) => {
-      if (!id) return;
-      const ws = workspaceStore.getActiveWorkspace();
-      if (ws?.config && typeof ws.config === 'object' && Object.keys(ws.config as object).length > 0) {
-        applyConfig(ws.config as KwamiConfig);
+    () => {
+      const id = workspaceStore.activeWorkspaceId;
+      const ws = id ? workspaceStore.getActiveWorkspace() : undefined;
+      return { id, config: ws?.config };
+    },
+    ({ config }) => {
+      if (config && typeof config === 'object' && Object.keys(config as object).length > 0) {
+        applyConfig(config as KwamiConfig);
       }
     },
-    { immediate: true },
+    { immediate: true, deep: true },
   );
 
   // Debounced save: shared timeout so any trigger schedules one save
