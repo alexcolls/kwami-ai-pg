@@ -121,57 +121,73 @@ export const useSceneStore = defineStore('scene', () => {
   // Load / Save
   // ============================================================================
 
+  function applySnapshot(settings: BackgroundConfig) {
+    if (!settings) return;
+    try {
+      const mediaType = (settings.media?.type || 'none') as MediaType;
+      background.media.type = mediaType;
+
+      if (settings.media?.image) {
+        background.media.image.url = settings.media.image.url || '';
+        background.media.image.fit = settings.media.image.fit || 'cover';
+        background.media.image.opacity = settings.media.image.opacity ?? 1;
+      } else if (mediaType !== 'image') {
+        background.media.image.url = '';
+      }
+
+      if (settings.media?.video) {
+        background.media.video.url = settings.media.video.url || '';
+        background.media.video.fit = settings.media.video.fit || 'cover';
+        background.media.video.opacity = settings.media.video.opacity ?? 1;
+        background.media.video.loop = settings.media.video.loop ?? true;
+        background.media.video.muted = settings.media.video.muted ?? true;
+      } else if (mediaType !== 'video') {
+        background.media.video.url = '';
+      }
+
+      if (settings.media?.hdri) {
+        background.media.hdri.url = settings.media.hdri.url || '';
+        background.media.hdri.intensity = settings.media.hdri.intensity ?? 1;
+        background.media.hdri.rotation = settings.media.hdri.rotation ?? 0;
+        background.media.hdri.blur = settings.media.hdri.blur ?? 0;
+      } else {
+        background.media.hdri.url = '';
+        if (mediaType !== 'hdri') {
+          background.media.hdri.intensity = 1;
+          background.media.hdri.rotation = 0;
+          background.media.hdri.blur = 0;
+        }
+      }
+      if (settings.gradient) {
+        background.gradient.enabled = settings.gradient.enabled ?? true;
+        background.gradient.type = settings.gradient.type || 'radial';
+        background.gradient.solidColor = settings.gradient.solidColor || '#0a0a15';
+        background.gradient.angle = settings.gradient.angle ?? 180;
+        background.gradient.radialCenter = settings.gradient.radialCenter || { x: 50, y: 50 };
+        background.gradient.radialSize = settings.gradient.radialSize ?? 100;
+        background.gradient.opacity = settings.gradient.opacity ?? 1;
+        background.gradient.blendMode = settings.gradient.blendMode || 'normal';
+        if (settings.gradient.stops && settings.gradient.stops.length >= 2) {
+          background.gradient.stops = settings.gradient.stops;
+        }
+        if (settings.gradient.orbs && settings.gradient.orbs.length > 0) {
+          background.gradient.orbs = settings.gradient.orbs;
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to apply scene snapshot:', e);
+    }
+  }
+
+  function getSnapshot(): BackgroundConfig {
+    return JSON.parse(JSON.stringify(background));
+  }
+
   function loadSettings() {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       try {
-        const settings = JSON.parse(saved) as BackgroundConfig;
-        
-        // Apply media settings
-        if (settings.media) {
-          background.media.type = settings.media.type || 'none';
-          
-          if (settings.media.image) {
-            background.media.image.url = settings.media.image.url || '';
-            background.media.image.fit = settings.media.image.fit || 'cover';
-            background.media.image.opacity = settings.media.image.opacity ?? 1;
-          }
-          
-          if (settings.media.video) {
-            background.media.video.url = settings.media.video.url || '';
-            background.media.video.fit = settings.media.video.fit || 'cover';
-            background.media.video.opacity = settings.media.video.opacity ?? 1;
-            background.media.video.loop = settings.media.video.loop ?? true;
-            background.media.video.muted = settings.media.video.muted ?? true;
-          }
-          
-          if (settings.media.hdri) {
-            background.media.hdri.url = settings.media.hdri.url || '';
-            background.media.hdri.intensity = settings.media.hdri.intensity ?? 1;
-            background.media.hdri.rotation = settings.media.hdri.rotation ?? 0;
-            background.media.hdri.blur = settings.media.hdri.blur ?? 0;
-          }
-        }
-        
-        // Apply gradient settings
-        if (settings.gradient) {
-          background.gradient.enabled = settings.gradient.enabled ?? true;
-          background.gradient.type = settings.gradient.type || 'radial';
-          background.gradient.solidColor = settings.gradient.solidColor || '#0a0a15';
-          background.gradient.angle = settings.gradient.angle ?? 180;
-          background.gradient.radialCenter = settings.gradient.radialCenter || { x: 50, y: 50 };
-          background.gradient.radialSize = settings.gradient.radialSize ?? 100;
-          background.gradient.opacity = settings.gradient.opacity ?? 1;
-          background.gradient.blendMode = settings.gradient.blendMode || 'normal';
-          
-          if (settings.gradient.stops && settings.gradient.stops.length >= 2) {
-            background.gradient.stops = settings.gradient.stops;
-          }
-          
-          if (settings.gradient.orbs && settings.gradient.orbs.length > 0) {
-            background.gradient.orbs = settings.gradient.orbs;
-          }
-        }
+        applySnapshot(JSON.parse(saved) as BackgroundConfig);
       } catch (e) {
         console.warn('Failed to load scene settings:', e);
       }
@@ -180,7 +196,7 @@ export const useSceneStore = defineStore('scene', () => {
 
   function saveSettings() {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(background));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(getSnapshot()));
     } catch (e) {
       console.warn('Failed to save scene settings:', e);
     }
@@ -316,6 +332,8 @@ export const useSceneStore = defineStore('scene', () => {
     // Persistence
     loadSettings,
     saveSettings,
+    getSnapshot,
+    applySnapshot,
     // Actions
     setMediaType,
     setImageUrl,

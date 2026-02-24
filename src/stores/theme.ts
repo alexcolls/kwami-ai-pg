@@ -188,37 +188,47 @@ export const useThemeStore = defineStore('theme', () => {
     };
   }
 
-  function applySnapshot(snapshot: ThemeSettings) {
-    mode.value = snapshot.mode;
-    autoStartTime.value = snapshot.autoStartTime;
-    autoEndTime.value = snapshot.autoEndTime;
-    accentPrimary.value = snapshot.accentPrimary;
-    accentSecondary.value = snapshot.accentSecondary;
-    sidebarPosition.value = snapshot.sidebarPosition;
+  function applySnapshot(snapshot: Partial<ThemeSettings>) {
+    if (snapshot.mode != null) mode.value = snapshot.mode;
+    if (snapshot.autoStartTime != null) autoStartTime.value = snapshot.autoStartTime;
+    if (snapshot.autoEndTime != null) autoEndTime.value = snapshot.autoEndTime;
+    if (snapshot.accentPrimary != null) accentPrimary.value = snapshot.accentPrimary;
+    if (snapshot.accentSecondary != null) accentSecondary.value = snapshot.accentSecondary;
+    if (snapshot.sidebarPosition != null) sidebarPosition.value = snapshot.sidebarPosition;
 
-    glassBlur.value = snapshot.glass.blur;
-    glassOpacity.value = snapshot.glass.opacity;
-    glassTint.value = snapshot.glass.tint;
-    noiseTexture.value = snapshot.glass.noise;
-    shadowIntensity.value = snapshot.glass.shadow;
+    if (snapshot.glass) {
+      if (snapshot.glass.blur != null) glassBlur.value = snapshot.glass.blur;
+      if (snapshot.glass.opacity != null) glassOpacity.value = snapshot.glass.opacity;
+      if (snapshot.glass.tint != null) glassTint.value = snapshot.glass.tint;
+      if (snapshot.glass.noise != null) noiseTexture.value = snapshot.glass.noise;
+      if (snapshot.glass.shadow != null) shadowIntensity.value = snapshot.glass.shadow;
+    }
 
-    borderRadius.value = snapshot.ui.borderRadius;
-    animationSpeed.value = snapshot.ui.animationSpeed;
-    surfaceContrast.value = snapshot.ui.surfaceContrast;
-    saturation.value = snapshot.ui.saturation;
-    gradientDirection.value = snapshot.ui.gradientDirection;
+    if (snapshot.ui) {
+      if (snapshot.ui.borderRadius != null) borderRadius.value = snapshot.ui.borderRadius;
+      if (snapshot.ui.animationSpeed != null) animationSpeed.value = snapshot.ui.animationSpeed;
+      if (snapshot.ui.surfaceContrast != null) surfaceContrast.value = snapshot.ui.surfaceContrast;
+      if (snapshot.ui.saturation != null) saturation.value = snapshot.ui.saturation;
+      if (snapshot.ui.gradientDirection != null) gradientDirection.value = snapshot.ui.gradientDirection;
+    }
 
-    panelBorder.value = snapshot.effects.panelBorder;
-    glowEffects.value = snapshot.effects.glowEffects;
-    compactMode.value = snapshot.effects.compactMode;
+    if (snapshot.effects) {
+      if (snapshot.effects.panelBorder != null) panelBorder.value = snapshot.effects.panelBorder;
+      if (snapshot.effects.glowEffects != null) glowEffects.value = snapshot.effects.glowEffects;
+      if (snapshot.effects.compactMode != null) compactMode.value = snapshot.effects.compactMode;
+    }
 
-    highContrast.value = snapshot.accessibility.highContrast;
-    focusIndicators.value = snapshot.accessibility.focusIndicators;
+    if (snapshot.accessibility) {
+      if (snapshot.accessibility.highContrast != null) highContrast.value = snapshot.accessibility.highContrast;
+      if (snapshot.accessibility.focusIndicators != null) focusIndicators.value = snapshot.accessibility.focusIndicators;
+    }
 
-    cursorFlashlight.value = snapshot.flashlight.enabled;
-    flashlightSize.value = snapshot.flashlight.size;
-    flashlightIntensity.value = snapshot.flashlight.intensity;
-    flashlightColor.value = snapshot.flashlight.color;
+    if (snapshot.flashlight) {
+      if (snapshot.flashlight.enabled != null) cursorFlashlight.value = snapshot.flashlight.enabled;
+      if (snapshot.flashlight.size != null) flashlightSize.value = snapshot.flashlight.size;
+      if (snapshot.flashlight.intensity != null) flashlightIntensity.value = snapshot.flashlight.intensity;
+      if (snapshot.flashlight.color != null) flashlightColor.value = snapshot.flashlight.color;
+    }
   }
 
   function pushToHistory() {
@@ -858,6 +868,9 @@ export const useThemeStore = defineStore('theme', () => {
 
     // Generic setter
     setSetting,
+
+    // Snapshot for per-kwami config
+    getSnapshot: getCurrentSnapshot,
 
     // Actions
     loadSettings,

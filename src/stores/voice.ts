@@ -201,31 +201,65 @@ export const useVoiceStore = defineStore('voice', () => {
   // Persistence
   // ============================================================================
 
+  function applySnapshot(settings: Record<string, unknown>) {
+    if (!settings) return;
+    try {
+      if (settings.pipelineMode != null) pipelineMode.value = settings.pipelineMode as typeof pipelineMode.value;
+      if (settings.stt && typeof settings.stt === 'object') stt.value = { ...stt.value, ...settings.stt } as STTConfig;
+      if (settings.llm && typeof settings.llm === 'object') llm.value = { ...llm.value, ...settings.llm } as LLMConfig;
+      if (settings.tts && typeof settings.tts === 'object') tts.value = { ...tts.value, ...settings.tts } as TTSConfig;
+      if (settings.realtime && typeof settings.realtime === 'object') realtime.value = { ...realtime.value, ...settings.realtime } as RealtimeConfig;
+      if (settings.activePreset != null) activePreset.value = settings.activePreset as string;
+      if (settings.modelsUI && typeof settings.modelsUI === 'object') modelsUI.value = { ...modelsUI.value, ...settings.modelsUI };
+      if (settings.voiceUI && typeof settings.voiceUI === 'object') voiceUI.value = { ...voiceUI.value, ...settings.voiceUI };
+      if (settings.personaUI && typeof settings.personaUI === 'object') personaUI.value = { ...personaUI.value, ...settings.personaUI };
+      if (settings.personaConfig && typeof settings.personaConfig === 'object') personaConfig.value = { ...personaConfig.value, ...settings.personaConfig } as typeof personaConfig.value;
+      if (settings.memoryUI && typeof settings.memoryUI === 'object') memoryUI.value = { ...memoryUI.value, ...settings.memoryUI };
+      if (settings.enhancementsState && typeof settings.enhancementsState === 'object') {
+        const s = settings.enhancementsState as Record<string, unknown>;
+        const e = enhancementsState.value;
+        if (s.turnDetection && typeof s.turnDetection === 'object') e.turnDetection = { ...e.turnDetection, ...s.turnDetection } as typeof e.turnDetection;
+        if (s.interruptions && typeof s.interruptions === 'object') e.interruptions = { ...e.interruptions, ...s.interruptions } as typeof e.interruptions;
+        if (s.noiseCancellation && typeof s.noiseCancellation === 'object') e.noiseCancellation = { ...e.noiseCancellation, ...s.noiseCancellation } as typeof e.noiseCancellation;
+        if (s.vad && typeof s.vad === 'object') e.vad = { ...e.vad, ...s.vad } as typeof e.vad;
+        if (s.audioProcessing && typeof s.audioProcessing === 'object') e.audioProcessing = { ...e.audioProcessing, ...s.audioProcessing } as typeof e.audioProcessing;
+        if (s.performance && typeof s.performance === 'object') e.performance = { ...e.performance, ...s.performance } as typeof e.performance;
+        e.initialized = true;
+      }
+    } catch (e) {
+      console.warn('Failed to apply voice snapshot:', e);
+    }
+  }
+
+  function getSnapshot() {
+    return {
+      pipelineMode: pipelineMode.value,
+      stt: { ...stt.value },
+      llm: { ...llm.value },
+      tts: { ...tts.value },
+      realtime: { ...realtime.value },
+      activePreset: activePreset.value,
+      modelsUI: { ...modelsUI.value },
+      voiceUI: { ...voiceUI.value },
+      personaUI: { ...personaUI.value },
+      personaConfig: { ...personaConfig.value, emotionalTraits: { ...personaConfig.value.emotionalTraits } },
+      memoryUI: { ...memoryUI.value },
+      enhancementsState: {
+        turnDetection: { ...enhancementsState.value.turnDetection },
+        interruptions: { ...enhancementsState.value.interruptions },
+        noiseCancellation: { ...enhancementsState.value.noiseCancellation },
+        vad: { ...enhancementsState.value.vad },
+        audioProcessing: { ...enhancementsState.value.audioProcessing },
+        performance: { ...enhancementsState.value.performance },
+      },
+    };
+  }
+
   function loadSettings() {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (!saved) return;
-
     try {
-      const settings = JSON.parse(saved);
-      if (settings.pipelineMode) pipelineMode.value = settings.pipelineMode;
-      if (settings.stt) stt.value = { ...stt.value, ...settings.stt };
-      if (settings.llm) llm.value = { ...llm.value, ...settings.llm };
-      if (settings.tts) tts.value = { ...tts.value, ...settings.tts };
-      if (settings.realtime) realtime.value = { ...realtime.value, ...settings.realtime };
-      if (settings.activePreset) activePreset.value = settings.activePreset;
-      if (settings.personaUI) personaUI.value = { ...personaUI.value, ...settings.personaUI };
-      if (settings.personaConfig) personaConfig.value = { ...personaConfig.value, ...settings.personaConfig };
-      if (settings.enhancementsState) {
-        const s = settings.enhancementsState;
-        const e = enhancementsState.value;
-        if (s.turnDetection) Object.assign(e.turnDetection, s.turnDetection);
-        if (s.interruptions) Object.assign(e.interruptions, s.interruptions);
-        if (s.noiseCancellation) Object.assign(e.noiseCancellation, s.noiseCancellation);
-        if (s.vad) Object.assign(e.vad, s.vad);
-        if (s.audioProcessing) Object.assign(e.audioProcessing, s.audioProcessing);
-        if (s.performance) Object.assign(e.performance, s.performance);
-        e.initialized = true;
-      }
+      applySnapshot(JSON.parse(saved) as Record<string, unknown>);
     } catch (e) {
       console.warn('Failed to load voice settings:', e);
     }
@@ -233,24 +267,7 @@ export const useVoiceStore = defineStore('voice', () => {
 
   function saveSettings() {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({
-        pipelineMode: pipelineMode.value,
-        stt: stt.value,
-        llm: llm.value,
-        tts: tts.value,
-        realtime: realtime.value,
-        activePreset: activePreset.value,
-        personaUI: personaUI.value,
-        personaConfig: personaConfig.value,
-        enhancementsState: {
-          turnDetection: enhancementsState.value.turnDetection,
-          interruptions: enhancementsState.value.interruptions,
-          noiseCancellation: enhancementsState.value.noiseCancellation,
-          vad: enhancementsState.value.vad,
-          audioProcessing: enhancementsState.value.audioProcessing,
-          performance: enhancementsState.value.performance,
-        },
-      }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(getSnapshot()));
     } catch (e) {
       console.warn('Failed to save voice settings:', e);
     }
@@ -286,5 +303,7 @@ export const useVoiceStore = defineStore('voice', () => {
     voiceConfig,
     loadSettings,
     saveSettings,
+    getSnapshot,
+    applySnapshot,
   };
 });

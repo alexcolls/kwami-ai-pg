@@ -795,17 +795,13 @@ export const useAvatarStore = defineStore('avatar', () => {
   // PERSISTENCE
   // =====================================================
 
-  function saveSettings() {
-    // Don't save during the initial load phase
-    if (isLoading.value) return;
-
+  function getSnapshot() {
     const blobStore = useBlobXyzStore();
     const orbitalShardsStore = useOrbitalShardsStore();
     const starsGenesisStore = useStarsGenesisStore();
     const crystalBallStore = useCrystalBallStore();
     const blackHoleStore = useBlackHoleStore();
-
-    const settings = {
+    return {
       rendererType: rendererType.value,
       blobXyz: blobStore.exportState(),
       orbitalShards: orbitalShardsStore.exportState(),
@@ -813,9 +809,43 @@ export const useAvatarStore = defineStore('avatar', () => {
       crystalBall: crystalBallStore.exportState(),
       blackHole: blackHoleStore.exportState(),
     };
+  }
 
+  function applySnapshot(settings: {
+    rendererType?: RendererType;
+    blobXyz?: unknown;
+    orbitalShards?: unknown;
+    starsGenesis?: unknown;
+    crystalBall?: unknown;
+    blackHole?: unknown;
+  }) {
+    if (!settings) return;
+    isLoading.value = true;
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+      if (settings.rendererType) {
+        rendererType.value = settings.rendererType;
+      }
+      const blobStore = useBlobXyzStore();
+      const orbitalShardsStore = useOrbitalShardsStore();
+      const starsGenesisStore = useStarsGenesisStore();
+      const crystalBallStore = useCrystalBallStore();
+      const blackHoleStore = useBlackHoleStore();
+      if (settings.blobXyz) blobStore.importState(settings.blobXyz as Parameters<typeof blobStore.importState>[0]);
+      if (settings.orbitalShards) orbitalShardsStore.importState(settings.orbitalShards as Parameters<typeof orbitalShardsStore.importState>[0]);
+      if (settings.starsGenesis) starsGenesisStore.importState(settings.starsGenesis as Parameters<typeof starsGenesisStore.importState>[0]);
+      if (settings.crystalBall) crystalBallStore.importState(settings.crystalBall as Parameters<typeof crystalBallStore.importState>[0]);
+      if (settings.blackHole) blackHoleStore.importState(settings.blackHole as Parameters<typeof blackHoleStore.importState>[0]);
+    } catch (e) {
+      console.warn('Failed to apply avatar snapshot:', e);
+    }
+    isInitialized.value = true;
+    isLoading.value = false;
+  }
+
+  function saveSettings() {
+    if (isLoading.value) return;
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(getSnapshot()));
     } catch (e) {
       console.warn('Failed to save avatar settings:', e);
     }
@@ -823,50 +853,19 @@ export const useAvatarStore = defineStore('avatar', () => {
 
   function loadSettings() {
     isLoading.value = true;
-
     const saved = localStorage.getItem(STORAGE_KEY);
     if (!saved) {
       isInitialized.value = true;
       isLoading.value = false;
       return;
     }
-
     try {
-      const settings = JSON.parse(saved);
-
-      // Restore renderer type
-      if (settings.rendererType) {
-        rendererType.value = settings.rendererType;
-      }
-
-      // Restore individual avatar states
-      const blobStore = useBlobXyzStore();
-      const orbitalShardsStore = useOrbitalShardsStore();
-      const starsGenesisStore = useStarsGenesisStore();
-      const crystalBallStore = useCrystalBallStore();
-      const blackHoleStore = useBlackHoleStore();
-
-      if (settings.blobXyz) {
-        blobStore.importState(settings.blobXyz);
-      }
-      if (settings.orbitalShards) {
-        orbitalShardsStore.importState(settings.orbitalShards);
-      }
-      if (settings.starsGenesis) {
-        starsGenesisStore.importState(settings.starsGenesis);
-      }
-      if (settings.crystalBall) {
-        crystalBallStore.importState(settings.crystalBall);
-      }
-      if (settings.blackHole) {
-        blackHoleStore.importState(settings.blackHole);
-      }
+      applySnapshot(JSON.parse(saved) as Parameters<typeof applySnapshot>[0]);
     } catch (e) {
       console.warn('Failed to load avatar settings:', e);
+      isInitialized.value = true;
+      isLoading.value = false;
     }
-
-    isInitialized.value = true;
-    isLoading.value = false;
   }
 
   return {
@@ -911,5 +910,7 @@ export const useAvatarStore = defineStore('avatar', () => {
     // Persistence
     loadSettings,
     saveSettings,
+    getSnapshot,
+    applySnapshot,
   };
 });
