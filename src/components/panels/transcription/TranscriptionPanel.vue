@@ -3,8 +3,10 @@ import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue';
 import { panelIcons } from '@/constants/panel-icons';
 import { useKwami } from '@/composables/useKwami';
 import { useTranscriptionState } from '@/composables/useTranscriptionState';
+import { useSearchResults } from '@/composables/useSearchResults';
 
 const { kwami } = useKwami();
+const searchResults = useSearchResults();
 const {
   messages,
   interimTranscript,
@@ -110,6 +112,39 @@ onUnmounted(() => {
       <div v-if="interimTranscript" class="interim-transcript">
         <span class="interim-label">Hearing:</span>
         <span class="interim-text">{{ interimTranscript }}</span>
+      </div>
+
+      <!-- Web search results (when agent used web_search) -->
+      <div v-if="searchResults.loading || searchResults.error || searchResults.hasResults()" class="search-results-section">
+        <div class="search-results-header">
+          <iconify-icon icon="ph:magnifying-glass-duotone"></iconify-icon>
+          <span>Web search</span>
+          <button v-if="searchResults.hasResults() || searchResults.error" class="search-clear" @click="searchResults.clear" title="Clear results">
+            <iconify-icon icon="ph:x"></iconify-icon>
+          </button>
+        </div>
+        <div v-if="searchResults.loading" class="search-loading">
+          <iconify-icon icon="ph:spinner-gap-duotone" class="spin"></iconify-icon>
+          Searching...
+        </div>
+        <div v-else-if="searchResults.error" class="search-error">{{ searchResults.error }}</div>
+        <div v-else class="search-results-body">
+          <p v-if="searchResults.answer" class="search-answer">{{ searchResults.answer }}</p>
+          <p class="search-query">“{{ searchResults.query }}”</p>
+          <div class="search-list">
+            <a
+              v-for="(r, i) in searchResults.results"
+              :key="i"
+              :href="r.url"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="search-item"
+            >
+              <span class="search-item-title">{{ r.title }}</span>
+              <span class="search-item-content">{{ r.content.slice(0, 160) }}{{ r.content.length > 160 ? '…' : '' }}</span>
+            </a>
+          </div>
+        </div>
       </div>
 
       <!-- Conversation Log -->
@@ -281,6 +316,122 @@ onUnmounted(() => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.search-results-section {
+  background: var(--surface-1);
+  border-bottom: 1px solid var(--glass-border);
+  padding: 12px 16px;
+}
+
+.search-results-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.search-results-header iconify-icon {
+  font-size: 16px;
+  color: var(--accent-primary);
+}
+
+.search-clear {
+  margin-left: auto;
+  padding: 4px;
+  background: none;
+  border: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.search-clear:hover {
+  color: var(--text-primary);
+  background: var(--surface-2);
+}
+
+.search-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.search-loading .spin {
+  animation: spin 0.8s linear infinite;
+}
+
+.search-error {
+  font-size: 12px;
+  color: var(--accent-error);
+}
+
+.search-results-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.search-answer {
+  font-size: 13px;
+  color: var(--text-primary);
+  line-height: 1.4;
+  margin: 0;
+}
+
+.search-query {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  margin: 0;
+}
+
+.search-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.search-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  text-decoration: none;
+  color: inherit;
+  transition: background 0.2s;
+}
+
+.search-item:hover {
+  background: var(--surface-0);
+  border-color: var(--accent-primary);
+}
+
+.search-item-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent-primary);
+}
+
+.search-item-content {
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.3;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .conversation-log {

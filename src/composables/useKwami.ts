@@ -132,6 +132,9 @@ export function useKwami() {
 
     kwamiInstance.value = new Kwami(canvas, config as any);
 
+    // Web search runs on the LiveKit agent (server-side); results are sent via data channel
+    // and displayed when the client receives the 'search_results' message (see useSearchResults).
+
     // Track connection state changes
     kwamiInstance.value.agent.onStateChange((state) => {
       const wasConnected = isConnected.value;
@@ -139,6 +142,9 @@ export function useKwami() {
 
       if (wasConnected !== isConnected.value) {
         console.log(`🔌 Connection state: ${isConnected.value ? 'connected' : 'disconnected'}`);
+        if (!isConnected.value) {
+          window.dispatchEvent(new CustomEvent('kwami:disconnected'));
+        }
       }
     });
 
@@ -285,6 +291,8 @@ export function useKwami() {
 
     try {
       await kwamiInstance.value.agent.disconnect();
+      isConnected.value = false;
+      window.dispatchEvent(new CustomEvent('kwami:disconnected'));
 
       // Safety cleanup: Stop any browser MediaStream tracks that might still be active
       // This ensures the browser mic indicator disappears
