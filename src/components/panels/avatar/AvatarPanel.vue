@@ -455,17 +455,16 @@ function onCanvasMouseLeave() {
 // =====================================================
 
 onMounted(() => {
-  // If settings were loaded from localStorage, apply store state to kwami
-  // Otherwise sync from kwami (first time use)
+  // Always sync from Kwami first so the store has the current on-screen state (e.g. rotation
+  // from user dragging the blob while another panel was open). Otherwise applying store → Kwami
+  // would overwrite the mesh with stale store values and reset the rotation.
+  syncFromKwami();
+
   if (avatarStore.isInitialized) {
-    // Switch to the saved renderer type if different
     if (kwamiRendererType.value !== rendererType.value) {
       switchRenderer(rendererType.value as any);
     }
-    // Apply the saved state to kwami
     applyCurrentRendererToKwami(rendererType.value);
-  } else {
-    syncFromKwami();
   }
 
   window.addEventListener('kwami:stateChanged', onStateChanged);

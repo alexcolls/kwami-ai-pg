@@ -191,8 +191,19 @@ export function useBlobXyzSync(options: UseBlobXyzSyncOptions) {
 
     function syncFromKwami(): void {
         const blobInstance = getBlob();
-        if (blobInstance) {
-            blobStore.syncFromKwami(blobInstance);
+        if (!blobInstance) return;
+        blobStore.syncFromKwami(blobInstance);
+        // Sync mesh rotation (visual orientation from user drag) into store so opening the avatar panel doesn't overwrite it
+        const mesh = blobInstance.getMesh();
+        if (mesh) {
+            const radToDeg = (rad: number) => (rad * 180) / Math.PI;
+            let x = radToDeg(mesh.rotation.x);
+            let y = radToDeg(mesh.rotation.y);
+            let z = radToDeg(mesh.rotation.z);
+            const normalize = (d: number) => ((d % 360) + 360) % 360;
+            shape.value.position.x = Math.round(normalize(x));
+            shape.value.position.y = Math.round(normalize(y));
+            shape.value.position.z = Math.round(normalize(z));
         }
     }
 

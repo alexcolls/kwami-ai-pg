@@ -24,6 +24,8 @@ import ModelsPanel from '@/components/panels/models/ModelsPanel.vue';
 import EnergyPanel from '@/components/panels/energy/EnergyPanel.vue';
 import EnergyBadge from '@/components/energy/EnergyBadge.vue';
 
+import { useWorkspaceStore } from '@/stores/workspace';
+import { useKwamiConfigWatchers } from '@/composables/useKwamiConfigSync';
 import { useAvatarStore } from '@/stores/avatar';
 import { useBlobXyzSync } from '@/composables/avatar/sync/useBlobXyzSync';
 import { useOrbitalShardsSync } from '@/composables/avatar/sync/useOrbitalShardsSync';
@@ -38,7 +40,11 @@ import { useCreditsStore } from '@/stores/credits';
 
 const uiStore = useUIStore();
 const authStore = useAuthStore();
+const workspaceStore = useWorkspaceStore();
 const avatarStore = useAvatarStore();
+
+// Sync per-kwami config: apply config when switching kwami, debounced save to DB
+useKwamiConfigWatchers();
 const voiceStore = useVoiceStore();
 const creditsStore = useCreditsStore();
 
@@ -70,17 +76,41 @@ const canvasRef = ref<HTMLCanvasElement | null>(null);
 const showWelcome = ref(false);
 const hasShownWelcome = ref(false);
 
-// Watch for authentication to show welcome screen and init credits
-watch(() => authStore.isAuthenticated, (isAuth, wasAuth) => {
-  // Show welcome when user just logged in (was not auth, now is auth)
-  if (isAuth && !wasAuth && !hasShownWelcome.value) {
-    showWelcome.value = true;
-    hasShownWelcome.value = true;
-  }
-  // Init credits when authenticated
-  if (isAuth) {
-    creditsStore.init();
-  }
+// Watch for authentication: welcome screen, credits, load kwamis from DB
+watch(
+  () => authStore.isAuthenticated,
+  (isAuth, wasAuth) => {
+    if (isAuth && wasAuth === false && !hasShownWelcome.value) {
+      showWelcome.value = true;
+      hasShownWelcome.value = true;
+    }
+    if (isAuth) {
+      creditsStore.init();
+      const uid = authStore.userId;
+      if (uid) void workspaceStore.loadFromDb(uid);
+    }
+  },
+  { immediate: true },
+);
+
+// Refresh energy/credits when user disconnects from voice (usage is reported on session end)
+function onKwamiDisconnected() {
+  creditsStore.loadBalance();
+  creditsStore.loadUsageLogs();
+}
+function onKwamiConfigApplied() {
+  applySavedAvatarState();
+  applySavedPersonaState();
+  initSceneBackground();
+}
+
+onMounted(() => {
+  window.addEventListener('kwami:disconnected', onKwamiDisconnected);
+  window.addEventListener('kwami:configApplied', onKwamiConfigApplied);
+});
+onUnmounted(() => {
+  window.removeEventListener('kwami:disconnected', onKwamiDisconnected);
+  window.removeEventListener('kwami:configApplied', onKwamiConfigApplied);
 });
 
 function onWelcomeComplete() {
@@ -109,12 +139,10 @@ function applySavedAvatarState() {
   }
 }
 
-// Apply saved persona config to kwami on startup
+// Apply current store persona to the Kwami instance so the live agent matches the active kwami config
 function applySavedPersonaState() {
   if (!kwami.value) return;
   const saved = voiceStore.personaConfig;
-  if (!saved.personality && saved.name === 'Kwami' && saved.traits.length === 0) return;
-
   kwami.value.persona.updateConfig({
     name: saved.name,
     personality: saved.personality,

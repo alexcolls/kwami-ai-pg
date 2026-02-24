@@ -1,29 +1,42 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { useUIStore } from '@/stores/ui';
+import { useAuthStore } from '@/stores/auth';
 import { panelIcons } from '@/constants/panel-icons';
 import { useWorkspaceStore } from '@/stores/workspace';
+import { useKwamiConfigSync } from '@/composables/useKwamiConfigSync';
+import { useToast } from 'vue-toastification';
 
 const uiStore = useUIStore();
+const authStore = useAuthStore();
 const workspaceStore = useWorkspaceStore();
+const { switchToKwami } = useKwamiConfigSync();
+const toast = useToast();
 
 const trayExpanded = ref(false);
+const kwamiListRef = ref<HTMLElement | null>(null);
 
 const activeWorkspace = computed(() => workspaceStore.getActiveWorkspace());
 const workspaces = computed(() => workspaceStore.workspaces);
-
 
 function toggleTray() {
   trayExpanded.value = !trayExpanded.value;
 }
 
 function switchKwami(id: string) {
-  workspaceStore.setActive(id);
+  switchToKwami(id);
   trayExpanded.value = false;
 }
 
-function addKwami() {
-  workspaceStore.addKwami();
+async function addKwami(event?: MouseEvent) {
+  event?.stopPropagation();
+  const newKwami = await workspaceStore.addKwami(authStore.userId);
+  toast.success(`Created "${newKwami.name}" ${newKwami.emoji}`);
+  requestAnimationFrame(() => {
+    if (kwamiListRef.value) {
+      kwamiListRef.value.scrollTop = kwamiListRef.value.scrollHeight;
+    }
+  });
 }
 
 // Close tray when clicking outside
@@ -104,10 +117,11 @@ function handlePanelClick(panel: string) {
         <div class="kwami-tray-header">
           <span class="kwami-tray-title">Your Kwamis</span>
         </div>
-        <div class="kwami-list">
+        <div ref="kwamiListRef" class="kwami-list">
           <button 
             v-for="ws in workspaces" 
             :key="ws.id"
+            type="button"
             class="kwami-item" 
             :class="{ active: ws.id === activeWorkspace?.id }"
             @click="switchKwami(ws.id)"
@@ -119,7 +133,7 @@ function handlePanelClick(panel: string) {
             </div>
           </button>
         </div>
-        <button class="kwami-add-btn" @click="addKwami" title="Create new Kwami">
+        <button type="button" class="kwami-add-btn" @click="addKwami($event)" title="Create new Kwami">
           <iconify-icon icon="ph:plus-bold"></iconify-icon>
           <span>New Kwami</span>
         </button>

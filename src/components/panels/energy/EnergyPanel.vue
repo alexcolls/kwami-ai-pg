@@ -263,7 +263,7 @@ function packIcon(packId: string): string {
               <span class="usage-meta">
                 {{ log.model_type.toUpperCase() }} &middot;
                 {{ log.units_used.toFixed(2) }}
-                {{ log.model_type === 'llm' ? 'tokens' : log.model_type === 'stt' ? 'min' : 'chars' }}
+                {{ log.model_type === 'llm' ? 'tokens' : log.model_type === 'stt' || log.model_type === 'realtime' ? 'min' : 'chars' }}
               </span>
             </div>
             <div class="usage-cost">

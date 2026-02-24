@@ -222,7 +222,8 @@ export function useSceneBackground() {
 
   function loadHdriEnvironment() {
     if (!initialized) return;
-    
+    if (background.value.media.type !== 'hdri') return;
+
     const scene = getScene();
     if (!scene) return;
 
