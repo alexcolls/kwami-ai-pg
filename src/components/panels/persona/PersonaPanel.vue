@@ -3,6 +3,8 @@ import { ref, reactive, onMounted, watch, computed } from 'vue';
 import { useToast } from 'vue-toastification';
 import { useKwami } from '@/composables/useKwami';
 import { useVoiceStore } from '@/stores/voice';
+import { useWorkspaceStore } from '@/stores/workspace';
+import { useAuthStore } from '@/stores/auth';
 import { storeToRefs } from 'pinia';
 import PanelSection from '@/components/ui/PanelSection.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
@@ -17,6 +19,8 @@ const toast = useToast();
 
 const { kwami, isConnected } = useKwami();
 const voiceStore = useVoiceStore();
+const workspaceStore = useWorkspaceStore();
+const authStore = useAuthStore();
 const { personaUI, personaConfig: savedPersonaConfig } = storeToRefs(voiceStore);
 
 // Persisted template selection state via store
@@ -189,6 +193,10 @@ watch(() => config.name, (v) => {
     kwami.value.persona.setName(v);
     syncPersonaToBackend();
     saveToStore();
+    const activeId = workspaceStore.activeWorkspaceId;
+    if (activeId && v.trim()) {
+      workspaceStore.updateKwami(activeId, { name: v.trim() }, authStore.userId);
+    }
   }
 });
 

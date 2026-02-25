@@ -17,8 +17,9 @@ export const useWorkspaceStore = defineStore('workspace', () => {
   const loading = ref(false);
   const loadedFromDb = ref(false);
 
+  const defaultColors = { x: '#00d9ff', y: '#a855f7', z: '#22c55e' };
+
   function generateRandomKwami(): Omit<KwamiWorkspace, 'config'> {
-    const emojis = ['🌸', '🔮', '✨', '🌊', '🎭', '🌙', '⚡', '🎪', '🌈', '💫', '🦋', '🌺'];
     const adjectives = [
       'Cosmic', 'Mystic', 'Neon', 'Stellar', 'Aurora', 'Crystal', 'Shadow', 'Prism',
     ];
@@ -27,11 +28,10 @@ export const useWorkspaceStore = defineStore('workspace', () => {
       '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0');
     const adj = adjectives[Math.floor(Math.random() * adjectives.length)] || 'Cosmic';
     const noun = nouns[Math.floor(Math.random() * nouns.length)] || 'Spark';
-    const emoji = emojis[Math.floor(Math.random() * emojis.length)] || '🌸';
     return {
       id: `kwami_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
       name: `${adj} ${noun}`,
-      emoji,
+      emoji: '',
       colors: { x: randomColor(), y: randomColor(), z: randomColor() },
     };
   }
@@ -118,20 +118,111 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     };
   }
 
-  async function addKwami(userId: string | null): Promise<KwamiWorkspace> {
-    const generated = generateRandomKwami();
+  async function addKwami(
+    userId: string | null,
+    initial?: {
+      name?: string;
+      randomize?: boolean;
+      colors?: { x: string; y: string; z: string };
+      config?: KwamiConfig;
+    },
+  ): Promise<KwamiWorkspace> {
+    const randomize = initial?.randomize ?? false;
+    let name: string;
+    let emoji: string;
+    let colors: { x: string; y: string; z: string };
+    let config: KwamiConfig | undefined;
+
+    if (randomize) {
+      const generated = generateRandomKwami();
+      name = (initial?.name?.trim() || generated.name).slice(0, 64);
+      emoji = '';
+      colors = generated.colors;
+      config = undefined;
+    } else {
+      const active = workspaces.value.find((w) => w.id === activeWorkspaceId.value);
+      name = (initial?.name?.trim() || active?.name || 'Kwami').slice(0, 64);
+      emoji = '';
+      colors = initial?.colors && typeof initial.colors === 'object'
+        ? { ...defaultColors, ...initial.colors }
+        : (active?.colors ? { ...active.colors } : defaultColors);
+      config = initial?.config ? JSON.parse(JSON.stringify(initial.config)) : (active?.config ? JSON.parse(JSON.stringify(active.config)) : undefined);
+    }
+
+    const payload = { name, emoji, colors };
     if (userId) {
-      const created = await createKwamiInDb(userId, generated);
+      const created = await createKwamiInDb(userId, payload);
       if (created) {
-        workspaces.value.push(created);
-        activeWorkspaceId.value = created.id;
-        return created;
+        const withConfig: KwamiWorkspace = { ...created, config };
+        workspaces.value.push(withConfig);
+        activeWorkspaceId.value = withConfig.id;
+        if (config && Object.keys(config).length > 0) {
+          (withConfig as KwamiWorkspace).config = config;
+        }
+        return withConfig;
       }
     }
-    const local: KwamiWorkspace = { ...generated, config: undefined };
+    const local: KwamiWorkspace = {
+      id: `kwami_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      name,
+      emoji,
+      colors,
+      config,
+    };
     workspaces.value.push(local);
     activeWorkspaceId.value = local.id;
     return local;
+  }
+
+  async function deleteKwami(id: string, userId: string | null): Promise<boolean> {
+    const idx = workspaces.value.findIndex((w) => w.id === id);
+    if (idx === -1) return false;
+    const wasActive = activeWorkspaceId.value === id;
+    const isDbId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    if (isDbId && userId) {
+      const { error } = await supabase.from('user_kwamis').delete().eq('id', id).eq('user_id', userId);
+      if (error) {
+        console.warn('Failed to delete kwami from DB:', error);
+        return false;
+      }
+    }
+    workspaces.value.splice(idx, 1);
+    if (wasActive && workspaces.value.length > 0) {
+      activeWorkspaceId.value = workspaces.value[0]!.id;
+    } else if (workspaces.value.length === 0) {
+      activeWorkspaceId.value = '';
+      ensureLocalWorkspace();
+    }
+    return true;
+  }
+
+  async function updateKwami(
+    id: string,
+    payload: { name?: string; emoji?: string; colors?: { x: string; y: string; z: string } },
+    userId: string | null,
+  ): Promise<void> {
+    const ws = workspaces.value.find((w) => w.id === id);
+    if (!ws) return;
+    if (payload.name !== undefined) ws.name = payload.name.trim().slice(0, 64);
+    if (payload.emoji !== undefined) ws.emoji = payload.emoji;
+    if (payload.colors !== undefined) ws.colors = { ...ws.colors, ...payload.colors };
+    const isDbId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    if (!isDbId || !userId) return;
+    try {
+      const body: Record<string, unknown> = {};
+      if (payload.name !== undefined) body.name = ws.name;
+      if (payload.emoji !== undefined) body.emoji = ws.emoji;
+      if (payload.colors !== undefined) body.colors = ws.colors;
+      if (Object.keys(body).length === 0) return;
+      const { error } = await supabase
+        .from('user_kwamis')
+        .update(body)
+        .eq('id', id)
+        .eq('user_id', userId);
+      if (error) throw error;
+    } catch (e) {
+      console.warn('Failed to update kwami:', e);
+    }
   }
 
   function setActive(id: string) {
@@ -179,10 +270,12 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     loading,
     loadedFromDb,
     addKwami,
+    updateKwami,
     setActive,
     getActiveWorkspace,
     loadFromDb,
     saveActiveConfig,
     ensureLocalWorkspace,
+    deleteKwami,
   };
 });
