@@ -44,22 +44,27 @@ function handleCancel() {
             <slot />
           </div>
           <div class="confirm-dialog-footer">
-            <BaseButton
-              variant="secondary"
-              @click="handleCancel"
-              :disabled="loading"
-            >
-              {{ cancelLabel }}
-            </BaseButton>
-            <BaseButton
-              :variant="confirmVariant"
-              :icon="confirmIcon"
-              :loading="loading"
-              :disabled="loading"
-              @click="emit('confirm')"
-            >
-              {{ loading ? 'Working...' : confirmLabel }}
-            </BaseButton>
+            <div class="footer-left">
+              <slot name="footerLeft" />
+            </div>
+            <div class="footer-actions">
+              <BaseButton
+                variant="secondary"
+                @click="handleCancel"
+                :disabled="loading"
+              >
+                {{ cancelLabel }}
+              </BaseButton>
+              <BaseButton
+                :variant="confirmVariant"
+                :icon="confirmIcon"
+                :loading="loading"
+                :disabled="loading"
+                @click="emit('confirm')"
+              >
+                {{ loading ? 'Working...' : confirmLabel }}
+              </BaseButton>
+            </div>
           </div>
         </div>
       </div>
@@ -158,7 +163,15 @@ function handleCancel() {
   background: var(--surface-0);
   border-top: 1px solid var(--glass-border);
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.footer-left {
+  margin-right: auto;
+}
+.footer-actions {
+  display: flex;
   gap: 12px;
 }
 

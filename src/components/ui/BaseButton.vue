@@ -177,12 +177,12 @@ const slots = useSlots();
 .variant-accent {
   background: var(--accent-glow);
   color: var(--accent-primary);
-  border-color: rgba(0, 217, 255, 0.2);
+  border-color: color-mix(in srgb, var(--accent-secondary) 25%, transparent);
 }
 
 .variant-accent:hover:not(:disabled) {
-  background: rgba(0, 217, 255, 0.2);
-  border-color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-secondary) 20%, transparent);
+  border-color: var(--accent-secondary);
   transform: translateY(-1px);
 }
 

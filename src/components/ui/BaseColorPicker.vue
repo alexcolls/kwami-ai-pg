@@ -774,10 +774,10 @@ onUnmounted(() => {
 </style>
 
 <style>
-/* Popover (Global for Teleport) */
+/* Popover (Global for Teleport) - above modals (z-index 10000) */
 .color-popover {
   position: fixed;
-  z-index: 9999;
+  z-index: 10001;
   padding: 12px;
   background: var(--glass-bg);
   backdrop-filter: blur(var(--glass-blur));

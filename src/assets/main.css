@@ -132,7 +132,7 @@ canvas#kwami-canvas {
 }
 
 .Vue-Toastification__toast {
-  background: var(--glass-bg) !important;
+  background: var(--surface-2, var(--glass-bg)) !important;
   backdrop-filter: blur(var(--glass-blur)) !important;
   -webkit-backdrop-filter: blur(var(--glass-blur)) !important;
   border: 1px solid var(--glass-border) !important;
@@ -165,25 +165,23 @@ canvas#kwami-canvas {
   width: 100% !important;
 }
 
-/* Toast type border colors -- use accent-derived colors */
+/* Toast type border and accent - theme colors */
 .Vue-Toastification__toast--success {
-  border-color: var(--glass-border) !important;
-  border-left: 3px solid var(--success, var(--accent-primary)) !important;
+  border-left: 4px solid var(--accent-primary) !important;
+  box-shadow: var(--glass-shadow), 0 0 20px var(--accent-glow) !important;
 }
 
 .Vue-Toastification__toast--error {
-  border-color: var(--glass-border) !important;
-  border-left: 3px solid var(--error, #f87171) !important;
+  border-left: 4px solid var(--error, #f87171) !important;
 }
 
 .Vue-Toastification__toast--warning {
-  border-color: var(--glass-border) !important;
-  border-left: 3px solid var(--warning, #fbbf24) !important;
+  border-left: 4px solid var(--warning, #fbbf24) !important;
 }
 
 .Vue-Toastification__toast--info {
-  border-color: var(--glass-border) !important;
-  border-left: 3px solid var(--accent-primary) !important;
+  border-left: 4px solid var(--accent-secondary) !important;
+  box-shadow: var(--glass-shadow), 0 0 16px color-mix(in srgb, var(--accent-secondary) 25%, transparent) !important;
 }
 
 /* Icon -- fix alignment */
@@ -208,7 +206,7 @@ canvas#kwami-canvas {
 }
 
 .Vue-Toastification__toast--success .Vue-Toastification__icon {
-  color: var(--success, var(--accent-primary)) !important;
+  color: var(--accent-primary) !important;
 }
 
 .Vue-Toastification__toast--error .Vue-Toastification__icon {
@@ -220,20 +218,20 @@ canvas#kwami-canvas {
 }
 
 .Vue-Toastification__toast--info .Vue-Toastification__icon {
-  color: var(--accent-primary) !important;
+  color: var(--accent-secondary) !important;
 }
 
-/* Progress bar */
+/* Progress bar - theme gradient for success */
 .Vue-Toastification__progress-bar {
-  background: var(--accent-primary) !important;
-  opacity: 0.4 !important;
-  height: 2px !important;
+  background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary)) !important;
+  opacity: 0.7 !important;
+  height: 3px !important;
   bottom: 0 !important;
   border-radius: 0 0 var(--radius-xl) var(--radius-xl) !important;
 }
 
 .Vue-Toastification__toast--success .Vue-Toastification__progress-bar {
-  background: var(--success, var(--accent-primary)) !important;
+  background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary)) !important;
 }
 
 .Vue-Toastification__toast--error .Vue-Toastification__progress-bar {
@@ -242,6 +240,10 @@ canvas#kwami-canvas {
 
 .Vue-Toastification__toast--warning .Vue-Toastification__progress-bar {
   background: var(--warning, #fbbf24) !important;
+}
+
+.Vue-Toastification__toast--info .Vue-Toastification__progress-bar {
+  background: var(--accent-secondary) !important;
 }
 
 /* Close button */
