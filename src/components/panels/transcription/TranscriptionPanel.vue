@@ -115,11 +115,11 @@ onUnmounted(() => {
       </div>
 
       <!-- Web search results (when agent used web_search) -->
-      <div v-if="searchResults.loading || searchResults.error || searchResults.hasResults()" class="search-results-section">
+      <div v-if="searchResults.loading || searchResults.error || searchResults.hasSearchData" class="search-results-section">
         <div class="search-results-header">
           <iconify-icon icon="ph:magnifying-glass-duotone"></iconify-icon>
           <span>Web search</span>
-          <button v-if="searchResults.hasResults() || searchResults.error" class="search-clear" @click="searchResults.clear" title="Clear results">
+          <button v-if="searchResults.hasSearchData || searchResults.error" class="search-clear" @click="searchResults.clear" title="Clear results">
             <iconify-icon icon="ph:x"></iconify-icon>
           </button>
         </div>

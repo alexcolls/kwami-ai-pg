@@ -29,7 +29,13 @@ export function useKwami() {
   /** @deprecated Use memoryUserId for memory/agent. Kept for compatibility. */
   const userId = computed(() => authStore.userId || 'anonymous');
 
-  function init(canvas: HTMLCanvasElement, renderer: 'blob-xyz' | 'orbital-shards' | 'stars-genesis' | 'crystal-ball' | 'black-hole' = 'blob-xyz') {
+  function init(
+    canvas: HTMLCanvasElement,
+    renderer: 'blob-xyz' | 'orbital-shards' | 'stars-genesis' | 'crystal-ball' | 'black-hole' = 'blob-xyz',
+    options?: {
+      onSearchResults?: (data: { query: string; results: Array<{ title: string; url: string; content: string }>; answer: string | null }) => void;
+    },
+  ) {
     rendererType.value = renderer;
 
     // Get voice config from store
@@ -119,6 +125,7 @@ export function useKwami() {
           tokenEndpoint: import.meta.env.VITE_LIVEKIT_TOKEN_ENDPOINT || '',
           userId: memoryUserId.value, // Per-kwami memory id so each kwami has its own memory
           voice: voiceStore.voiceConfig,
+          ...(options?.onSearchResults && { onSearchResults: options.onSearchResults }),
         },
       },
       persona: {

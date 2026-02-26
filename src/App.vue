@@ -26,6 +26,8 @@ import EnergyBadge from '@/components/energy/EnergyBadge.vue';
 
 import { useWorkspaceStore } from '@/stores/workspace';
 import { useKwamiConfigWatchers } from '@/composables/useKwamiConfigSync';
+import { useSearchResults } from '@/composables/useSearchResults';
+import { useSearchStore } from '@/stores/search';
 import { useAvatarStore } from '@/stores/avatar';
 import { useBlobXyzSync } from '@/composables/avatar/sync/useBlobXyzSync';
 import { useOrbitalShardsSync } from '@/composables/avatar/sync/useOrbitalShardsSync';
@@ -41,7 +43,20 @@ import { useCreditsStore } from '@/stores/credits';
 const uiStore = useUIStore();
 const authStore = useAuthStore();
 const workspaceStore = useWorkspaceStore();
+
+// Search results: callback + event listener both update store; panel reads store
+const searchResults = useSearchResults();
+const searchStore = useSearchStore();
 const avatarStore = useAvatarStore();
+
+function faviconForUrl(url: string): string {
+  try {
+    const host = new URL(url).hostname;
+    return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=64`;
+  } catch {
+    return '';
+  }
+}
 
 // Sync per-kwami config: apply config when switching kwami, debounced save to DB
 useKwamiConfigWatchers();
@@ -162,7 +177,9 @@ function initializeKwami() {
   // Default to blob renderer (will be overridden by saved state if available)
   const rendererType = 'blob-xyz';
 
-  init(canvasRef.value, rendererType);
+  init(canvasRef.value, rendererType, {
+    onSearchResults: (data) => searchResults.setResults(data),
+  });
   isInitialized.value = true;
 
   // Initialize scene background from saved settings
@@ -289,7 +306,54 @@ onUnmounted(() => {
       <canvas id="kwami-canvas" ref="canvasRef"></canvas>
 
       <!-- UI controls only shown when authenticated and welcome complete -->
-      <template v-if="authStore.isAuthenticated && !showWelcome">
+        <template v-if="authStore.isAuthenticated && !showWelcome">
+        <!-- Web search results overlay (store-driven so it always shows when data exists) -->
+        <Teleport to="body">
+          <div
+            v-if="searchStore.hasSearchData || searchStore.error"
+            class="search-overlay"
+            role="region"
+            aria-label="Web search results"
+          >
+            <div class="search-overlay-backdrop" @click="searchStore.clear" />
+            <div class="search-overlay-panel">
+              <header class="search-overlay-header">
+                <span class="search-overlay-title">
+                  <iconify-icon icon="ph:magnifying-glass-duotone" />
+                  Web search
+                </span>
+                <button type="button" class="search-overlay-close" @click="searchStore.clear" aria-label="Close">
+                  <iconify-icon icon="ph:x" />
+                </button>
+              </header>
+              <p v-if="searchStore.query" class="search-overlay-query">“{{ searchStore.query }}”</p>
+              <p v-if="searchStore.answer" class="search-overlay-answer">{{ searchStore.answer }}</p>
+              <div v-if="searchStore.error" class="search-overlay-error">{{ searchStore.error }}</div>
+              <ul v-else class="search-overlay-list">
+                <li v-for="(r, i) in searchStore.results" :key="i" class="search-overlay-item">
+                  <a :href="r.url" target="_blank" rel="noopener noreferrer" class="search-overlay-card">
+                    <span class="search-overlay-card-img-wrap">
+                      <img
+                        v-if="faviconForUrl(r.url)"
+                        :src="faviconForUrl(r.url)"
+                        alt=""
+                        class="search-overlay-card-img"
+                        loading="lazy"
+                      />
+                      <iconify-icon v-else icon="ph:link-duotone" class="search-overlay-card-icon" />
+                    </span>
+                    <span class="search-overlay-card-body">
+                      <span class="search-overlay-card-title">{{ r.title }}</span>
+                      <span class="search-overlay-card-desc">{{ (r.content || '').slice(0, 200) }}{{ (r.content || '').length > 200 ? '…' : '' }}</span>
+                      <span class="search-overlay-card-url">{{ r.url }}</span>
+                    </span>
+                    <iconify-icon icon="ph:arrow-square-out-duotone" class="search-overlay-card-arrow" />
+                  </a>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </Teleport>
         <!-- Control Bar (top-right) -->
         <div class="control-bar-container">
           <EnergyBadge />
@@ -337,5 +401,176 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+/* Web search overlay – store-driven, impossible to miss */
+.search-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  box-sizing: border-box;
+}
+.search-overlay-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(6px);
+}
+.search-overlay-panel {
+  position: relative;
+  width: 100%;
+  max-width: 560px;
+  max-height: 85vh;
+  min-height: 320px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  box-shadow:
+    var(--glass-shadow),
+    0 0 0 1px rgba(0, 217, 255, 0.1),
+    0 0 48px rgba(0, 217, 255, 0.08);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.search-overlay-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--glass-border);
+  flex-shrink: 0;
+}
+.search-overlay-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--accent-primary);
+}
+.search-overlay-title iconify-icon {
+  font-size: 1.25rem;
+}
+.search-overlay-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.search-overlay-close:hover {
+  background: var(--surface-3);
+  color: var(--text-primary);
+}
+.search-overlay-query {
+  padding: 12px 20px 0;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+.search-overlay-answer {
+  padding: 8px 20px 12px;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--text-primary);
+}
+.search-overlay-error {
+  padding: 20px;
+  color: var(--error);
+}
+.search-overlay-list {
+  list-style: none;
+  margin: 0;
+  padding: 12px 20px 20px;
+  overflow-y: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.search-overlay-item {
+  margin-bottom: 10px;
+}
+.search-overlay-item:last-child {
+  margin-bottom: 0;
+}
+.search-overlay-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px;
+  border-radius: var(--radius-lg);
+  background: var(--surface-1);
+  border: 1px solid var(--glass-border);
+  text-decoration: none;
+  color: inherit;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+.search-overlay-card:hover {
+  background: var(--surface-2);
+  border-color: rgba(0, 217, 255, 0.25);
+  box-shadow: 0 0 20px rgba(0, 217, 255, 0.1);
+}
+.search-overlay-card-img-wrap {
+  flex-shrink: 0;
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-md);
+  background: var(--surface-3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.search-overlay-card-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.search-overlay-card-icon {
+  font-size: 1.75rem;
+  color: var(--text-muted);
+}
+.search-overlay-card-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.search-overlay-card-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--accent-primary);
+  line-height: 1.3;
+}
+.search-overlay-card-desc {
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: var(--text-secondary);
+}
+.search-overlay-card-url {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.search-overlay-card-arrow {
+  flex-shrink: 0;
+  font-size: 1.25rem;
+  color: var(--text-muted);
+  margin-top: 2px;
 }
 </style>
