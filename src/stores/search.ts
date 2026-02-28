@@ -5,11 +5,16 @@ export interface SearchResultItem {
   title: string;
   url: string;
   content: string;
+  /** Image URL (e.g. og:image from result page) */
+  image?: string;
+  /** Extracted features (e.g. "2 bedrooms", "€2000/mo") */
+  features?: string[];
 }
 
 export const useSearchStore = defineStore('search', () => {
   const query = ref('');
   const results = ref<SearchResultItem[]>([]);
+  const resultsBatchId = ref(0); // Bump when results change so card entrance re-runs
   const answer = ref<string | null>(null);
   const error = ref<string | null>(null);
 
@@ -27,6 +32,7 @@ export const useSearchStore = defineStore('search', () => {
   }) {
     query.value = data.query ?? '';
     results.value = Array.isArray(data.results) ? data.results : [];
+    resultsBatchId.value += 1;
     answer.value = data.answer ?? null;
     error.value = null;
   }
@@ -45,6 +51,7 @@ export const useSearchStore = defineStore('search', () => {
   return {
     query,
     results,
+    resultsBatchId,
     answer,
     error,
     hasSearchData,
