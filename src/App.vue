@@ -24,11 +24,14 @@ import ModelsPanel from '@/components/panels/models/ModelsPanel.vue';
 import EnergyPanel from '@/components/panels/energy/EnergyPanel.vue';
 import EnergyBadge from '@/components/energy/EnergyBadge.vue';
 import SearchOrbitCards from '@/components/search/SearchOrbitCards.vue';
+import NavigationPanel from '@/components/navigation/NavigationPanel.vue';
 
 import { useWorkspaceStore } from '@/stores/workspace';
 import { useKwamiConfigWatchers } from '@/composables/useKwamiConfigSync';
 import { useSearchResults } from '@/composables/useSearchResults';
+import { useNavigation } from '@/composables/useNavigation';
 import { useSearchStore } from '@/stores/search';
+import { useNavigationStore } from '@/stores/navigation';
 import { useAvatarStore } from '@/stores/avatar';
 import { useBlobXyzSync } from '@/composables/avatar/sync/useBlobXyzSync';
 import { useOrbitalShardsSync } from '@/composables/avatar/sync/useOrbitalShardsSync';
@@ -49,6 +52,10 @@ const workspaceStore = useWorkspaceStore();
 const searchResults = useSearchResults();
 const searchStore = useSearchStore();
 const avatarStore = useAvatarStore();
+
+// Navigation: browser video stream + state from agent
+useNavigation();
+const navigationStore = useNavigationStore();
 
 // Sync per-kwami config: apply config when switching kwami, debounced save to DB
 useKwamiConfigWatchers();
@@ -98,6 +105,24 @@ watch(
     }
   },
   { immediate: true },
+);
+
+// Resize canvas when navigation panel opens/closes (keeps blob centered without distortion)
+watch(
+  () => navigationStore.isActive,
+  (active) => {
+    if (!canvasRef.value) return;
+    const el = canvasRef.value;
+    if (active) {
+      el.style.transition = 'width 0.5s ease';
+      el.style.width = '36vw';
+    } else {
+      el.style.transition = 'width 0.5s ease';
+      el.style.width = '';
+    }
+    // Trigger Three.js resize after the CSS transition
+    setTimeout(() => handleResize(), 550);
+  },
 );
 
 // Refresh energy/credits when user disconnects from voice (usage is reported on session end)
@@ -301,6 +326,8 @@ onUnmounted(() => {
         <template v-if="authStore.isAuthenticated && !showWelcome">
         <!-- Search results as orbit cards around the Kwami (blob) -->
         <SearchOrbitCards />
+        <!-- Navigation panel (browser live stream from agent) -->
+        <NavigationPanel />
         <!-- Control Bar (top-right) -->
         <div class="control-bar-container">
           <EnergyBadge />
