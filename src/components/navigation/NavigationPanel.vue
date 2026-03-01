@@ -1,10 +1,31 @@
 <script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue';
+import { ref, watch, onMounted, onUnmounted, nextTick, computed } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useNavigationStore } from '@/stores/navigation';
 
 const store = useNavigationStore();
 const { isActive, currentUrl, currentTitle, isLoading, iframeUrl } = storeToRefs(store);
+
+// Auth/sign-in pages are blocked in iframes by Google, Microsoft, etc. (403)
+const AUTH_BLOCKED_HOSTS = [
+  'accounts.google.com',
+  'accounts.youtube.com',
+  'login.live.com',
+  'login.microsoftonline.com',
+  'appleid.apple.com',
+  'www.facebook.com',
+  'm.facebook.com',
+];
+const isAuthBlockedPage = computed(() => {
+  const url = currentUrl.value;
+  if (!url) return false;
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    return AUTH_BLOCKED_HOSTS.some((h) => host === h || host.endsWith('.' + h));
+  } catch {
+    return false;
+  }
+});
 
 const iframeRef = ref<HTMLIFrameElement | null>(null);
 const isVisible = ref(false);
@@ -25,6 +46,46 @@ function onIframeLoad() {
 function handleMessage(e: MessageEvent) {
   if (e.data?.type === 'scramjet:urlchange' && e.data.url) {
     store.updateState({ url: e.data.url });
+  }
+  if (e.data?.type === 'scramjet:page_content') {
+    sendPageContentToAgent(e.data);
+  }
+  if (e.data?.type === 'scramjet:command_result') {
+    sendCommandResultToAgent(e.data);
+  }
+}
+
+function sendPageContentToAgent(data: { title?: string; text?: string; elements?: unknown[] }) {
+  const msg = { type: 'nav_page_content', title: data.title, text: data.text, elements: data.elements };
+  const encoder = new TextEncoder();
+  const payload = encoder.encode(JSON.stringify(msg));
+  window.dispatchEvent(new CustomEvent('kwami:send_data', { detail: payload }));
+}
+
+function sendCommandResultToAgent(data: { id?: string; result?: string }) {
+  const msg = { type: 'nav_command_result', id: data.id, result: data.result };
+  const encoder = new TextEncoder();
+  const payload = encoder.encode(JSON.stringify(msg));
+  window.dispatchEvent(new CustomEvent('kwami:send_data', { detail: payload }));
+}
+
+function sendCommandToEmbed(action: string, extra: Record<string, string> = {}) {
+  if (!iframeRef.value?.contentWindow) return;
+  iframeRef.value.contentWindow.postMessage(
+    { type: 'scramjet:command', action, ...extra },
+    '*'
+  );
+}
+
+function handleNavCommand(e: Event) {
+  const detail = (e as CustomEvent).detail as { action?: string; description?: string; text?: string; url?: string };
+  if (!detail?.action) return;
+  const { action } = detail;
+  if (['click', 'type', 'press_key', 'scroll', 'read_page'].includes(action)) {
+    sendCommandToEmbed(action, {
+      description: detail.description || '',
+      text: detail.text || '',
+    });
   }
 }
 
@@ -51,6 +112,7 @@ function truncateUrl(url: string, max = 60): string {
 
 onMounted(() => {
   window.addEventListener('message', handleMessage);
+  window.addEventListener('kwami:nav_command', handleNavCommand);
   if (isActive.value) {
     isVisible.value = true;
   }
@@ -58,6 +120,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('message', handleMessage);
+  window.removeEventListener('kwami:nav_command', handleNavCommand);
   isVisible.value = false;
 });
 </script>
@@ -93,6 +156,16 @@ onUnmounted(() => {
         </div>
       </div>
 
+      <!-- Auth blocked banner: sign-in pages return 403 in iframes -->
+      <div v-if="isAuthBlockedPage" class="nav-auth-banner">
+        <iconify-icon icon="mdi:lock-alert" width="18" />
+        <span>Sign-in doesn't work in this embedded browser. Use <strong>Open in new tab</strong> to sign in.</span>
+        <button class="nav-auth-open-btn" @click="handleOpenExternal">
+          <iconify-icon icon="mdi:open-in-new" width="16" />
+          Open in new tab
+        </button>
+      </div>
+
       <!-- Proxied iframe -->
       <div class="nav-content">
         <iframe
@@ -114,24 +187,20 @@ onUnmounted(() => {
 
 <style scoped>
 .nav-panel {
-  position: fixed;
-  top: 16px;
-  right: 16px;
-  bottom: 16px;
-  width: min(62vw, 900px);
+  flex: 0 0 50%;
+  width: 50%;
+  min-width: 0;
+  height: 100%;
   z-index: 90;
   display: flex;
   flex-direction: column;
-  border-radius: 14px;
   overflow: hidden;
-  background: rgba(12, 12, 18, 0.82);
+  background: rgba(12, 12, 18, 0.95);
   backdrop-filter: blur(28px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow:
-    0 8px 40px rgba(0, 0, 0, 0.5),
-    0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: -8px 0 40px rgba(0, 0, 0, 0.4);
   opacity: 0;
-  transform: translateX(30px);
+  transform: translateX(20px);
   transition: opacity 0.35s ease, transform 0.35s ease;
 }
 .nav-panel.visible {
@@ -235,6 +304,41 @@ onUnmounted(() => {
   color: rgba(255, 180, 180, 0.95);
 }
 
+.nav-auth-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: rgba(255, 180, 60, 0.12);
+  border-bottom: 1px solid rgba(255, 180, 60, 0.25);
+  color: rgba(255, 220, 150, 0.95);
+  font-size: 0.8rem;
+  flex-shrink: 0;
+}
+.nav-auth-banner iconify-icon {
+  flex-shrink: 0;
+  color: rgba(255, 200, 60, 0.9);
+}
+.nav-auth-open-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  padding: 6px 12px;
+  border: 1px solid rgba(255, 200, 60, 0.4);
+  border-radius: 8px;
+  background: rgba(255, 200, 60, 0.15);
+  color: rgba(255, 220, 150, 0.95);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+.nav-auth-open-btn:hover {
+  background: rgba(255, 200, 60, 0.25);
+  border-color: rgba(255, 200, 60, 0.6);
+}
+
 .nav-content {
   flex: 1;
   display: flex;
@@ -270,10 +374,10 @@ onUnmounted(() => {
 }
 .nav-slide-enter-from {
   opacity: 0;
-  transform: translateX(30px);
+  transform: translateX(20px);
 }
 .nav-slide-leave-to {
   opacity: 0;
-  transform: translateX(30px);
+  transform: translateX(20px);
 }
 </style>

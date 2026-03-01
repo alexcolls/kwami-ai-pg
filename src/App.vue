@@ -107,21 +107,11 @@ watch(
   { immediate: true },
 );
 
-// Resize canvas when navigation panel opens/closes (keeps blob centered without distortion)
+// Resize canvas when navigation sidebar opens/closes (layout handles sizing; trigger scene resize)
 watch(
   () => navigationStore.isActive,
-  (active) => {
-    if (!canvasRef.value) return;
-    const el = canvasRef.value;
-    if (active) {
-      el.style.transition = 'width 0.5s ease';
-      el.style.width = '36vw';
-    } else {
-      el.style.transition = 'width 0.5s ease';
-      el.style.width = '';
-    }
-    // Trigger Three.js resize after the CSS transition
-    setTimeout(() => handleResize(), 550);
+  () => {
+    setTimeout(() => handleResize(), 350);
   },
 );
 
@@ -318,22 +308,27 @@ onUnmounted(() => {
   />
 
   <AuthGuard>
-    <div id="kwami-root">
-      <!-- Canvas always renders for background effect -->
-      <canvas id="kwami-canvas" ref="canvasRef"></canvas>
+    <div id="kwami-root" class="root-layout">
+      <!-- Main area: canvas + overlays; shrinks to 50% when nav sidebar opens -->
+      <div class="main-area" :class="{ 'nav-open': navigationStore.isActive }">
+        <canvas id="kwami-canvas" ref="canvasRef"></canvas>
 
-      <!-- UI controls only shown when authenticated and welcome complete -->
+        <!-- UI controls only shown when authenticated and welcome complete -->
         <template v-if="authStore.isAuthenticated && !showWelcome">
-        <!-- Search results as orbit cards around the Kwami (blob) -->
-        <SearchOrbitCards />
-        <!-- Navigation panel (browser live stream from agent) -->
-        <NavigationPanel />
-        <!-- Control Bar (top-right) -->
-        <div class="control-bar-container">
-          <EnergyBadge />
-          <ControlBar />
-        </div>
+          <!-- Search results as orbit cards around the Kwami (blob) -->
+          <SearchOrbitCards />
+          <!-- Control Bar (top-right of main area; moves with canvas when nav opens) -->
+          <div class="control-bar-container">
+            <EnergyBadge />
+            <ControlBar />
+          </div>
+        </template>
+      </div>
 
+      <!-- Navigation sidebar: 50% width when active -->
+      <NavigationPanel />
+
+      <template v-if="authStore.isAuthenticated && !showWelcome">
         <TheSidebar>
           <AvatarPanel v-if="uiStore.activePanel === 'avatar'" />
           <ScenePanel v-if="uiStore.activePanel === 'scene'" />
@@ -366,9 +361,35 @@ onUnmounted(() => {
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* Control Bar Container */
+/* Root layout: flex row for main area + nav sidebar */
+.root-layout {
+  display: flex;
+  flex-direction: row;
+}
+
+/* Main area: canvas + overlays; 100% when nav closed, 50% when nav open */
+.main-area {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+  overflow: hidden;
+  transition: flex 0.4s ease;
+}
+.main-area.nav-open {
+  flex: 0 0 50%;
+}
+
+/* Canvas fills main area */
+.main-area canvas#kwami-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* Control Bar: positioned at top-right of main area (moves with canvas) */
 .control-bar-container {
-  position: fixed;
+  position: absolute;
   top: 16px;
   right: 16px;
   z-index: 100;
