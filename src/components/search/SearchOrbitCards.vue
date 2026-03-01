@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useSearchStore, type SearchResultItem } from '@/stores/search';
+import { useKwami } from '@/composables/useKwami';
 
 const searchStore = useSearchStore();
+const { kwami } = useKwami();
 const containerRef = ref<HTMLElement | null>(null);
 
 const CARD_WIDTH = 280;
@@ -102,12 +104,16 @@ function onPointerUp(e: PointerEvent, index: number) {
   dragIndex = -1;
 }
 
-function onCardClick(e: MouseEvent, index: number, url: string) {
+function onCardClick(e: MouseEvent, index: number, _url: string) {
   if (didDrag) {
     e.preventDefault();
     return;
   }
   // Allow default (open link)
+}
+
+function onFindSimilar(r: SearchResultItem) {
+  kwami?.value?.agent?.sendSearchSimilar?.(r.title || '', r.url || '');
 }
 
 function onPointerMoveGlobal(e: PointerEvent) {
@@ -188,9 +194,15 @@ onUnmounted(() => {
         <iconify-icon v-else icon="ph:image-duotone" class="deck-card-icon" />
       </div>
       <div class="deck-card-body">
-        <span class="deck-card-title">{{ (r.title || '').slice(0, 60) }}{{ (r.title || '').length > 60 ? '…' : '' }}</span>
-        <p v-if="r.content" class="deck-card-desc">
+        <span class="deck-card-product-name">
+          {{ (r.product_name || r.title || '').slice(0, 52) }}{{ (r.product_name || r.title || '').length > 52 ? '…' : '' }}
+        </span>
+        <span v-if="r.price" class="deck-card-price">{{ r.price }}</span>
+        <p v-if="r.content && !r.price" class="deck-card-desc">
           {{ (r.content || '').slice(0, 72) }}{{ (r.content || '').length > 72 ? '…' : '' }}
+        </p>
+        <p v-else-if="r.content" class="deck-card-desc deck-card-desc-short">
+          {{ (r.content || '').slice(0, 48) }}{{ (r.content || '').length > 48 ? '…' : '' }}
         </p>
         <div v-if="r.features && r.features.length" class="deck-card-features">
           <span
@@ -198,12 +210,30 @@ onUnmounted(() => {
             :key="j"
             class="deck-card-tag"
           >
-            {{ (f || '').slice(0, 20) }}{{ (f || '').length > 20 ? '…' : '' }}
+            {{ (f || '').slice(0, 18) }}{{ (f || '').length > 18 ? '…' : '' }}
           </span>
         </div>
-        <span class="deck-card-open">
-          <iconify-icon icon="ph:arrow-square-out" />
-          Open
+        <div class="deck-card-actions" @click.stop @pointerdown.stop>
+          <button
+            type="button"
+            class="deck-card-btn deck-card-btn-discard"
+            aria-label="Discard this result"
+            @click="searchStore.removeResultAt(i)"
+          >
+            <iconify-icon icon="ph:trash" />
+          </button>
+          <button
+            type="button"
+            class="deck-card-btn deck-card-btn-similar"
+            aria-label="Find similar"
+            @click="onFindSimilar(r)"
+          >
+            <iconify-icon icon="ph:magic-wand" />
+          </button>
+        </div>
+        <span class="deck-card-cta">
+          <iconify-icon icon="ph:shopping-bag" />
+          View product
         </span>
       </div>
     </a>
@@ -326,19 +356,28 @@ onUnmounted(() => {
   gap: 6px;
 }
 
-.deck-card-title {
-  font-size: 0.88rem;
+.deck-card-product-name {
+  font-size: 0.9rem;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.95);
-  line-height: 1.3;
+  color: rgba(255, 255, 255, 0.98);
+  line-height: 1.25;
   display: -webkit-box;
-  -webkit-line-clamp: 1;
+  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
 
+.deck-card-price {
+  display: block;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--accent-primary, #00d9ff);
+  letter-spacing: 0.02em;
+  margin-top: 2px;
+}
+
 .deck-card-desc {
-  margin: 0;
+  margin: 4px 0 0;
   font-size: 0.75rem;
   line-height: 1.35;
   color: rgba(255, 255, 255, 0.55);
@@ -346,6 +385,9 @@ onUnmounted(() => {
   -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+.deck-card-desc-short {
+  -webkit-line-clamp: 1;
 }
 
 .deck-card-features {
@@ -366,15 +408,54 @@ onUnmounted(() => {
   white-space: nowrap;
 }
 
-.deck-card-open {
-  margin-top: 4px;
-  font-size: 0.72rem;
-  color: rgba(255, 255, 255, 0.5);
+.deck-card-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.deck-card-btn {
+  flex: 1;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 4px;
+  padding: 5px 8px;
+  font-size: 0.68rem;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: opacity 0.2s, background 0.2s;
 }
-.deck-card-open iconify-icon {
-  font-size: 0.9rem;
+.deck-card-btn iconify-icon {
+  font-size: 0.85rem;
+}
+.deck-card-btn-discard {
+  background: rgba(255, 80, 80, 0.2);
+  color: rgba(255, 180, 180, 0.95);
+}
+.deck-card-btn-discard:hover {
+  background: rgba(255, 80, 80, 0.35);
+}
+.deck-card-btn-similar {
+  background: rgba(0, 217, 255, 0.15);
+  color: rgba(200, 240, 255, 0.95);
+}
+.deck-card-btn-similar:hover {
+  background: rgba(0, 217, 255, 0.28);
+}
+
+.deck-card-cta {
+  margin-top: 8px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--accent-primary, #00d9ff);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.deck-card-cta iconify-icon {
+  font-size: 1rem;
 }
 </style>

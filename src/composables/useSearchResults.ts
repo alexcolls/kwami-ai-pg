@@ -33,6 +33,10 @@ export function useSearchResults() {
         answer: detail?.answer ?? null,
       });
     });
+    window.addEventListener('kwami:remove_result', (e: Event) => {
+      const detail = (e as CustomEvent).detail as { index?: number };
+      if (typeof detail?.index === 'number') store.removeResultAt(detail.index);
+    });
   }
 
   function setResults(data: {

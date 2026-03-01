@@ -9,6 +9,10 @@ export interface SearchResultItem {
   image?: string;
   /** Extracted features (e.g. "2 bedrooms", "€2000/mo") */
   features?: string[];
+  /** Product/item name (cleaned title for product cards) */
+  product_name?: string;
+  /** Extracted price for product cards (e.g. "€199", "$49.99") */
+  price?: string | null;
 }
 
 export const useSearchStore = defineStore('search', () => {
@@ -41,6 +45,13 @@ export const useSearchStore = defineStore('search', () => {
     error.value = msg;
   }
 
+  function removeResultAt(index: number) {
+    const i = Math.max(0, Math.floor(index));
+    if (i < results.value.length) {
+      results.value = results.value.filter((_, j) => j !== i);
+    }
+  }
+
   function clear() {
     query.value = '';
     results.value = [];
@@ -57,6 +68,7 @@ export const useSearchStore = defineStore('search', () => {
     hasSearchData,
     setResults,
     setError,
+    removeResultAt,
     clear,
   };
 });
