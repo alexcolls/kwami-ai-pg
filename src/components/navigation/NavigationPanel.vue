@@ -4,7 +4,7 @@ import { storeToRefs } from 'pinia';
 import { useNavigationStore } from '@/stores/navigation';
 
 const store = useNavigationStore();
-const { isActive, currentUrl, currentTitle, isLoading, iframeUrl } = storeToRefs(store);
+const { isActive, currentUrl, currentTitle, isLoading, iframeUrl, useExtensionMode } = storeToRefs(store);
 
 // Auth/sign-in pages are blocked in iframes by Google, Microsoft, etc. (403)
 const AUTH_BLOCKED_HOSTS = [
@@ -81,6 +81,7 @@ function handleNavCommand(e: Event) {
   const detail = (e as CustomEvent).detail as { action?: string; description?: string; text?: string; url?: string };
   if (!detail?.action) return;
   const { action } = detail;
+  if (useExtensionMode.value) return;
   if (['click', 'type', 'press_key', 'scroll', 'read_page'].includes(action)) {
     sendCommandToEmbed(action, {
       description: detail.description || '',
@@ -166,20 +167,31 @@ onUnmounted(() => {
         </button>
       </div>
 
-      <!-- Proxied iframe -->
+      <!-- Extension mode: real tab (no iframe); otherwise proxy iframe -->
       <div class="nav-content">
-        <iframe
-          v-if="iframeUrl"
-          ref="iframeRef"
-          :src="iframeUrl"
-          class="nav-iframe"
-          allow="autoplay; encrypted-media; fullscreen"
-          @load="onIframeLoad"
-        />
-        <div v-else class="nav-placeholder">
-          <iconify-icon icon="svg-spinners:pulse-3" width="40" />
-          <span>Loading page...</span>
+        <div v-if="useExtensionMode" class="nav-extension-placeholder">
+          <iconify-icon icon="mdi:open-in-new" width="32" />
+          <p>Page is open in a separate tab.</p>
+          <p class="nav-extension-hint">Kwami can navigate and interact there; sign-in and any site work.</p>
+          <button class="nav-auth-open-btn" @click="handleOpenExternal">
+            <iconify-icon icon="mdi:open-in-new" width="16" />
+            Open in new tab
+          </button>
         </div>
+        <template v-else>
+          <iframe
+            v-if="iframeUrl"
+            ref="iframeRef"
+            :src="iframeUrl"
+            class="nav-iframe"
+            allow="autoplay; encrypted-media; fullscreen"
+            @load="onIframeLoad"
+          />
+          <div v-else class="nav-placeholder">
+            <iconify-icon icon="svg-spinners:pulse-3" width="40" />
+            <span>Loading page...</span>
+          </div>
+        </template>
       </div>
     </div>
   </Transition>
@@ -337,6 +349,27 @@ onUnmounted(() => {
 .nav-auth-open-btn:hover {
   background: rgba(255, 200, 60, 0.25);
   border-color: rgba(255, 200, 60, 0.6);
+}
+
+.nav-extension-placeholder {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.2);
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.9rem;
+  text-align: center;
+}
+.nav-extension-placeholder iconify-icon {
+  color: rgba(0, 217, 255, 0.5);
+}
+.nav-extension-hint {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.4);
 }
 
 .nav-content {

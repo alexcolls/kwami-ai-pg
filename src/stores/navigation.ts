@@ -14,17 +14,20 @@ export const useNavigationStore = defineStore('navigation', () => {
   const currentTitle = ref('');
   const isLoading = ref(false);
   const iframeUrl = ref<string | null>(null);
+  /** When true, navigation is handled by the Kwami browser extension (real tab). */
+  const useExtensionMode = ref(false);
   const navigationHistory = ref<string[]>([]);
   const historyIndex = ref(-1);
 
   const hasNavigation = computed(() => isActive.value);
 
-  function navigateToUrl(url: string) {
+  function navigateToUrl(url: string, extensionMode = false) {
     currentUrl.value = url;
     currentTitle.value = '';
     isLoading.value = true;
     isActive.value = true;
-    iframeUrl.value = buildProxyUrl(url);
+    useExtensionMode.value = extensionMode;
+    iframeUrl.value = extensionMode ? null : buildProxyUrl(url);
 
     if (historyIndex.value < navigationHistory.value.length - 1) {
       navigationHistory.value = navigationHistory.value.slice(0, historyIndex.value + 1);
@@ -70,6 +73,7 @@ export const useNavigationStore = defineStore('navigation', () => {
     currentTitle.value = '';
     isLoading.value = false;
     iframeUrl.value = null;
+    useExtensionMode.value = false;
     navigationHistory.value = [];
     historyIndex.value = -1;
   }
@@ -80,6 +84,7 @@ export const useNavigationStore = defineStore('navigation', () => {
     currentTitle,
     isLoading,
     iframeUrl,
+    useExtensionMode,
     hasNavigation,
     navigateToUrl,
     onIframeLoaded,
