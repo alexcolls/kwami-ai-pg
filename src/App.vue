@@ -24,14 +24,12 @@ import ModelsPanel from '@/components/panels/models/ModelsPanel.vue';
 import EnergyPanel from '@/components/panels/energy/EnergyPanel.vue';
 import EnergyBadge from '@/components/energy/EnergyBadge.vue';
 import SearchOrbitCards from '@/components/search/SearchOrbitCards.vue';
-import NavigationPanel from '@/components/navigation/NavigationPanel.vue';
 
 import { useWorkspaceStore } from '@/stores/workspace';
 import { useKwamiConfigWatchers } from '@/composables/useKwamiConfigSync';
 import { useSearchResults } from '@/composables/useSearchResults';
 import { useNavigation } from '@/composables/useNavigation';
 import { useSearchStore } from '@/stores/search';
-import { useNavigationStore } from '@/stores/navigation';
 import { useAvatarStore } from '@/stores/avatar';
 import { useBlobXyzSync } from '@/composables/avatar/sync/useBlobXyzSync';
 import { useOrbitalShardsSync } from '@/composables/avatar/sync/useOrbitalShardsSync';
@@ -53,9 +51,8 @@ const searchResults = useSearchResults();
 const searchStore = useSearchStore();
 const avatarStore = useAvatarStore();
 
-// Navigation: browser video stream + state from agent
+// Navigation: extension opens tab/split; no sidebar
 useNavigation();
-const navigationStore = useNavigationStore();
 
 // Sync per-kwami config: apply config when switching kwami, debounced save to DB
 useKwamiConfigWatchers();
@@ -105,14 +102,6 @@ watch(
     }
   },
   { immediate: true },
-);
-
-// Resize canvas when navigation sidebar opens/closes (layout handles sizing; trigger scene resize)
-watch(
-  () => navigationStore.isActive,
-  () => {
-    setTimeout(() => handleResize(), 350);
-  },
 );
 
 // Refresh energy/credits when user disconnects from voice (usage is reported on session end)
@@ -309,8 +298,8 @@ onUnmounted(() => {
 
   <AuthGuard>
     <div id="kwami-root" class="root-layout">
-      <!-- Main area: canvas + overlays; shrinks to 50% when nav sidebar opens -->
-      <div class="main-area" :class="{ 'nav-open': navigationStore.isActive }">
+      <!-- Main area: canvas + overlays (no nav sidebar) -->
+      <div class="main-area">
         <canvas id="kwami-canvas" ref="canvasRef"></canvas>
 
         <!-- UI controls only shown when authenticated and welcome complete -->
@@ -324,9 +313,6 @@ onUnmounted(() => {
           </div>
         </template>
       </div>
-
-      <!-- Navigation sidebar: 50% width when active -->
-      <NavigationPanel />
 
       <template v-if="authStore.isAuthenticated && !showWelcome">
         <TheSidebar>
@@ -367,16 +353,12 @@ onUnmounted(() => {
   flex-direction: row;
 }
 
-/* Main area: canvas + overlays; 100% when nav closed, 50% when nav open */
+/* Main area: canvas + overlays; always full width */
 .main-area {
   flex: 1;
   min-width: 0;
   position: relative;
   overflow: hidden;
-  transition: flex 0.4s ease;
-}
-.main-area.nav-open {
-  flex: 0 0 50%;
 }
 
 /* Canvas fills main area */

@@ -3,21 +3,13 @@ import { useNavigationStore } from '@/stores/navigation';
 
 let navigationListenerAttached = false;
 
-declare global {
-  interface Window {
-    __KWAMI_EXTENSION__?: boolean;
-  }
-}
-
 export function useNavigation() {
   const store = useNavigationStore();
-  const { isActive, currentUrl, currentTitle, isLoading, iframeUrl, hasNavigation } =
+  const { isActive, currentUrl, currentTitle, isLoading, hasNavigation } =
     storeToRefs(store);
 
   if (!navigationListenerAttached) {
     navigationListenerAttached = true;
-
-    const hasExtension = () => typeof window !== 'undefined' && window.__KWAMI_EXTENSION__ === true;
 
     window.addEventListener('kwami:nav_command', (e: Event) => {
       const detail = (e as CustomEvent).detail as {
@@ -28,40 +20,21 @@ export function useNavigation() {
       };
       if (!detail?.action) return;
 
-      if (hasExtension()) {
-        window.postMessage(
-          { source: 'kwami-playground', type: 'kwami:nav_command', detail },
-          '*'
-        );
-      }
+      window.postMessage(
+        { source: 'kwami-playground', type: 'kwami:nav_command', detail },
+        '*'
+      );
 
       switch (detail.action) {
         case 'navigate':
-          if (detail.url) store.navigateToUrl(detail.url, hasExtension());
-          break;
-        case 'back':
-          if (!hasExtension()) store.goBack();
-          break;
-        case 'forward':
-          if (!hasExtension()) store.goForward();
+          if (detail.url) {
+            store.updateState({ url: detail.url, title: '', isLoading: true });
+          }
           break;
         case 'close':
           store.end();
           break;
       }
-    });
-
-    window.addEventListener('kwami:navigation_state', (e: Event) => {
-      const detail = (e as CustomEvent).detail as {
-        url?: string;
-        title?: string;
-        isLoading?: boolean;
-      };
-      if (detail) store.updateState(detail);
-    });
-
-    window.addEventListener('kwami:navigation_ended', () => {
-      store.end();
     });
 
     window.addEventListener('message', (e: MessageEvent) => {
@@ -74,12 +47,16 @@ export function useNavigation() {
       if (type === 'kwami:ext_nav_ended') {
         store.end();
       }
+      if (type === 'kwami:ext_disconnected') {
+        console.warn('[Kwami] Extension bridge disconnected. Reload this page after reloading the extension.');
+      }
       if (type === 'kwami:ext_page_content') {
         const msg = {
           type: 'nav_page_content',
           title: rest.title,
           text: rest.text,
           elements: rest.elements,
+          html: rest.html,
         };
         const payload = new TextEncoder().encode(JSON.stringify(msg));
         window.dispatchEvent(new CustomEvent('kwami:send_data', { detail: payload }));
@@ -88,8 +65,8 @@ export function useNavigation() {
         const msg = { type: 'nav_command_result', id: rest.id, result: rest.result };
         const payload = new TextEncoder().encode(JSON.stringify(msg));
         window.dispatchEvent(new CustomEvent('kwami:send_data', { detail: payload }));
-        if (rest.title != null || rest.text != null || rest.elements != null) {
-          const contentMsg = { type: 'nav_page_content', title: rest.title, text: rest.text, elements: rest.elements };
+        if (rest.title != null || rest.text != null || rest.elements != null || rest.html != null) {
+          const contentMsg = { type: 'nav_page_content', title: rest.title, text: rest.text, elements: rest.elements, html: rest.html };
           const contentPayload = new TextEncoder().encode(JSON.stringify(contentMsg));
           window.dispatchEvent(new CustomEvent('kwami:send_data', { detail: contentPayload }));
         }
@@ -102,7 +79,6 @@ export function useNavigation() {
     currentUrl,
     currentTitle,
     isLoading,
-    iframeUrl,
     hasNavigation,
     end: store.end,
   };
