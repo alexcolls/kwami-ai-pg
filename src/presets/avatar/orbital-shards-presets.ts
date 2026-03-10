@@ -1,5 +1,5 @@
 /**
- * Orbital Shards Presets for the Kwami AI Playground
+ * Orbital Shards Presets for the Kwami App
  *
  * Visual presets for the orbital shards avatar renderer.
  * Uses the new section-based orbital shards state structure.

@@ -1,5 +1,5 @@
 /**
- * Avatar Templates for the Kwami AI Playground
+ * Avatar Templates for the Kwami App
  *
  * Central export for all avatar renderer presets (blob, crystal, stars-genesis, crystal-ball).
  */

@@ -1,5 +1,5 @@
 /**
- * Stars Genesis Presets for the Kwami AI Playground
+ * Stars Genesis Presets for the Kwami App
  *
  * Visual presets for the stars-genesis avatar renderer.
  * Uses the new section-based stars-genesis state structure.

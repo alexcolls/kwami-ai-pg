@@ -1,5 +1,5 @@
 /**
- * Blob Presets for the Kwami AI Playground
+ * Blob Presets for the Kwami App
  *
  * Visual presets for the blob avatar renderer.
  * Uses the new 6-section blob state structure.

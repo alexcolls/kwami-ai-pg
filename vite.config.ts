@@ -18,9 +18,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['sphere.svg'],
       manifest: {
-        name: 'Kwami AI Playground',
+        name: 'Kwami App',
         short_name: 'Kwami',
-        description: 'Kwami AI voice agent playground',
+        description: 'Kwami AI voice agent app',
         theme_color: '#050608',
         background_color: '#050608',
         display: 'standalone',

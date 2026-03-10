@@ -1,5 +1,5 @@
 /**
- * Persona Templates for the Kwami AI Playground
+ * Persona Templates for the Kwami App
  * 
  * These templates define different AI personalities that users can select
  * and customize to create unique conversational experiences.

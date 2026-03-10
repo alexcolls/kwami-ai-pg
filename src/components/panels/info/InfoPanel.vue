@@ -144,7 +144,7 @@ onUnmounted(() => {
             <span class="version-badge">{{ version }}</span>
           </div>
           <div class="version-row">
-            <span>Playground</span>
+            <span>App</span>
             <span class="version-badge">v1.0.0</span>
           </div>
         </div>

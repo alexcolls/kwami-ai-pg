@@ -21,7 +21,7 @@ export function useNavigation() {
       if (!detail?.action) return;
 
       window.postMessage(
-        { source: 'kwami-playground', type: 'kwami:nav_command', detail },
+        { source: 'kwami-app', type: 'kwami:nav_command', detail },
         '*'
       );
 

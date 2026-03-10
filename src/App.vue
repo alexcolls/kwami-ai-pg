@@ -195,7 +195,7 @@ function initializeKwami() {
   });
 
   // Console info
-  console.log('🎮 Kwami Playground (🫧 blob renderer)');
+  console.log('🎮 Kwami App (🫧 blob renderer)');
   console.log('Shortcuts: R=randomize, L=listening, T=thinking, I=idle, P=toggle panel');
   console.log('Renderer: B=blob, O|C=orbital-shards');
   console.log('Access kwami via window.kwami in console');

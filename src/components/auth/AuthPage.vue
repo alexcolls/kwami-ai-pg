@@ -23,7 +23,7 @@ import BackgroundRings from '@/components/ui/BackgroundRings.vue';
           <KwamiLogo width="160" :stroke-width="3" />
         </div>
         <h1 class="title">Welcome</h1>
-        <p class="subtitle">Sign in to continue to Kwami Playground</p>
+        <p class="subtitle">Sign in to continue to Kwami App</p>
       </div>
 
       <div class="auth-content">
