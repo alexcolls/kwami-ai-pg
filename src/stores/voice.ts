@@ -12,7 +12,7 @@ import type {
   RealtimeProvider,
   RealtimeModality,
   VoicePipelineConfig,
-} from 'kwami-ai';
+} from 'kwami';
 
 const STORAGE_KEY = 'kwami-voice-config';
 

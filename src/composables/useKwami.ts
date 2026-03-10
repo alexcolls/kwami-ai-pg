@@ -1,5 +1,5 @@
 import { shallowRef, ref, computed } from 'vue';
-import { Kwami } from 'kwami-ai';
+import { Kwami } from 'kwami';
 import { useVoiceStore } from '@/stores/voice';
 import { useAuthStore } from '@/stores/auth';
 import { useWorkspaceStore } from '@/stores/workspace';

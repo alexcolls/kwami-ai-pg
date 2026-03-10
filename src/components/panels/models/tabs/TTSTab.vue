@@ -4,7 +4,7 @@ import { useModelsApi, type InferenceTTSModel } from '@/composables/useModelsApi
 import { useVoiceStore } from '@/stores/voice';
 import { useKwami } from '@/composables/useKwami';
 import { storeToRefs } from 'pinia';
-import type { TTSProvider } from 'kwami-ai';
+import type { TTSProvider } from 'kwami';
 import PanelSection from '@/components/ui/PanelSection.vue';
 import TTSModelCard from '@/components/ui/TTSModelCard.vue';
 

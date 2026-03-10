@@ -3,7 +3,7 @@ import { ref, onMounted } from 'vue';
 import { panelIcons } from '@/constants/panel-icons';
 import { useToast } from 'vue-toastification';
 import { useKwami } from '@/composables/useKwami';
-import type { ToolDefinition } from 'kwami-ai';
+import type { ToolDefinition } from 'kwami';
 import PanelSection from '@/components/ui/PanelSection.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
 import BaseInput from '@/components/ui/BaseInput.vue';

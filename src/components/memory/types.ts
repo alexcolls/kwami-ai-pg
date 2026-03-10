@@ -2,7 +2,7 @@
  * Shared types for Memory Graph components
  */
 
-import type { MemoryNode, MemoryEdge, MemoryGraph, UpdateNodePayload, UpdateEdgePayload } from 'kwami-ai'
+import type { MemoryNode, MemoryEdge, MemoryGraph, UpdateNodePayload, UpdateEdgePayload } from 'kwami'
 
 export type { MemoryNode, MemoryEdge, MemoryGraph, UpdateNodePayload, UpdateEdgePayload }
 

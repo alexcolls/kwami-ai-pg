@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
-import { getMemoryGraph, updateMemoryNode, updateMemoryEdge, deleteMemoryEdge } from 'kwami-ai'
-import type { UpdateNodePayload, UpdateEdgePayload } from 'kwami-ai'
+import { getMemoryGraph, updateMemoryNode, updateMemoryEdge, deleteMemoryEdge } from 'kwami'
+import type { UpdateNodePayload, UpdateEdgePayload } from 'kwami'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from 'vue-toastification'
 import type { MemoryGraph as GraphData, MemoryNode, MemoryEdge, ViewMode } from './types'

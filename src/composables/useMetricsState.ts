@@ -1,5 +1,5 @@
 import { ref, reactive } from 'vue';
-import type { VoicePipelineMetrics } from 'kwami-ai';
+import type { VoicePipelineMetrics } from 'kwami';
 
 // Singleton state — survives component unmount
 const latency = reactive({

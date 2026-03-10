@@ -3,7 +3,7 @@ import { computed, onMounted } from 'vue';
 import { useModelsApi } from '@/composables/useModelsApi';
 import { useVoiceStore } from '@/stores/voice';
 import { storeToRefs } from 'pinia';
-import type { RealtimeProvider } from 'kwami-ai';
+import type { RealtimeProvider } from 'kwami';
 import PanelSection from '@/components/ui/PanelSection.vue';
 
 const { fetchRealtimeModels, realtimeModels, isLoading } = useModelsApi();

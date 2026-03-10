@@ -58,9 +58,9 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url))
     }
   },
-  // Force Vite to re-bundle kwami-ai when it changes
+  // Force Vite to re-bundle kwami when it changes
   optimizeDeps: {
-    include: ['kwami-ai'],
+    include: ['kwami'],
     force: true  // Force re-bundling on every server start
   }
 })

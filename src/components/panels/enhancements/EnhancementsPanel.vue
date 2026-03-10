@@ -4,7 +4,7 @@ import { panelIcons } from '@/constants/panel-icons';
 import { useKwami } from '@/composables/useKwami';
 import { useVoiceStore } from '@/stores/voice';
 import { storeToRefs } from 'pinia';
-import type { VoiceEnhancementsConfig, VADConfig } from 'kwami-ai';
+import type { VoiceEnhancementsConfig, VADConfig } from 'kwami';
 import PanelSection from '@/components/ui/PanelSection.vue';
 import BaseToggle from '@/components/ui/BaseToggle.vue';
 import BaseSlider from '@/components/ui/BaseSlider.vue';

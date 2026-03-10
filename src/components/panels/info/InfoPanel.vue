@@ -3,7 +3,7 @@ import { ref, onMounted, onUnmounted } from 'vue';
 import { panelIcons } from '@/constants/panel-icons';
 import { useKwami } from '@/composables/useKwami';
 
-import { Kwami } from 'kwami-ai';
+import { Kwami } from 'kwami';
 
 const { kwami } = useKwami();
 

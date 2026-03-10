@@ -5,7 +5,7 @@ import { useKwami } from '@/composables/useKwami';
 import { useMetricsState } from '@/composables/useMetricsState';
 import PanelSection from '@/components/ui/PanelSection.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
-import type { VoicePipelineConfig } from 'kwami-ai';
+import type { VoicePipelineConfig } from 'kwami';
 
 const { kwami } = useKwami();
 const {
