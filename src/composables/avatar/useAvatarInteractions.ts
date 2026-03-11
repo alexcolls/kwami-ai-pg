@@ -61,7 +61,7 @@ export interface UseAvatarInteractionsOptions {
 export function useAvatarInteractions(options: UseAvatarInteractionsOptions = {}) {
     const { kwami, switchRenderer } = useKwami();
 
-    const defaultRenderers = ['blob-xyz', 'orbital-shards', 'stars-genesis', 'crystal-ball', 'black-hole'] as const;
+    const defaultRenderers = ['blob-xyz', 'black-hole'] as const;
     const renderers = options.renderers ?? defaultRenderers;
 
     /**

@@ -52,9 +52,9 @@ function logState() {
     console.log('Skin:', blob.getCurrentSkinSubtype());
     console.groupEnd();
   }
-  console.group('Persona');
-  console.log('Name:', kwami.value.persona.getName());
-  console.log('Config:', kwami.value.persona.getConfig());
+  console.group('Soul');
+  console.log('Name:', kwami.value.soul.getName());
+  console.log('Config:', kwami.value.soul.getConfig());
   console.groupEnd();
   console.group('Agent');
   console.log('Config:', kwami.value.agent.getConfig());
@@ -73,7 +73,7 @@ function logConfig() {
   if (!kwami.value) return;
   console.group('⚙️ Kwami Configuration');
   console.log('Agent:', kwami.value.agent.getConfig());
-  console.log('Persona:', kwami.value.persona.getConfig());
+  console.log('Soul:', kwami.value.soul.getConfig());
   console.log('Memory:', kwami.value.memory.getConfig());
   console.log('Tools:', kwami.value.tools.getAll());
   console.groupEnd();
@@ -199,7 +199,7 @@ onUnmounted(() => {
           </div>
           <div class="guide-item">
             <iconify-icon icon="ph:user-circle-duotone"></iconify-icon>
-            <div><strong>Persona</strong> <span>Personality</span></div>
+            <div><strong>Soul</strong> <span>Personality</span></div>
           </div>
           <div class="guide-item">
             <iconify-icon icon="ph:brain-duotone"></iconify-icon>

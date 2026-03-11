@@ -91,7 +91,7 @@ export function useKwamiActions() {
       initial.config = getConfig();
     }
     const newKwami = await workspaceStore.addKwami(authStore.userId, initial);
-    voiceStore.personaConfig.name = newKwami.name;
+    voiceStore.soulConfig.name = newKwami.name;
     showNewKwamiModal.value = false;
     toast.success(newKwami.emoji ? `Created "${newKwami.name}" ${newKwami.emoji}` : `Created "${newKwami.name}"`);
     return newKwami;
@@ -102,7 +102,7 @@ export function useKwamiActions() {
     if (!kwami) return;
     await workspaceStore.updateKwami(kwami.id, payload, authStore.userId);
     if (workspaceStore.activeWorkspaceId === kwami.id) {
-      voiceStore.personaConfig.name = payload.name;
+      voiceStore.soulConfig.name = payload.name;
     }
     showEditKwamiModal.value = false;
     editKwami.value = null;

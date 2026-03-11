@@ -263,7 +263,6 @@ const gradientId = `kwami-welcome-grad-${Math.random().toString(36).slice(2, 8)}
 
 <template>
   <div
-  <div
     class="kwami-welcome-rings"
     :style="{
       zIndex: zIndex,

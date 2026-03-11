@@ -12,7 +12,7 @@ import BaseInput from '@/components/ui/BaseInput.vue';
 import BaseSelect from '@/components/ui/BaseSelect.vue';
 import BaseSlider from '@/components/ui/BaseSlider.vue';
 import BaseTagInput from '@/components/ui/BaseTagInput.vue';
-import { personaPresets, templateCategories, type PersonaPreset } from '@/presets/agent/persona-presets';
+import { soulPresets, templateCategories, type SoulPreset } from '@/presets/agent/soul-presets';
 import { panelIcons } from '@/constants/panel-icons';
 
 const toast = useToast();
@@ -21,33 +21,33 @@ const { kwami, isConnected } = useKwami();
 const voiceStore = useVoiceStore();
 const workspaceStore = useWorkspaceStore();
 const authStore = useAuthStore();
-const { personaUI, personaConfig: savedPersonaConfig } = storeToRefs(voiceStore);
+const { soulUI, soulConfig: savedSoulConfig } = storeToRefs(voiceStore);
 
 // Persisted template selection state via store
 const selectedCategory = computed({
-  get: () => personaUI.value.selectedCategory,
-  set: (v) => { personaUI.value.selectedCategory = v; }
+  get: () => soulUI.value.selectedCategory,
+  set: (v) => { soulUI.value.selectedCategory = v; }
 });
 const selectedTemplateId = computed({
-  get: () => personaUI.value.selectedTemplateId,
-  set: (v) => { personaUI.value.selectedTemplateId = v; }
+  get: () => soulUI.value.selectedTemplateId,
+  set: (v) => { soulUI.value.selectedTemplateId = v; }
 });
 
 const filteredTemplates = computed(() => {
-  if (!selectedCategory.value) return personaPresets;
-  return personaPresets.filter(t => t.category === selectedCategory.value);
+  if (!selectedCategory.value) return soulPresets;
+  return soulPresets.filter(t => t.category === selectedCategory.value);
 });
 
 function selectCategory(categoryId: string | null) {
   selectedCategory.value = selectedCategory.value === categoryId ? null : categoryId;
 }
 
-function applyTemplate(template: PersonaPreset) {
+function applyTemplate(template: SoulPreset) {
   if (!kwami.value) return;
-  
+
   selectedTemplateId.value = template.id;
-  
-  const personaConfig = {
+
+  const soulConfig = {
     name: template.name,
     personality: template.personality,
     systemPrompt: template.systemPrompt,
@@ -57,24 +57,19 @@ function applyTemplate(template: PersonaPreset) {
     emotionalTone: template.emotionalTone as 'neutral' | 'warm' | 'enthusiastic' | 'calm',
     emotionalTraits: { ...template.emotionalTraits },
   };
-  
-  // Apply template values to kwami persona
-  kwami.value.persona.updateConfig(personaConfig);
-  
-  // Sync to backend if connected
-  syncPersonaToBackend(personaConfig);
-  
-  // Sync local state
+
+  kwami.value.soul.updateConfig(soulConfig);
+  syncSoulToBackend(soulConfig);
   syncFromKwami();
 }
 
 /**
- * Sync persona changes to the backend agent (if connected)
+ * Sync soul changes to the backend agent (if connected)
  */
-function syncPersonaToBackend(personaConfig?: Record<string, unknown>) {
+function syncSoulToBackend(soulConfig?: Record<string, unknown>) {
   if (!kwami.value || !isConnected.value) return;
-  
-  const configToSync = personaConfig ?? {
+
+  const configToSync = soulConfig ?? {
     name: config.name,
     personality: config.personality,
     systemPrompt: config.systemPrompt,
@@ -83,9 +78,9 @@ function syncPersonaToBackend(personaConfig?: Record<string, unknown>) {
     responseLength: config.responseLength,
     emotionalTone: config.emotionalTone,
   };
-  
-  kwami.value.agent.syncConfigToBackend('persona', configToSync);
-  console.log('📤 Synced persona to backend:', configToSync);
+
+  kwami.value.agent.syncConfigToBackend('soul', configToSync);
+  console.log('📤 Synced soul to backend:', configToSync);
 }
 
 // State
@@ -127,7 +122,7 @@ function syncFromKwami() {
   isSyncing = true;
   
   try {
-    const pConfig = kwami.value.persona.getConfig();
+    const pConfig = kwami.value.soul.getConfig();
 
     config.name = pConfig.name || 'Kwami';
     config.personality = pConfig.personality || '';
@@ -137,7 +132,7 @@ function syncFromKwami() {
     config.emotionalTone = pConfig.emotionalTone || 'neutral';
     config.systemPrompt = pConfig.systemPrompt || '';
 
-    traits.value = [...kwami.value.persona.getTraits()];
+    traits.value = [...kwami.value.soul.getTraits()];
 
     if (pConfig.emotionalTraits) {
       Object.assign(emotionalTraits, pConfig.emotionalTraits);
@@ -153,7 +148,7 @@ function syncFromKwami() {
 
 // Save current local state to the persisted store
 function saveToStore() {
-  savedPersonaConfig.value = {
+  savedSoulConfig.value = {
     name: config.name,
     personality: config.personality,
     conversationStyle: config.conversationStyle,
@@ -166,14 +161,14 @@ function saveToStore() {
   };
 }
 
-// Restore saved persona config to kwami (on page reload)
-function restoreSavedPersonaToKwami() {
+// Restore saved soul config to kwami (on page reload)
+function restoreSavedSoulToKwami() {
   if (!kwami.value) return;
-  const saved = savedPersonaConfig.value;
+  const saved = savedSoulConfig.value;
   // Only restore if it looks like a non-default config
   if (!saved.personality && saved.name === 'Kwami' && saved.traits.length === 0) return;
 
-  kwami.value.persona.updateConfig({
+  kwami.value.soul.updateConfig({
     name: saved.name,
     personality: saved.personality,
     systemPrompt: saved.systemPrompt,
@@ -190,8 +185,8 @@ let isSyncing = false; // Prevent infinite loops during sync
 
 watch(() => config.name, (v) => {
   if (!isSyncing && kwami.value) {
-    kwami.value.persona.setName(v);
-    syncPersonaToBackend();
+    kwami.value.soul.setName(v);
+    syncSoulToBackend();
     saveToStore();
     const activeId = workspaceStore.activeWorkspaceId;
     if (activeId && v.trim()) {
@@ -202,47 +197,47 @@ watch(() => config.name, (v) => {
 
 watch(() => config.personality, (v) => {
   if (!isSyncing && kwami.value) {
-    kwami.value.persona.updateConfig({ personality: v });
-    syncPersonaToBackend();
+    kwami.value.soul.updateConfig({ personality: v });
+    syncSoulToBackend();
     saveToStore();
   }
 });
 
 watch(() => config.conversationStyle, (v) => {
   if (!isSyncing && kwami.value) {
-    kwami.value.persona.setConversationStyle(v);
-    syncPersonaToBackend();
+    kwami.value.soul.setConversationStyle(v);
+    syncSoulToBackend();
     saveToStore();
   }
 });
 
 watch(() => config.language, (v) => {
   if (!isSyncing && kwami.value) {
-    kwami.value.persona.setLanguage(v);
+    kwami.value.soul.setLanguage(v);
     saveToStore();
   }
 });
 
 watch(() => config.responseLength, (v) => {
   if (!isSyncing && kwami.value) {
-    kwami.value.persona.setResponseLength(v);
-    syncPersonaToBackend();
+    kwami.value.soul.setResponseLength(v);
+    syncSoulToBackend();
     saveToStore();
   }
 });
 
 watch(() => config.emotionalTone, (v) => {
   if (!isSyncing && kwami.value) {
-    kwami.value.persona.setEmotionalTone(v);
-    syncPersonaToBackend();
+    kwami.value.soul.setEmotionalTone(v);
+    syncSoulToBackend();
     saveToStore();
   }
 });
 
 watch(() => config.systemPrompt, (v) => {
   if (!isSyncing && kwami.value) {
-    kwami.value.persona.updateConfig({ systemPrompt: v });
-    syncPersonaToBackend();
+    kwami.value.soul.updateConfig({ systemPrompt: v });
+    syncSoulToBackend();
     saveToStore();
   }
 });
@@ -250,7 +245,7 @@ watch(() => config.systemPrompt, (v) => {
 watch(emotionalTraits, (v) => {
   if (!isSyncing && kwami.value) {
     Object.keys(v).forEach((key) => {
-      kwami.value?.persona.setEmotionalTrait(
+      kwami.value?.soul.setEmotionalTrait(
         key as keyof typeof emotionalTraits, 
         v[key as keyof typeof v]
       );
@@ -260,30 +255,30 @@ watch(emotionalTraits, (v) => {
 }, { deep: true });
 
 function updateTraits(newTraits: string[]) {
-  kwami.value?.persona.updateConfig({ traits: newTraits });
+  kwami.value?.soul.updateConfig({ traits: newTraits });
   syncFromKwami();
-  syncPersonaToBackend();
+    syncSoulToBackend();
 }
 
 function previewPrompt() {
   if (!kwami.value) return;
-  console.log('📝 Full System Prompt:\n', kwami.value.persona.getSystemPrompt());
+  console.log('📝 Full System Prompt:\n', kwami.value.soul.getSystemPrompt());
   toast.info('Full prompt logged to console');
 }
 
-function exportPersona() {
+function exportSoul() {
   if (!kwami.value) return;
-  const json = kwami.value.persona.exportAsJSON();
+  const json = kwami.value.soul.exportAsJSON();
   const blob = new Blob([json], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'kwami-persona.json';
+  a.download = 'kwami-soul.json';
   a.click();
   URL.revokeObjectURL(url);
 }
 
-function importPersona() {
+function importSoul() {
   const input = document.createElement('input');
   input.type = 'file';
   input.accept = '.json';
@@ -291,8 +286,8 @@ function importPersona() {
     const file = input.files?.[0];
     if (!file) return;
     try {
-      kwami.value?.persona.importFromJSON(await file.text());
-      toast.success('Persona imported!');
+      kwami.value?.soul.importFromJSON(await file.text());
+      toast.success('Soul imported!');
       syncFromKwami();
     } catch (error) {
       toast.error('Failed to import: ' + (error as Error).message);
@@ -301,11 +296,11 @@ function importPersona() {
   input.click();
 }
 
-function resetPersona() {
+function resetSoul() {
   if (!kwami.value) return;
-  if (confirm('Reset persona to defaults?')) {
+  if (confirm('Reset soul to defaults?')) {
     selectedTemplateId.value = null;
-    kwami.value.persona.updateConfig({
+    kwami.value.soul.updateConfig({
       name: 'Kwami',
       personality: 'A friendly and helpful AI companion',
       traits: ['friendly', 'helpful', 'curious'],
@@ -313,7 +308,7 @@ function resetPersona() {
       responseLength: 'medium',
       emotionalTone: 'warm',
     });
-    toast.success('Persona reset!');
+    toast.success('Soul reset!');
     syncFromKwami();
   }
 }
@@ -321,15 +316,15 @@ function resetPersona() {
 // Auto-sync when connection state changes
 watch(isConnected, (connected) => {
   syncFromKwami();
-  // When becoming connected, also push persona config to the backend agent
+  // When becoming connected, also push soul config to the backend agent
   if (connected) {
-    syncPersonaToBackend();
+    syncSoulToBackend();
   }
 });
 
 onMounted(() => {
-  // Restore saved persona to kwami before syncing (handles page reload)
-  restoreSavedPersonaToKwami();
+  // Restore saved soul to kwami before syncing (handles page reload)
+  restoreSavedSoulToKwami();
   syncFromKwami();
 });
 </script>
@@ -337,8 +332,8 @@ onMounted(() => {
 <template>
   <div class="panel-inner">
     <div class="panel-header">
-      <iconify-icon :icon="panelIcons.persona" class="panel-icon"></iconify-icon>
-      <h2>Persona</h2>
+      <iconify-icon :icon="panelIcons.soul" class="panel-icon"></iconify-icon>
+      <h2>Soul</h2>
       <button class="refresh-btn" @click="syncFromKwami" title="Refresh from Kwami">
         <iconify-icon icon="ph:arrows-clockwise-duotone"></iconify-icon>
       </button>
@@ -522,17 +517,17 @@ onMounted(() => {
       <PanelSection title="Actions">
         <div class="action-buttons">
           <div class="row">
-            <BaseButton variant="secondary" icon="ph:export-duotone" @click="exportPersona"
+            <BaseButton variant="secondary" icon="ph:export-duotone" @click="exportSoul"
               >Export JSON</BaseButton
             >
-            <BaseButton variant="secondary" icon="ph:download-duotone" @click="importPersona"
+            <BaseButton variant="secondary" icon="ph:download-duotone" @click="importSoul"
               >Import JSON</BaseButton
             >
           </div>
           <BaseButton
             variant="secondary"
             icon="ph:arrow-counter-clockwise-duotone"
-            @click="resetPersona"
+            @click="resetSoul"
             block
             style="margin-top: 8px"
             >Reset Default</BaseButton

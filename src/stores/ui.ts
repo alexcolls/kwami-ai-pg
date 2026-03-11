@@ -104,7 +104,8 @@ export const useUIStore = defineStore('ui', () => {
     // Load active panel and open state
     const savedPanel = localStorage.getItem('kwami-active-panel');
     if (savedPanel) {
-      activePanel.value = savedPanel;
+      // Migrate legacy panel id
+      activePanel.value = savedPanel === 'persona' ? 'soul' : savedPanel;
     }
 
     const savedPanelOpen = localStorage.getItem('kwami-panel-open');

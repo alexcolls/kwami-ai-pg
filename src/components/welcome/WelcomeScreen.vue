@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch } from 'vue';
-import WelcomeRings from '@/components/ui/WelcomeRings.vue';
+import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue';
+import type { WelcomeAnimatedRingsHandle } from '@/components/welcome/imported/Welcome';
+import { createWelcomeAnimatedRings } from '@/components/welcome/imported/Welcome';
 
 export interface WelcomeScreenProps {
   /** Whether the welcome screen is visible */
@@ -20,21 +21,16 @@ const emit = defineEmits<{
 
 const isVisible = ref(props.visible);
 const isFadingOut = ref(false);
-const isRunning = ref(false);
+const ringsContainerRef = ref<HTMLElement | null>(null);
+let ringsHandle: WelcomeAnimatedRingsHandle | null = null;
 
 let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
-function startAnimation() {
-  isRunning.value = true;
-  
-  // Start fade out after duration
+function startTimer() {
   timeoutId = setTimeout(() => {
     isFadingOut.value = true;
-    
-    // Complete after fade out animation
     setTimeout(() => {
       isVisible.value = false;
-      isRunning.value = false;
       emit('complete');
     }, 800);
   }, props.duration);
@@ -47,36 +43,67 @@ function skip() {
   isFadingOut.value = true;
   setTimeout(() => {
     isVisible.value = false;
-    isRunning.value = false;
     emit('complete');
   }, 300);
 }
 
-watch(() => props.visible, (newVal) => {
-  if (newVal) {
-    isVisible.value = true;
-    isFadingOut.value = false;
-    isRunning.value = false;
-    // Small delay to ensure mount
-    requestAnimationFrame(() => {
-      startAnimation();
-    });
+function initRings() {
+  if (!ringsContainerRef.value || ringsHandle) return;
+  ringsHandle = createWelcomeAnimatedRings({
+    mount: ringsContainerRef.value,
+    insert: 'first',
+    zIndex: '1',
+    ringCount: 120,
+    baseRadiusRatio: 0.12,
+    ringStrokeWidth: 2,
+    cycleSeconds: 6,
+    ringPulsePxPerIndex: 4,
+    rotationDegreesPerSecond: 360,
+    animateGradient: true,
+    includeWordmark: true,
+    opacity: 1,
+    autoStart: true,
+    resize: 'auto',
+  });
+}
+
+function destroyRings() {
+  if (ringsHandle) {
+    ringsHandle.destroy();
+    ringsHandle = null;
   }
+}
+
+watch(
+  () => props.visible,
+  (newVal) => {
+    if (newVal) {
+      isVisible.value = true;
+      isFadingOut.value = false;
+      nextTick(() => {
+        initRings();
+        requestAnimationFrame(() => startTimer());
+      });
+    }
+  },
+);
+
+watch(isVisible, (v) => {
+  if (!v) destroyRings();
 });
 
 onMounted(() => {
   if (props.visible) {
-    // Small delay to ensure mount
-    requestAnimationFrame(() => {
-      startAnimation();
+    nextTick(() => {
+      initRings();
+      requestAnimationFrame(() => startTimer());
     });
   }
 });
 
 onUnmounted(() => {
-  if (timeoutId) {
-    clearTimeout(timeoutId);
-  }
+  if (timeoutId) clearTimeout(timeoutId);
+  destroyRings();
 });
 </script>
 
@@ -89,25 +116,9 @@ onUnmounted(() => {
         :class="{ 'fading-out': isFadingOut }"
         @click="skip"
       >
-        <!-- Animated rings with wordmark - exact original settings -->
-        <WelcomeRings
-          :ring-count="120"
-          :ring-stroke-width="2"
-          :base-radius-ratio="0.12"
-          :cycle-seconds="6"
-          :ring-pulse-px-per-index="4"
-          :rotation-degrees-per-second="360"
-          :animate-gradient="true"
-          :include-wordmark="true"
-          :opacity="1"
-          :running="isRunning"
-          z-index="1"
-        />
-        
-        <!-- Skip hint -->
-        <div class="skip-hint">
-          Click anywhere to skip
-        </div>
+        <!-- Mount point for imported Welcome animation (exact same as web welcome) -->
+        <div ref="ringsContainerRef" class="welcome-rings-mount"></div>
+        <div class="skip-hint">Click anywhere to skip</div>
       </div>
     </Transition>
   </Teleport>
@@ -121,6 +132,12 @@ onUnmounted(() => {
   background: linear-gradient(135deg, #050510 0%, #0a0a20 50%, #050510 100%);
   cursor: pointer;
   transition: opacity 0.8s ease-out;
+}
+
+.welcome-rings-mount {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
 }
 
 .welcome-screen.fading-out {

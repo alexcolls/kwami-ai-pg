@@ -4,7 +4,7 @@ import { useKwami } from '@/composables/useKwami';
 import BaseToggle from '@/components/ui/BaseToggle.vue';
 import PanelSection from '@/components/ui/PanelSection.vue';
 
-const { kwami, rendererType } = useKwami();
+const { kwami } = useKwami();
 const visualizerCanvas = ref<HTMLCanvasElement | null>(null);
 const enabled = ref(true);
 let animationFrameId: number | null = null;
@@ -46,8 +46,7 @@ function drawVisualizer() {
     const value = (val !== undefined ? val : 0) / 255;
     const barHeight = value * height * 0.9;
 
-    const hue =
-      rendererType.value === 'orbital-shards' ? 180 + (i / barCount) * 60 : 260 + (i / barCount) * 60;
+    const hue = 260 + (i / barCount) * 60;
     ctx.fillStyle = `hsla(${hue}, 70%, 60%, ${0.5 + value * 0.5})`;
 
     const x = i * (barWidth + 2);

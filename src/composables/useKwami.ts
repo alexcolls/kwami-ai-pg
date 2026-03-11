@@ -12,7 +12,7 @@ declare global {
 
 // Singleton state
 const kwamiInstance = shallowRef<Kwami | null>(null);
-const rendererType = ref<'blob-xyz' | 'orbital-shards' | 'stars-genesis' | 'crystal-ball' | 'black-hole'>('blob-xyz');
+const rendererType = ref<'blob-xyz' | 'black-hole'>('blob-xyz');
 const isConnected = ref(false);
 
 export function useKwami() {
@@ -31,7 +31,7 @@ export function useKwami() {
 
   function init(
     canvas: HTMLCanvasElement,
-    renderer: 'blob-xyz' | 'orbital-shards' | 'stars-genesis' | 'crystal-ball' | 'black-hole' = 'blob-xyz',
+    renderer: 'blob-xyz' | 'black-hole' = 'blob-xyz',
     options?: {
       onSearchResults?: (data: { query: string; results: Array<{ title: string; url: string; content: string }>; answer: string | null }) => void;
     },
@@ -49,71 +49,6 @@ export function useKwami() {
           spikes: { x: 0.3, y: 0.3, z: 0.3 },
           rotation: { x: 0.002, y: 0.003, z: 0.001 },
         },
-        orbitalShards: {
-          formation: { formation: 'constellation' as 'constellation' | 'helix' | 'vortex' },
-          colors: {
-            primary: '#00e5ff',
-            secondary: '#7c4dff',
-            accent: '#ff4081',
-          },
-          shards: { count: 28 },
-          core: {
-            size: 0.8,
-            glowIntensity: 1.4,
-            innerColor: '#ffffff',
-            outerColor: '#00ffff',
-          },
-          scale: 1.0,
-          rotation: { x: 0, y: 0.002, z: 0 },
-        },
-        starsGenesis: {
-          starCount: 6000,
-          visual: {
-            color: '#ffffff',
-            glowColor: '#88ccff',
-            starSize: 0.6,
-            opacity: 0.95,
-            sharpness: 0.7,
-          },
-          formation: {
-            type: 'sphere' as 'sphere' | 'disc' | 'ring' | 'cube',
-            radius: 2,
-          },
-          animation: {
-            enabled: true,
-            breathing: { enabled: true, speed: 1.0, intensity: 0.15 },
-            floating: { enabled: true, speed: 0.5, amplitude: 0.08 },
-            rotation: { enabled: true, speedX: 0, speedY: 0.1, speedZ: 0 },
-            turbulence: { enabled: true, intensity: 0.02, speed: 1.0 },
-          },
-          audioEffects: {
-            enabled: true,
-            reactivity: 1.5,
-            bassInfluence: 1.0,
-            movementIntensity: 0.5,
-          },
-        },
-        crystalBall: {
-          style: { style: 'mystical' as 'mystical' | 'nebula' | 'earth' | 'fire' | 'ocean' },
-          // TUTORIAL COLORS: black + bright color = depth effect!
-          colors: { primary: '#000000', secondary: '#00ffaa' },
-          // Tutorial defaults for magical marble effect
-          volume: { iterations: 18, depth: 0.6, smoothing: 0.3, noiseScale: 1.0 },
-          animation: {
-            displacementSpeed: 0.07,
-            displacementStrength: 0.3,
-            rotationSpeed: { x: 0, y: 0.001, z: 0 },
-          },
-          scale: 3.0,
-          roughness: 0.1,
-          metalness: 0.0,
-          envMapIntensity: 0.8,
-          audioEffects: {
-            enabled: true,
-            reactivity: 1.0,
-            smoothing: 0.85,
-          },
-        },
         scene: {
           enableControls: true,
         },
@@ -128,7 +63,7 @@ export function useKwami() {
           ...(options?.onSearchResults && { onSearchResults: options.onSearchResults }),
         },
       },
-      persona: {
+      soul: {
         name: 'Kwami',
         personality: 'A friendly and helpful AI companion',
         traits: ['friendly', 'helpful', 'curious'],
@@ -169,22 +104,23 @@ export function useKwami() {
 
   /**
    * Sync all persisted panel configs to the backend agent after connecting.
-   * This ensures persona, enhancements, voice, and model settings are applied
+   * This ensures soul, enhancements, voice, and model settings are applied
    * regardless of which panel is currently mounted.
    */
   function syncAllConfigToBackend(kwami: Kwami, voiceStore: ReturnType<typeof useVoiceStore>) {
     const agent = kwami.agent;
 
-    // 1. Persona config
-    const personaConfig = kwami.persona.getConfig();
-    agent.syncConfigToBackend('persona', {
-      name: personaConfig.name,
-      personality: personaConfig.personality,
-      systemPrompt: personaConfig.systemPrompt,
-      traits: personaConfig.traits || [],
-      conversationStyle: personaConfig.conversationStyle,
-      responseLength: personaConfig.responseLength,
-      emotionalTone: personaConfig.emotionalTone,
+    // 1. Soul config
+    const soulConfig = kwami.soul.getConfig();
+    agent.syncConfigToBackend('soul', {
+      name: soulConfig.name,
+      personality: soulConfig.personality,
+      systemPrompt: soulConfig.systemPrompt,
+      traits: soulConfig.traits || [],
+      conversationStyle: soulConfig.conversationStyle,
+      responseLength: soulConfig.responseLength,
+      emotionalTone: soulConfig.emotionalTone,
+      emotionalTraits: soulConfig.emotionalTraits,
     });
 
     // 2. Enhancements + VAD config
@@ -335,7 +271,7 @@ export function useKwami() {
     }
   }
 
-  function switchRenderer(newRenderer: 'blob-xyz' | 'orbital-shards' | 'stars-genesis' | 'crystal-ball' | 'black-hole') {
+  function switchRenderer(newRenderer: 'blob-xyz' | 'black-hole') {
     if (!kwamiInstance.value) {
       console.warn('Cannot switch renderer: Kwami not initialized');
       return;

@@ -63,7 +63,7 @@ function onRandomize() {
     @confirm="onConfirm"
     @cancel="onCancel"
   >
-    <p>Name is synced with the persona name for the active Kwami.</p>
+    <p>Name is synced with the soul name for the active Kwami.</p>
     <BaseInput
       v-model="name"
       placeholder="Kwami name"

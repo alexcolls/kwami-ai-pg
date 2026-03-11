@@ -1,6 +1,6 @@
 /**
- * Persona Templates for the Kwami App
- * 
+ * Soul Templates for the Kwami App
+ *
  * These templates define different AI personalities that users can select
  * and customize to create unique conversational experiences.
  */
@@ -20,7 +20,7 @@ export interface EmotionalTraits {
   adaptability?: number;
 }
 
-export interface PersonaPreset {
+export interface SoulPreset {
   id: string;
   name: string;
   personality: string;
@@ -36,7 +36,7 @@ export interface PersonaPreset {
   color: string;
 }
 
-export const personaPresets: PersonaPreset[] = [
+export const soulPresets: SoulPreset[] = [
   // ============ POSITIVE CATEGORY ============
   {
     id: 'friendly',
@@ -607,12 +607,12 @@ export const personaPresets: PersonaPreset[] = [
 ];
 
 // Helper functions
-export function getTemplateById(id: string): PersonaPreset | undefined {
-  return personaPresets.find(t => t.id === id);
+export function getTemplateById(id: string): SoulPreset | undefined {
+  return soulPresets.find(t => t.id === id);
 }
 
-export function getTemplatesByCategory(category: PersonaPreset['category']): PersonaPreset[] {
-  return personaPresets.filter(t => t.category === category);
+export function getTemplatesByCategory(category: SoulPreset['category']): SoulPreset[] {
+  return soulPresets.filter(t => t.category === category);
 }
 
 export const templateCategories = [

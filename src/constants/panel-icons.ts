@@ -9,7 +9,7 @@ export const panelIcons: Record<string, string> = {
   audio: 'ph:waveform-duotone',
   voice: 'mdi:account-voice',
   enhancements: 'ph:sliders-duotone',
-  persona: 'ph:heart-duotone',
+  soul: 'ph:heart-duotone',
   memory: 'ph:brain-duotone',
   tools: 'ph:wrench-duotone',
   metrics: 'ph:chart-line-up-duotone',

@@ -106,13 +106,13 @@ export const useVoiceStore = defineStore('voice', () => {
     searchQuery: '',
   });
 
-  // Persona panel UI state + persisted config
-  const personaUI = ref({
+  // Soul panel UI state + persisted config
+  const soulUI = ref({
     selectedCategory: null as string | null,
     selectedTemplateId: null as string | null,
   });
 
-  const personaConfig = ref({
+  const soulConfig = ref({
     name: 'Kwami',
     personality: '',
     conversationStyle: 'friendly',
@@ -212,8 +212,10 @@ export const useVoiceStore = defineStore('voice', () => {
       if (settings.activePreset != null) activePreset.value = settings.activePreset as string;
       if (settings.modelsUI && typeof settings.modelsUI === 'object') modelsUI.value = { ...modelsUI.value, ...settings.modelsUI };
       if (settings.voiceUI && typeof settings.voiceUI === 'object') voiceUI.value = { ...voiceUI.value, ...settings.voiceUI };
-      if (settings.personaUI && typeof settings.personaUI === 'object') personaUI.value = { ...personaUI.value, ...settings.personaUI };
-      if (settings.personaConfig && typeof settings.personaConfig === 'object') personaConfig.value = { ...personaConfig.value, ...settings.personaConfig } as typeof personaConfig.value;
+      const soulUIFromSettings = (settings.soulUI ?? settings.personaUI) as Record<string, unknown> | undefined;
+      const soulConfigFromSettings = (settings.soulConfig ?? settings.personaConfig) as Record<string, unknown> | undefined;
+      if (soulUIFromSettings && typeof soulUIFromSettings === 'object') soulUI.value = { ...soulUI.value, ...soulUIFromSettings };
+      if (soulConfigFromSettings && typeof soulConfigFromSettings === 'object') soulConfig.value = { ...soulConfig.value, ...soulConfigFromSettings } as typeof soulConfig.value;
       if (settings.memoryUI && typeof settings.memoryUI === 'object') memoryUI.value = { ...memoryUI.value, ...settings.memoryUI };
       if (settings.enhancementsState && typeof settings.enhancementsState === 'object') {
         const s = settings.enhancementsState as Record<string, unknown>;
@@ -241,8 +243,8 @@ export const useVoiceStore = defineStore('voice', () => {
       activePreset: activePreset.value,
       modelsUI: { ...modelsUI.value },
       voiceUI: { ...voiceUI.value },
-      personaUI: { ...personaUI.value },
-      personaConfig: { ...personaConfig.value, emotionalTraits: { ...personaConfig.value.emotionalTraits } },
+      soulUI: { ...soulUI.value },
+      soulConfig: { ...soulConfig.value, emotionalTraits: { ...soulConfig.value.emotionalTraits } },
       memoryUI: { ...memoryUI.value },
       enhancementsState: {
         turnDetection: { ...enhancementsState.value.turnDetection },
@@ -275,7 +277,7 @@ export const useVoiceStore = defineStore('voice', () => {
 
   // Auto-save when any config changes
   watch(
-    [pipelineMode, stt, llm, tts, realtime, activePreset, personaUI, personaConfig, enhancementsState],
+    [pipelineMode, stt, llm, tts, realtime, activePreset, soulUI, soulConfig, enhancementsState],
     () => { saveSettings(); },
     { deep: true },
   );
@@ -289,8 +291,8 @@ export const useVoiceStore = defineStore('voice', () => {
     activePreset,
     modelsUI,
     voiceUI,
-    personaUI,
-    personaConfig,
+    soulUI,
+    soulConfig,
     memoryUI,
     enhancementsState,
     updateSTT,

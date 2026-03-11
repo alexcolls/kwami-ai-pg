@@ -5,7 +5,7 @@ Web app for building and interacting with **Kwami** 3D AI companions: voice conv
 ## Features
 
 - **Voice pipeline** — Real-time STT, LLM, and TTS (e.g. Deepgram, OpenAI) via LiveKit
-- **3D avatars** — Blob, Orbital Shards, Stars Genesis, Crystal Ball, Black Hole renderers
+- **3D avatars** — Blob and Black Hole renderers
 - **Memory** — Long-term context with Zep
 - **Tools** — MCP and custom tools
 - **Scene & theme** — Backgrounds, HDRI, themes, and effects

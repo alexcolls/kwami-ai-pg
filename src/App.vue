@@ -13,7 +13,7 @@ import ScenePanel from '@/components/panels/scene/ScenePanel.vue';
 import VoicePanel from '@/components/panels/voice/VoicePanel.vue';
 import EnhancementsPanel from '@/components/panels/enhancements/EnhancementsPanel.vue';
 import TranscriptionPanel from '@/components/panels/transcription/TranscriptionPanel.vue';
-import PersonaPanel from '@/components/panels/persona/PersonaPanel.vue';
+import SoulPanel from '@/components/panels/soul/SoulPanel.vue';
 import MemoryPanel from '@/components/panels/memory/MemoryPanel.vue';
 import ToolsPanel from '@/components/panels/tools/ToolsPanel.vue';
 import InfoPanel from '@/components/panels/info/InfoPanel.vue';
@@ -32,9 +32,6 @@ import { useNavigation } from '@/composables/useNavigation';
 import { useSearchStore } from '@/stores/search';
 import { useAvatarStore } from '@/stores/avatar';
 import { useBlobXyzSync } from '@/composables/avatar/sync/useBlobXyzSync';
-import { useOrbitalShardsSync } from '@/composables/avatar/sync/useOrbitalShardsSync';
-import { useStarsGenesisSync } from '@/composables/avatar/sync/useStarsGenesisSync';
-import { useCrystalBallSync } from '@/composables/avatar/sync/useCrystalBallSync';
 import { useBlackHoleSync } from '@/composables/avatar/sync/useBlackHoleSync';
 
 const { kwami, init, switchRenderer, rendererType: kwamiRendererType } = useKwami();
@@ -63,18 +60,6 @@ const creditsStore = useCreditsStore();
 const { applyToKwami: applyBlobToKwami } = useBlobXyzSync({
   kwami,
   getBlob: () => kwami.value?.avatar.getBlob(),
-});
-const { applyToKwami: applyOrbitalShardsToKwami } = useOrbitalShardsSync({
-  kwami,
-  getOrbitalShards: () => kwami.value?.avatar.getOrbitalShards(),
-});
-const { applyToKwami: applyStarsGenesisToKwami } = useStarsGenesisSync({
-  kwami,
-  getStarsGenesis: () => kwami.value?.avatar.getStarsGenesis(),
-});
-const { applyToKwami: applyCrystalBallToKwami } = useCrystalBallSync({
-  kwami,
-  getCrystalBall: () => (kwami.value?.avatar as any)?.getCrystalBall?.(),
 });
 const { applyToKwami: applyBlackHoleToKwami } = useBlackHoleSync({
   kwami,
@@ -111,7 +96,7 @@ function onKwamiDisconnected() {
 }
 function onKwamiConfigApplied() {
   applySavedAvatarState();
-  applySavedPersonaState();
+  applySavedSoulState();
   initSceneBackground();
 }
 
@@ -143,18 +128,15 @@ function applySavedAvatarState() {
   // Apply the saved state for the active renderer
   switch (savedRenderer) {
     case 'blob-xyz': applyBlobToKwami(); break;
-    case 'orbital-shards': applyOrbitalShardsToKwami(); break;
-    case 'stars-genesis': applyStarsGenesisToKwami(); break;
-    case 'crystal-ball': applyCrystalBallToKwami(); break;
     case 'black-hole': applyBlackHoleToKwami(); break;
   }
 }
 
-// Apply current store persona to the Kwami instance so the live agent matches the active kwami config
-function applySavedPersonaState() {
+// Apply current store soul to the Kwami instance so the live agent matches the active kwami config
+function applySavedSoulState() {
   if (!kwami.value) return;
-  const saved = voiceStore.personaConfig;
-  kwami.value.persona.updateConfig({
+  const saved = voiceStore.soulConfig;
+  kwami.value.soul.updateConfig({
     name: saved.name,
     personality: saved.personality,
     systemPrompt: saved.systemPrompt,
@@ -186,8 +168,8 @@ function initializeKwami() {
     applySavedAvatarState();
   }
 
-  // Apply saved persona config to kwami
-  applySavedPersonaState();
+  // Apply saved soul config to kwami
+  applySavedSoulState();
 
   // Trigger initial resize to ensure proper sizing
   requestAnimationFrame(() => {
@@ -197,7 +179,7 @@ function initializeKwami() {
   // Console info
   console.log('🎮 Kwami App (🫧 blob renderer)');
   console.log('Shortcuts: R=randomize, L=listening, T=thinking, I=idle, P=toggle panel');
-  console.log('Renderer: B=blob, O|C=orbital-shards');
+  console.log('Renderer: B=blob, H=black-hole');
   console.log('Access kwami via window.kwami in console');
 }
 
@@ -257,7 +239,7 @@ onMounted(() => {
     }
     // Renderer switch shortcuts
     if (e.key === 'b' || e.key === 'B') switchRenderer('blob-xyz');
-    if (e.key === 'c' || e.key === 'C' || e.key === 'o' || e.key === 'O') switchRenderer('orbital-shards');
+    if (e.key === 'h' || e.key === 'H') switchRenderer('black-hole');
     // Avatar state shortcuts
     if (e.key === 'r') {
       kwami.value?.avatar.randomize();
@@ -321,7 +303,7 @@ onUnmounted(() => {
           <VoicePanel v-if="uiStore.activePanel === 'voice'" />
           <EnhancementsPanel v-if="uiStore.activePanel === 'enhancements'" />
           <TranscriptionPanel v-if="uiStore.activePanel === 'transcription'" />
-          <PersonaPanel v-if="uiStore.activePanel === 'persona'" />
+          <SoulPanel v-if="uiStore.activePanel === 'soul'" />
           <MemoryPanel v-if="uiStore.activePanel === 'memory'" />
           <ToolsPanel v-if="uiStore.activePanel === 'tools'" />
           <InfoPanel v-if="uiStore.activePanel === 'info'" />

@@ -62,7 +62,7 @@ function onRandomize() {
     @confirm="onConfirm"
     @cancel="onCancel"
   >
-    <p>Give your new Kwami a name (optional). It will be synced with the persona name.</p>
+    <p>Give your new Kwami a name (optional). It will be synced with the soul name.</p>
     <BaseInput
       v-model="name"
       placeholder="e.g. Luna, Atlas..."
