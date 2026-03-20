@@ -1,12 +1,22 @@
 <script setup lang="ts">
-import { ref, computed, onUnmounted, watch } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useKwami } from '@/composables/useKwami';
+import { useAuthStore } from '@/stores/auth';
+import { useWorkspaceStore } from '@/stores/workspace';
+import { useKwamiConfigSync } from '@/composables/useKwamiConfigSync';
+import { useToast } from 'vue-toastification';
 import RecordControl from './RecordControl.vue';
 
 const { isConnected, connect, disconnect } = useKwami();
+const authStore = useAuthStore();
+const workspaceStore = useWorkspaceStore();
+const { saveCurrentConfig, revertCurrentConfig } = useKwamiConfigSync();
+const toast = useToast();
 
 // Loading state
 const isLoading = ref(false);
+const isSavingConfig = ref(false);
+const saveActionsOpen = ref(false);
 
 // Session duration
 const sessionStartTime = ref<number | null>(null);
@@ -22,6 +32,12 @@ const buttonIcon = computed(() => {
 const buttonTitle = computed(() => {
   if (isLoading.value) return 'Connecting...';
   return isConnected.value ? 'End conversation' : 'Start conversation';
+});
+
+const hasUnsavedChanges = computed(() => workspaceStore.hasActiveUnsavedConfig);
+const saveButtonTitle = computed(() => {
+  if (!authStore.userId) return 'Save changes locally';
+  return 'Review unsaved changes';
 });
 
 // Actions
@@ -58,6 +74,39 @@ async function handleToggle() {
   }
 }
 
+async function handleSaveConfig() {
+  if (isSavingConfig.value) return;
+
+  isSavingConfig.value = true;
+  try {
+    const saved = await saveCurrentConfig();
+    if (saved) {
+      saveActionsOpen.value = false;
+      toast.success(authStore.userId ? 'Kwami changes saved' : 'Kwami changes saved locally');
+    } else {
+      toast.error('Could not save kwami changes');
+    }
+  } catch (err) {
+    console.error('Failed to save kwami config:', err);
+    toast.error('Could not save kwami changes');
+  } finally {
+    isSavingConfig.value = false;
+  }
+}
+
+function handleUndoConfig() {
+  revertCurrentConfig();
+  saveActionsOpen.value = false;
+  toast.info('Unsaved changes discarded');
+}
+
+function handleClickOutside(event: MouseEvent) {
+  const target = event.target as HTMLElement;
+  if (saveActionsOpen.value && !target.closest('.save-config-wrap')) {
+    saveActionsOpen.value = false;
+  }
+}
+
 // Watch for external disconnection
 watch(isConnected, (connected) => {
   if (!connected && durationInterval) {
@@ -68,8 +117,19 @@ watch(isConnected, (connected) => {
   }
 });
 
+watch(hasUnsavedChanges, (nextValue) => {
+  if (!nextValue) {
+    saveActionsOpen.value = false;
+  }
+});
+
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside);
+});
+
 onUnmounted(() => {
   if (durationInterval) clearInterval(durationInterval);
+  document.removeEventListener('click', handleClickOutside);
 });
 </script>
 
@@ -77,6 +137,41 @@ onUnmounted(() => {
   <div class="control-bar">
     <!-- Record control -->
     <RecordControl />
+
+    <transition name="save-chip">
+      <div v-if="hasUnsavedChanges" class="save-config-wrap" :class="{ open: saveActionsOpen }">
+        <button
+          class="save-config-btn"
+          :class="{ active: saveActionsOpen }"
+          :title="saveButtonTitle"
+          @click.stop="saveActionsOpen = !saveActionsOpen"
+        >
+          <iconify-icon icon="ph:floppy-disk-bold"></iconify-icon>
+          <span>Unsaved</span>
+        </button>
+
+        <transition name="save-actions">
+          <div v-if="saveActionsOpen" class="save-config-actions">
+            <button
+              class="save-action primary"
+              :disabled="isSavingConfig"
+              @click.stop="handleSaveConfig"
+            >
+              <iconify-icon :icon="isSavingConfig ? 'ph:circle-notch-bold' : 'ph:check-bold'" :class="{ spin: isSavingConfig }"></iconify-icon>
+              <span>{{ isSavingConfig ? 'Saving' : 'Save' }}</span>
+            </button>
+            <button
+              class="save-action secondary"
+              :disabled="isSavingConfig"
+              @click.stop="handleUndoConfig"
+            >
+              <iconify-icon icon="ph:arrow-counter-clockwise-bold"></iconify-icon>
+              <span>Undo</span>
+            </button>
+          </div>
+        </transition>
+      </div>
+    </transition>
 
     <!-- Duration badge (only when connected) -->
     <transition name="fade">
@@ -103,6 +198,98 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+.save-config-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.save-config-btn,
+.save-action {
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  font-family: inherit;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+
+.save-config-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  height: 40px;
+  border-radius: 999px;
+  cursor: pointer;
+  background: color-mix(in srgb, var(--accent-primary) 12%, var(--glass-bg));
+  color: var(--text-primary);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--accent-primary) 18%, transparent);
+}
+
+.save-config-btn:hover,
+.save-config-btn.active {
+  border-color: color-mix(in srgb, var(--accent-primary) 28%, var(--glass-border));
+  background: color-mix(in srgb, var(--accent-primary) 18%, var(--glass-bg));
+}
+
+.save-config-btn iconify-icon {
+  font-size: 16px;
+  color: var(--accent-primary);
+}
+
+.save-config-btn span {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.save-config-actions {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  display: flex;
+  gap: 8px;
+  padding: 8px;
+  border-radius: calc(var(--radius-lg) + 2px);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+}
+
+.save-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.save-action.primary {
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  border-color: transparent;
+  color: white;
+}
+
+.save-action.secondary {
+  background: var(--surface-2);
+  color: var(--text-secondary);
+}
+
+.save-action:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.save-action.secondary:hover:not(:disabled) {
+  background: var(--surface-3);
+  color: var(--text-primary);
+}
+
+.save-action:disabled {
+  opacity: 0.6;
+  cursor: wait;
 }
 
 /* Duration Badge */
@@ -201,5 +388,24 @@ onUnmounted(() => {
 .fade-leave-to {
   opacity: 0;
   transform: translateX(8px);
+}
+
+.save-chip-enter-active,
+.save-chip-leave-active,
+.save-actions-enter-active,
+.save-actions-leave-active {
+  transition: opacity 0.18s ease, transform 0.18s var(--ease-out);
+}
+
+.save-chip-enter-from,
+.save-chip-leave-to {
+  opacity: 0;
+  transform: translateX(8px);
+}
+
+.save-actions-enter-from,
+.save-actions-leave-to {
+  opacity: 0;
+  transform: translateY(-6px) scale(0.98);
 }
 </style>
