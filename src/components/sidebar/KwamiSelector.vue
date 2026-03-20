@@ -4,13 +4,16 @@ import { useUIStore } from '@/stores/ui';
 import { useWorkspaceStore } from '@/stores/workspace';
 import { useKwamiConfigSync } from '@/composables/useKwamiConfigSync';
 import { getGradient } from '@/composables/useKwamiGradient';
+import { useToast } from 'vue-toastification';
 
 const uiStore = useUIStore();
 const workspaceStore = useWorkspaceStore();
 const { switchToKwami } = useKwamiConfigSync();
+const toast = useToast();
 
 const trayExpanded = ref(false);
 const kwamiListRef = ref<HTMLElement | null>(null);
+const DRAFT_TOOLTIP_STORAGE_KEY = 'kwami-unsaved-draft-hint-shown';
 
 const activeWorkspace = computed(() => workspaceStore.getActiveWorkspace());
 const workspaces = computed(() => workspaceStore.workspaces);
@@ -28,8 +31,18 @@ function toggleTray() {
 }
 
 function switchKwami(id: string) {
+  const shouldShowDraftHint =
+    activeWorkspace.value?.id !== id &&
+    activeWorkspace.value?.hasUnsavedConfig &&
+    localStorage.getItem(DRAFT_TOOLTIP_STORAGE_KEY) !== 'true';
+
   switchToKwami(id);
   trayExpanded.value = false;
+
+  if (shouldShowDraftHint) {
+    localStorage.setItem(DRAFT_TOOLTIP_STORAGE_KEY, 'true');
+    toast.info('Unsaved changes stay local until you press Save.');
+  }
 }
 
 function onAddClick(event?: MouseEvent) {

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
-import { getMemoryGraph, updateMemoryNode, updateMemoryEdge, deleteMemoryEdge } from 'kwami'
+import { getMemoryGraph, updateMemoryNode } from 'kwami'
 import type { UpdateNodePayload, UpdateEdgePayload } from 'kwami'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from 'vue-toastification'
@@ -136,7 +136,7 @@ async function handleUpdateNode(nodeUuid: string, data: UpdateNodePayload) {
   }
 }
 
-async function handleUpdateEdge(_edgeIndex: number, edge: MemoryEdge, data: UpdateEdgePayload) {
+async function handleUpdateEdge(_edgeIndex: number, edge: MemoryEdge, _data: UpdateEdgePayload) {
   // We need to find the edge UUID from the graph data
   // The graph edges use node IDs (entity_0, entity_1), but we need the actual edge UUID from the backend
   // Since the graph visualization doesn't carry edge UUIDs, we'll use a different strategy:

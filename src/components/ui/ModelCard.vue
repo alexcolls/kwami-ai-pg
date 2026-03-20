@@ -120,23 +120,6 @@ const speedDisplay = computed(() => {
   return labels[props.model.speed] || 'Medium';
 });
 
-// Language display and percentage
-const isMultilingual = computed(() => {
-  return props.model.languages?.includes('multilingual') ?? false;
-});
-
-const languageDisplay = computed(() => {
-  if (!props.model.languages || props.model.languages.length === 0) return null;
-  if (isMultilingual.value) return 'Multi';
-  if (props.model.languages.length === 1) return props.model.languages[0]!.toUpperCase();
-  return `${props.model.languages.length}`;
-});
-
-// Language percent: multilingual = 100%, single language = 30%
-const languagePercent = computed(() => {
-  return isMultilingual.value ? 100 : 30;
-});
-
 // Formatted languages for tooltip
 const formattedLanguages = computed(() => {
   if (!props.model.languages) return [];

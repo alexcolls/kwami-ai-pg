@@ -63,9 +63,6 @@ const colorPalettes = tailwindColors500.map((color, index) => {
 
 export class WelcomeLayer {
   private showButton = true;
-  private _startAnimation = false;
-  private _showLoader = true;
-  private _showContainer = true;
   private readonly secondsLoader = 6;
   private readonly secondsContainer: number;
   private container: HTMLElement | null = null;
@@ -356,16 +353,6 @@ export class WelcomeLayer {
     nav.classList.add('inside-welcome-layer');
     this.sidebarNav = nav;
 
-  }
-
-  private _triggerSidebarWave() {
-    if (!this.sidebarNav) return;
-    const sphereContainer = this.sidebarNav.querySelector('.sphere-container');
-    if (!sphereContainer) return;
-
-    sphereContainer.classList.remove('wave-enter');
-    void sphereContainer.getBoundingClientRect(); // Force reflow
-    sphereContainer.classList.add('wave-enter');
   }
 
   private triggerSidebarExit() {
@@ -869,12 +856,6 @@ export class WelcomeLayer {
       
       // PHASE 2: Transition white to black
       // Helper to interpolate between white and black (reserved for future use)
-      const _colorState = { 
-        r: 255, // white
-        g: 255, 
-        b: 255 
-      };
-      
       // gsap.to(colorState, {
       //   duration: 2,
       //   delay: 2,
@@ -1069,7 +1050,6 @@ export class WelcomeLayer {
     });
 
     setTimeout(() => {
-      this._showLoader = false;
       if (this.container) {
         this.container.style.opacity = '0';
       }
@@ -1095,7 +1075,6 @@ export class WelcomeLayer {
     }, 3000);
 
     setTimeout(() => {
-      this._showContainer = false;
       if (this.container) {
         this.detachSidebarNavigation();
         this.container.remove();
@@ -1204,7 +1183,6 @@ export class WelcomeLayer {
     });
 
     setTimeout(() => {
-      this._showLoader = false;
       if (this.container) {
         this.container.style.opacity = '0';
       }
@@ -1231,7 +1209,6 @@ export class WelcomeLayer {
     }, this.secondsLoader * 1000);
 
     setTimeout(() => {
-      this._showContainer = false;
       if (this.container) {
         this.detachSidebarNavigation();
         this.container.remove();
@@ -1267,7 +1244,6 @@ export class WelcomeLayer {
       ease: 'power2.out'
     });
 
-    this._startAnimation = true;
     this.initAnimation();
   }
 
@@ -1343,8 +1319,6 @@ export class WelcomeLayer {
 
     const characters = Array.from(text);
     const charAnimDuration = 0.015; // 15ms per character (faster)
-    const _lineDuration = characters.length * charAnimDuration;
-    
     // Calculate delay: sum of all previous lines' durations + 0.2s gap between lines
     let baseDelay = 0.3; // Initial delay (faster)
     for (let i = 0; i < lineIndex; i++) {
