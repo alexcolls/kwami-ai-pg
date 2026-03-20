@@ -1,14 +1,21 @@
 <script setup lang="ts">
 import { useSearchResults } from '@/composables/useSearchResults';
 
-const searchResults = useSearchResults();
+const {
+  query,
+  results,
+  answer,
+  error,
+  clear,
+  hasSearchData,
+} = useSearchResults();
 </script>
 
 <template>
   <Teleport to="body">
     <Transition name="card-pop">
       <div
-        v-if="searchResults.hasSearchData || searchResults.error"
+        v-if="hasSearchData || error"
         class="search-card"
         role="region"
         aria-label="Web search results"
@@ -23,7 +30,7 @@ const searchResults = useSearchResults();
           <button
             type="button"
             class="search-card-close"
-            @click="searchResults.clear"
+            @click="clear"
             title="Close"
             aria-label="Close search results"
           >
@@ -31,20 +38,20 @@ const searchResults = useSearchResults();
           </button>
         </header>
 
-        <div v-if="searchResults.error" class="search-card-error">
-          {{ searchResults.error }}
+        <div v-if="error" class="search-card-error">
+          {{ error }}
         </div>
 
         <template v-else>
-          <p v-if="searchResults.query" class="search-card-query">
-            “{{ searchResults.query }}”
+          <p v-if="query" class="search-card-query">
+            “{{ query }}”
           </p>
-          <p v-if="searchResults.answer" class="search-card-answer">
-            {{ searchResults.answer }}
+          <p v-if="answer" class="search-card-answer">
+            {{ answer }}
           </p>
-          <ul v-if="searchResults.results.length" class="search-card-list">
+          <ul v-if="results.length" class="search-card-list">
             <li
-              v-for="(r, i) in searchResults.results"
+              v-for="(r, i) in results"
               :key="i"
               class="search-card-item"
             >

@@ -104,7 +104,7 @@ function onPointerUp(e: PointerEvent, index: number) {
   dragIndex = -1;
 }
 
-function onCardClick(e: MouseEvent, index: number, _url: string) {
+function onCardClick(e: MouseEvent, _index: number, _url: string) {
   if (didDrag) {
     e.preventDefault();
     return;
