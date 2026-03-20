@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { supabase } from '@/lib/supabase';
 import type { KwamiConfig } from '@/composables/useKwamiConfigSync';
 
@@ -9,6 +9,8 @@ export interface KwamiWorkspace {
   emoji: string;
   colors: { x: string; y: string; z: string };
   config?: KwamiConfig;
+  savedConfig?: KwamiConfig;
+  hasUnsavedConfig?: boolean;
 }
 
 export const useWorkspaceStore = defineStore('workspace', () => {
@@ -16,8 +18,30 @@ export const useWorkspaceStore = defineStore('workspace', () => {
   const activeWorkspaceId = ref<string>('');
   const loading = ref(false);
   const loadedFromDb = ref(false);
+  const hasActiveUnsavedConfig = computed(() => Boolean(getActiveWorkspace()?.hasUnsavedConfig));
 
   const defaultColors = { x: '#00d9ff', y: '#a855f7', z: '#22c55e' };
+
+  function cloneConfig<T extends KwamiConfig | undefined>(config: T): T {
+    if (config == null) return config;
+    return JSON.parse(JSON.stringify(config)) as T;
+  }
+
+  function configsEqual(a?: KwamiConfig, b?: KwamiConfig): boolean {
+    return JSON.stringify(a ?? {}) === JSON.stringify(b ?? {});
+  }
+
+  function syncDirtyState(workspace: KwamiWorkspace) {
+    workspace.hasUnsavedConfig = !configsEqual(workspace.config, workspace.savedConfig);
+  }
+
+  function setWorkspaceConfig(workspace: KwamiWorkspace, config?: KwamiConfig, markAsSaved = false) {
+    workspace.config = cloneConfig(config);
+    if (markAsSaved) {
+      workspace.savedConfig = cloneConfig(config);
+    }
+    syncDirtyState(workspace);
+  }
 
   function generateRandomKwami(): Omit<KwamiWorkspace, 'config'> {
     const adjectives = [
@@ -38,7 +62,12 @@ export const useWorkspaceStore = defineStore('workspace', () => {
 
   function ensureLocalWorkspace() {
     if (workspaces.value.length === 0) {
-      const initial = { ...generateRandomKwami(), config: undefined };
+      const initial = {
+        ...generateRandomKwami(),
+        config: undefined,
+        savedConfig: undefined,
+        hasUnsavedConfig: false,
+      };
       workspaces.value.push(initial);
       activeWorkspaceId.value = initial.id;
     }
@@ -76,7 +105,9 @@ export const useWorkspaceStore = defineStore('workspace', () => {
           name: r.name,
           emoji: r.emoji,
           colors: r.colors || { x: '#00d9ff', y: '#a855f7', z: '#22c55e' },
-          config: r.config,
+          config: cloneConfig(r.config),
+          savedConfig: cloneConfig(r.config),
+          hasUnsavedConfig: false,
         }));
         activeWorkspaceId.value = workspaces.value[0]!.id;
       }
@@ -91,7 +122,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
 
   async function createKwamiInDb(
     userId: string,
-    data: { name: string; emoji: string; colors: { x: string; y: string; z: string } },
+    data: { name: string; emoji: string; colors: { x: string; y: string; z: string }; config?: KwamiConfig },
   ): Promise<KwamiWorkspace | null> {
     const { data: row, error } = await supabase
       .from('user_kwamis')
@@ -100,7 +131,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
         name: data.name,
         emoji: data.emoji,
         colors: data.colors,
-        config: {},
+        config: cloneConfig(data.config) ?? {},
       })
       .select('id, name, emoji, colors, config')
       .single();
@@ -114,7 +145,9 @@ export const useWorkspaceStore = defineStore('workspace', () => {
       name: row.name,
       emoji: row.emoji,
       colors: row.colors || data.colors,
-      config: row.config,
+      config: cloneConfig(row.config),
+      savedConfig: cloneConfig(row.config),
+      hasUnsavedConfig: false,
     };
   }
 
@@ -149,16 +182,18 @@ export const useWorkspaceStore = defineStore('workspace', () => {
       config = initial?.config ? JSON.parse(JSON.stringify(initial.config)) : (active?.config ? JSON.parse(JSON.stringify(active.config)) : undefined);
     }
 
-    const payload = { name, emoji, colors };
+    const payload = { name, emoji, colors, config };
     if (userId) {
       const created = await createKwamiInDb(userId, payload);
       if (created) {
-        const withConfig: KwamiWorkspace = { ...created, config };
+        const withConfig: KwamiWorkspace = {
+          ...created,
+          config: cloneConfig(config),
+          savedConfig: cloneConfig(config),
+          hasUnsavedConfig: false,
+        };
         workspaces.value.push(withConfig);
         activeWorkspaceId.value = withConfig.id;
-        if (config && Object.keys(config).length > 0) {
-          (withConfig as KwamiWorkspace).config = config;
-        }
         return withConfig;
       }
     }
@@ -167,7 +202,9 @@ export const useWorkspaceStore = defineStore('workspace', () => {
       name,
       emoji,
       colors,
-      config,
+      config: cloneConfig(config),
+      savedConfig: cloneConfig(config),
+      hasUnsavedConfig: false,
     };
     workspaces.value.push(local);
     activeWorkspaceId.value = local.id;
@@ -236,17 +273,40 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     return workspaces.value.find((w) => w.id === activeWorkspaceId.value);
   }
 
-  async function saveActiveConfig(config: KwamiConfig, userId: string | null) {
-    if (!activeWorkspaceId.value) return;
-    const ws = workspaces.value.find((w) => w.id === activeWorkspaceId.value);
+  function updateActiveConfigLocal(config: KwamiConfig) {
+    const ws = getActiveWorkspace();
     if (!ws) return;
-    // Always update in-memory so switching back loads the right config (even when not logged in)
-    ws.config = config;
-    if (!userId) return;
+    setWorkspaceConfig(ws, config, false);
+  }
+
+  function getActiveSavedConfig(): KwamiConfig | undefined {
+    const ws = getActiveWorkspace();
+    return cloneConfig(ws?.savedConfig);
+  }
+
+  function discardActiveConfigChanges(): KwamiConfig | undefined {
+    const ws = getActiveWorkspace();
+    if (!ws) return undefined;
+    setWorkspaceConfig(ws, ws.savedConfig, false);
+    return cloneConfig(ws.config);
+  }
+
+  async function saveActiveConfig(config: KwamiConfig, userId: string | null): Promise<boolean> {
+    if (!activeWorkspaceId.value) return false;
+    const ws = workspaces.value.find((w) => w.id === activeWorkspaceId.value);
+    if (!ws) return false;
+    updateActiveConfigLocal(config);
+    if (!userId) {
+      setWorkspaceConfig(ws, config, true);
+      return true;
+    }
     // Only persist to DB when the active kwami has a DB id (UUID). Local-only kwamis have ids like kwami_*
     const id = activeWorkspaceId.value;
     const isDbId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
-    if (!isDbId) return;
+    if (!isDbId) {
+      setWorkspaceConfig(ws, config, true);
+      return true;
+    }
     try {
       const configPayload = JSON.parse(JSON.stringify(config)) as object;
       const { error } = await supabase
@@ -259,8 +319,11 @@ export const useWorkspaceStore = defineStore('workspace', () => {
         console.error('Supabase save kwami config failed:', error.message, error.details);
         throw error;
       }
+      setWorkspaceConfig(ws, config, true);
+      return true;
     } catch (e) {
       console.warn('Failed to save kwami config:', e);
+      return false;
     }
   }
 
@@ -269,10 +332,14 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     activeWorkspaceId,
     loading,
     loadedFromDb,
+    hasActiveUnsavedConfig,
     addKwami,
     updateKwami,
     setActive,
     getActiveWorkspace,
+    updateActiveConfigLocal,
+    getActiveSavedConfig,
+    discardActiveConfigChanges,
     loadFromDb,
     saveActiveConfig,
     ensureLocalWorkspace,
