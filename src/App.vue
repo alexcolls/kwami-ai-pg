@@ -24,7 +24,6 @@ import ModelsPanel from '@/components/panels/models/ModelsPanel.vue';
 import EnergyPanel from '@/components/panels/energy/EnergyPanel.vue';
 import EnergyBadge from '@/components/energy/EnergyBadge.vue';
 import SearchOrbitCards from '@/components/search/SearchOrbitCards.vue';
-import AgentActionOverlay from '@/components/agent/AgentActionOverlay.vue';
 
 import { useWorkspaceStore } from '@/stores/workspace';
 import { useKwamiConfigWatchers } from '@/composables/useKwamiConfigSync';
@@ -282,7 +281,6 @@ onUnmounted(() => {
         <template v-if="authStore.isAuthenticated">
           <!-- Search results as orbit cards around the Kwami (blob) -->
           <SearchOrbitCards />
-          <AgentActionOverlay />
           <!-- Control Bar (top-right of main area; moves with canvas when nav opens) -->
           <div class="control-bar-container">
             <EnergyBadge />

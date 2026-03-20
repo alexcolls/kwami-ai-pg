@@ -45,7 +45,7 @@ export function useKwami() {
     const config: KwamiConfig = {
       avatar: {
         renderer: renderer,
-        blobXyz: {
+        blob: {
           colors: { x: '#ff0066', y: '#00ff66', z: '#6600ff' },
           spikes: { x: 0.3, y: 0.3, z: 0.3 },
           rotation: { x: 0.002, y: 0.003, z: 0.001 },
