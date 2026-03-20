@@ -19,6 +19,7 @@ import { useBlackHoleSync } from '@/composables/avatar/sync/useBlackHoleSync';
 import { useParticlesFaceSync } from '@/composables/avatar/sync/useParticlesFaceSync';
 
 const { kwami, rendererType: kwamiRendererType, switchRenderer } = useKwami();
+const panelIcon = panelIcons.avatar ?? 'ph:ghost-duotone';
 const avatarStore = useAvatarStore();
 const blobStore = useBlobXyzStore();
 const blackHoleStore = useBlackHoleStore();
@@ -387,7 +388,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <BasePanel :icon="panelIcons.avatar" title="3D Avatar">
+  <BasePanel :icon="panelIcon" title="3D Avatar">
     <!-- Avatar Type Selector -->
     <PanelSection title="Avatar Type" icon="ph:swap-duotone" collapsible>
       <p class="section-desc">Choose the visual style for your avatar</p>

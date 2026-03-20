@@ -14,6 +14,7 @@ import RealtimeTab from './tabs/RealtimeTab.vue';
 
 const voiceStore = useVoiceStore();
 const { llm, stt, tts, realtime, pipelineMode, modelsUI } = storeToRefs(voiceStore);
+const panelIcon = panelIcons.models ?? 'ph:cpu-duotone';
 
 // Pipeline type - synced with store (converts between UI value and store value)
 const pipelineType = computed({
@@ -50,7 +51,7 @@ function getProviderIcon(provider: string): string {
 </script>
 
 <template>
-  <BasePanel :icon="panelIcons.models" title="Models">
+  <BasePanel :icon="panelIcon" title="Models">
     <!-- Pipeline Selector -->
     <PanelSection>
       <PipelineSelector v-model="pipelineType" />

@@ -19,6 +19,7 @@ import BaseColorPicker from '@/components/ui/BaseColorPicker.vue';
 
 const themeStore = useThemeStore();
 const uiStore = useUIStore();
+const panelIcon = panelIcons.theme ?? 'ph:palette-duotone';
 
 // Theme mode options
 const themeModes: { value: ThemeMode; label: string; icon: string }[] = [
@@ -104,7 +105,7 @@ function handleFileImport(event: Event) {
 </script>
 
 <template>
-  <BasePanel :icon="panelIcons.theme" title="Theme">
+  <BasePanel :icon="panelIcon" title="Theme">
     <template #actions>
       <BaseTooltip text="Undo (Ctrl+Z)" position="bottom">
         <button

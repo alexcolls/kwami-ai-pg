@@ -15,6 +15,7 @@ import { useLanguagesApi, type Language } from '@/composables/useLanguagesApi';
 const voiceStore = useVoiceStore();
 const { pipelineMode, tts, realtime, voiceUI } = storeToRefs(voiceStore);
 const { kwami, isConnected } = useKwami();
+const panelIcon = panelIcons.voice ?? 'mdi:account-voice';
 
 const { 
   fetchTTSVoicesByProvider, 
@@ -323,7 +324,7 @@ watch(() => tts.value.speed, (newSpeed) => {
 </script>
 
 <template>
-  <BasePanel :icon="panelIcons.voice" title="Voice">
+  <BasePanel :icon="panelIcon" title="Voice">
     <!-- Current Model Context -->
     <PanelSection>
       <div class="model-context">

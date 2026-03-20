@@ -6,7 +6,15 @@ import { useTranscriptionState } from '@/composables/useTranscriptionState';
 import { useSearchResults } from '@/composables/useSearchResults';
 
 const { kwami } = useKwami();
-const searchResults = useSearchResults();
+const {
+  query: searchQuery,
+  results: searchItems,
+  answer: searchAnswer,
+  loading: searchLoading,
+  error: searchError,
+  clear: clearSearch,
+  hasSearchData,
+} = useSearchResults();
 const {
   messages,
   interimTranscript,
@@ -115,25 +123,25 @@ onUnmounted(() => {
       </div>
 
       <!-- Web search results (when agent used web_search) -->
-      <div v-if="searchResults.loading || searchResults.error || searchResults.hasSearchData" class="search-results-section">
+      <div v-if="searchLoading || searchError || hasSearchData" class="search-results-section">
         <div class="search-results-header">
           <iconify-icon icon="ph:magnifying-glass-duotone"></iconify-icon>
           <span>Web search</span>
-          <button v-if="searchResults.hasSearchData || searchResults.error" class="search-clear" @click="searchResults.clear" title="Clear results">
+          <button v-if="hasSearchData || searchError" class="search-clear" @click="clearSearch" title="Clear results">
             <iconify-icon icon="ph:x"></iconify-icon>
           </button>
         </div>
-        <div v-if="searchResults.loading" class="search-loading">
+        <div v-if="searchLoading" class="search-loading">
           <iconify-icon icon="ph:spinner-gap-duotone" class="spin"></iconify-icon>
           Searching...
         </div>
-        <div v-else-if="searchResults.error" class="search-error">{{ searchResults.error }}</div>
+        <div v-else-if="searchError" class="search-error">{{ searchError }}</div>
         <div v-else class="search-results-body">
-          <p v-if="searchResults.answer" class="search-answer">{{ searchResults.answer }}</p>
-          <p class="search-query">“{{ searchResults.query }}”</p>
+          <p v-if="searchAnswer" class="search-answer">{{ searchAnswer }}</p>
+          <p class="search-query">“{{ searchQuery }}”</p>
           <div class="search-list">
             <a
-              v-for="(r, i) in searchResults.results"
+              v-for="(r, i) in searchItems"
               :key="i"
               :href="r.url"
               target="_blank"

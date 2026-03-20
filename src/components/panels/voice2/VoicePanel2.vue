@@ -14,6 +14,7 @@ import { useVoiceLiveUpdates } from '@/composables/useVoiceLiveUpdates';
 
 const { kwami, isConnected } = useKwami();
 const voiceStore = useVoiceStore();
+const panelIcon = panelIcons.voice ?? 'mdi:account-voice';
 
 // Use store refs for reactive state that persists across panel switches
 const { pipelineMode, stt, llm, tts, realtime, activePreset } = storeToRefs(voiceStore);
@@ -122,7 +123,7 @@ watch(() => stt.value.language, (newLang, oldLang) => {
 </script>
 
 <template>
-  <BasePanel :icon="panelIcons.voice" title="Voice Pipeline">
+  <BasePanel :icon="panelIcon" title="Voice Pipeline">
     <!-- Mode Selection -->
     <PanelSection>
       <div class="mode-selector">
