@@ -1,21 +1,65 @@
 <script setup lang="ts">
-import { onMounted } from 'vue';
+import { ref, onMounted, onUnmounted, watch } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import AuthPage from './AuthPage.vue';
-import WelcomeRings from '@/components/ui/WelcomeRings.vue';
+import WelcomeRings from '@/components/welcome/WelcomeRings.vue';
+
+const WELCOME_SOUND = '/aud/fx/welcome.mp3';
+const MIN_WELCOME_MS = 3500;
 
 const authStore = useAuthStore();
+const showWelcomeLayer = ref(false);
+const welcomeStartedAt = ref<number>(0);
+let hideTimeoutId: ReturnType<typeof setTimeout> | null = null;
+
+function playWelcomeSound() {
+  try {
+    const audio = new Audio(WELCOME_SOUND);
+    audio.volume = 0.6;
+    audio.play().catch(() => {});
+  } catch {
+    // ignore
+  }
+}
+
+function hideWelcomeWhenReady() {
+  if (hideTimeoutId) return;
+  const elapsed = Date.now() - welcomeStartedAt.value;
+  const remaining = Math.max(0, MIN_WELCOME_MS - elapsed);
+  hideTimeoutId = setTimeout(() => {
+    hideTimeoutId = null;
+    showWelcomeLayer.value = false;
+  }, remaining);
+}
+
+watch(
+  () => authStore.loading,
+  (loading) => {
+    if (loading) {
+      showWelcomeLayer.value = true;
+      welcomeStartedAt.value = Date.now();
+      playWelcomeSound();
+    } else {
+      hideWelcomeWhenReady();
+    }
+  },
+  { immediate: true },
+);
 
 onMounted(() => {
   authStore.initAuth();
+});
+
+onUnmounted(() => {
+  if (hideTimeoutId) clearTimeout(hideTimeoutId);
 });
 </script>
 
 <template>
   <div class="auth-guard">
-    <!-- Loading state: Welcome layer effect (rings) instead of spinner -->
+    <!-- Welcome layer: rings + wordmark (Vue component so it always renders) -->
     <Transition name="fade">
-      <div v-if="authStore.loading" class="loading-container welcome-layer">
+      <div v-if="showWelcomeLayer" class="loading-container welcome-layer">
         <WelcomeRings
           :ring-count="120"
           :ring-stroke-width="2"
@@ -33,13 +77,13 @@ onMounted(() => {
     </Transition>
 
     <!-- App content (always rendered for canvas background) -->
-    <div class="app-content" :class="{ 'behind-auth': !authStore.isAuthenticated && !authStore.loading }">
+    <div class="app-content" :class="{ 'behind-auth': showWelcomeLayer || (!authStore.isAuthenticated && !authStore.loading) }">
       <slot />
     </div>
 
-    <!-- Auth overlay (shown when not authenticated) -->
+    <!-- Auth overlay (shown when not authenticated and welcome is done) -->
     <Transition name="fade">
-      <AuthPage v-if="!authStore.isAuthenticated && !authStore.loading" />
+      <AuthPage v-if="!authStore.isAuthenticated && !showWelcomeLayer" />
     </Transition>
   </div>
 </template>

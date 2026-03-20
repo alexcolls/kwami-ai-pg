@@ -1,5 +1,6 @@
 import { shallowRef, ref, computed } from 'vue';
 import { Kwami } from 'kwami';
+import type { KwamiConfig } from 'kwami';
 import { useVoiceStore } from '@/stores/voice';
 import { useAuthStore } from '@/stores/auth';
 import { useWorkspaceStore } from '@/stores/workspace';
@@ -12,7 +13,7 @@ declare global {
 
 // Singleton state
 const kwamiInstance = shallowRef<Kwami | null>(null);
-const rendererType = ref<'blob-xyz' | 'black-hole'>('blob-xyz');
+const rendererType = ref<'blob-xyz' | 'black-hole' | 'particles-face'>('blob-xyz');
 const isConnected = ref(false);
 
 export function useKwami() {
@@ -31,7 +32,7 @@ export function useKwami() {
 
   function init(
     canvas: HTMLCanvasElement,
-    renderer: 'blob-xyz' | 'black-hole' = 'blob-xyz',
+    renderer: 'blob-xyz' | 'black-hole' | 'particles-face' = 'blob-xyz',
     options?: {
       onSearchResults?: (data: { query: string; results: Array<{ title: string; url: string; content: string }>; answer: string | null }) => void;
     },
@@ -41,7 +42,7 @@ export function useKwami() {
     // Get voice config from store
     const voiceStore = useVoiceStore();
 
-    const config = {
+    const config: KwamiConfig = {
       avatar: {
         renderer: renderer,
         blobXyz: {
@@ -80,7 +81,7 @@ export function useKwami() {
       },
     };
 
-    kwamiInstance.value = new Kwami(canvas, config as any);
+    kwamiInstance.value = new Kwami(canvas, config);
 
     // Web search runs on the LiveKit agent (server-side); results are sent via data channel
     // and displayed when the client receives the 'search_results' message (see useSearchResults).
@@ -180,7 +181,7 @@ export function useKwami() {
 
     // 5. STT model
     if ('updateSttLive' in agent && typeof agent.updateSttLive === 'function') {
-      (agent as any).updateSttLive({
+      agent.updateSttLive({
         provider: voiceStore.stt.provider,
         model: voiceStore.stt.model,
       });
@@ -219,12 +220,12 @@ export function useKwami() {
 
       // Sync all persisted panel configs to the backend agent after connecting
       syncAllConfigToBackend(kwamiInstance.value, voiceStore);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to connect:', error);
       isConnected.value = false;
 
       // Handle insufficient credits (402 from /token endpoint)
-      const msg = error?.message || String(error);
+      const msg = error instanceof Error ? error.message : String(error);
       if (msg.includes('402') || msg.includes('Insufficient credits')) {
         window.dispatchEvent(new CustomEvent('kwami:insufficient-credits'));
       }
@@ -271,14 +272,14 @@ export function useKwami() {
     }
   }
 
-  function switchRenderer(newRenderer: 'blob-xyz' | 'black-hole') {
+  function switchRenderer(newRenderer: 'blob-xyz' | 'black-hole' | 'particles-face') {
     if (!kwamiInstance.value) {
       console.warn('Cannot switch renderer: Kwami not initialized');
       return;
     }
 
     // Use the Avatar's built-in switchRenderer method
-    kwamiInstance.value.avatar.switchRenderer(newRenderer as any);
+    kwamiInstance.value.avatar.switchRenderer(newRenderer);
     rendererType.value = newRenderer;
 
     // Dispatch event for UI sync

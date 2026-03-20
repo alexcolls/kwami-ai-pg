@@ -71,6 +71,11 @@ defineExpose({ scrollListToBottom });
         class="kwami-preview"
         :style="{ background: getGradient(activeWorkspace.colors) }"
       ></div>
+      <span
+        v-if="activeWorkspace?.hasUnsavedConfig"
+        class="unsaved-dot active-dot"
+        title="This kwami has unsaved changes"
+      ></span>
     </button>
 
     <div class="kwami-tray" :class="{ visible: trayExpanded }">
@@ -95,6 +100,11 @@ defineExpose({ scrollListToBottom });
             >{{ ws.name }}</span>
             <span v-if="ws.emoji" class="kwami-item-emoji">{{ ws.emoji }}</span>
           </div>
+          <span
+            v-if="ws.hasUnsavedConfig"
+            class="unsaved-dot item-dot"
+            title="Unsaved changes"
+          ></span>
           <iconify-icon
             icon="ph:pencil-simple-duotone"
             class="kwami-item-edit"
@@ -145,6 +155,24 @@ defineExpose({ scrollListToBottom });
   height: 28px;
   border-radius: 6px;
   background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
+}
+
+.unsaved-dot {
+  display: inline-flex;
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: var(--warning);
+  box-shadow:
+    0 0 0 2px var(--glass-bg),
+    0 0 12px color-mix(in srgb, var(--warning) 45%, transparent);
+  flex-shrink: 0;
+}
+
+.active-dot {
+  position: absolute;
+  top: -2px;
+  right: -2px;
 }
 
 .kwami-tray {
@@ -269,6 +297,10 @@ defineExpose({ scrollListToBottom });
 .kwami-item-emoji {
   font-size: 10px;
   color: var(--text-muted);
+}
+
+.item-dot {
+  margin-left: auto;
 }
 
 .kwami-add-btn {

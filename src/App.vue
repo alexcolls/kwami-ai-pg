@@ -5,9 +5,9 @@ import { useSceneBackground } from '@/composables/useSceneBackground';
 import { useUIStore } from '@/stores/ui';
 import { useAuthStore } from '@/stores/auth';
 import AuthGuard from '@/components/auth/AuthGuard.vue';
-import WelcomeScreen from '@/components/welcome/WelcomeScreen.vue';
 import TheSidebar from '@/components/sidebar/TheSidebar.vue';
 import ControlBar from '@/components/controls/ControlBar.vue';
+import MusicPlayer from '@/components/controls/MusicPlayer.vue';
 import AvatarPanel from '@/components/panels/avatar/AvatarPanel.vue';
 import ScenePanel from '@/components/panels/scene/ScenePanel.vue';
 import VoicePanel from '@/components/panels/voice/VoicePanel.vue';
@@ -24,17 +24,19 @@ import ModelsPanel from '@/components/panels/models/ModelsPanel.vue';
 import EnergyPanel from '@/components/panels/energy/EnergyPanel.vue';
 import EnergyBadge from '@/components/energy/EnergyBadge.vue';
 import SearchOrbitCards from '@/components/search/SearchOrbitCards.vue';
+import AgentActionOverlay from '@/components/agent/AgentActionOverlay.vue';
 
 import { useWorkspaceStore } from '@/stores/workspace';
 import { useKwamiConfigWatchers } from '@/composables/useKwamiConfigSync';
 import { useSearchResults } from '@/composables/useSearchResults';
 import { useNavigation } from '@/composables/useNavigation';
-import { useSearchStore } from '@/stores/search';
+import { useWorkspaceAgentTools } from '@/composables/useWorkspaceAgentTools';
 import { useAvatarStore } from '@/stores/avatar';
 import { useBlobXyzSync } from '@/composables/avatar/sync/useBlobXyzSync';
 import { useBlackHoleSync } from '@/composables/avatar/sync/useBlackHoleSync';
+import { useParticlesFaceSync } from '@/composables/avatar/sync/useParticlesFaceSync';
 
-const { kwami, init, switchRenderer, rendererType: kwamiRendererType } = useKwami();
+const { kwami, init, switchRenderer, rendererType: kwamiRendererType, isConnected } = useKwami();
 const { initialize: initSceneBackground } = useSceneBackground();
 import { useVoiceStore } from '@/stores/voice';
 import { useCreditsStore } from '@/stores/credits';
@@ -45,11 +47,11 @@ const workspaceStore = useWorkspaceStore();
 
 // Search results: callback + event listener both update store; panel reads store
 const searchResults = useSearchResults();
-const searchStore = useSearchStore();
 const avatarStore = useAvatarStore();
 
 // Navigation: extension opens tab/split; no sidebar
 useNavigation();
+useWorkspaceAgentTools();
 
 // Sync per-kwami config: apply config when switching kwami, debounced save to DB
 useKwamiConfigWatchers();
@@ -65,21 +67,17 @@ const { applyToKwami: applyBlackHoleToKwami } = useBlackHoleSync({
   kwami,
   getBlackHole: () => (kwami.value?.avatar as any)?.getBlackHole?.(),
 });
+const { applyToKwami: applyParticlesFaceToKwami } = useParticlesFaceSync({
+  kwami,
+  getParticlesFace: () => (kwami.value?.avatar as any)?.getParticlesFace?.(),
+});
 
 const canvasRef = ref<HTMLCanvasElement | null>(null);
 
-// Welcome screen state
-const showWelcome = ref(false);
-const hasShownWelcome = ref(false);
-
-// Watch for authentication: welcome screen, credits, load kwamis from DB
+// Watch for authentication: credits, load kwamis from DB (welcome rings shown only during AuthGuard loading)
 watch(
   () => authStore.isAuthenticated,
-  (isAuth, wasAuth) => {
-    if (isAuth && wasAuth === false && !hasShownWelcome.value) {
-      showWelcome.value = true;
-      hasShownWelcome.value = true;
-    }
+  (isAuth) => {
     if (isAuth) {
       creditsStore.init();
       const uid = authStore.userId;
@@ -109,9 +107,6 @@ onUnmounted(() => {
   window.removeEventListener('kwami:configApplied', onKwamiConfigApplied);
 });
 
-function onWelcomeComplete() {
-  showWelcome.value = false;
-}
 
 // Track if Kwami has been initialized
 const isInitialized = ref(false);
@@ -129,6 +124,7 @@ function applySavedAvatarState() {
   switch (savedRenderer) {
     case 'blob-xyz': applyBlobToKwami(); break;
     case 'black-hole': applyBlackHoleToKwami(); break;
+    case 'particles-face': applyParticlesFaceToKwami(); break;
   }
 }
 
@@ -136,7 +132,7 @@ function applySavedAvatarState() {
 function applySavedSoulState() {
   if (!kwami.value) return;
   const saved = voiceStore.soulConfig;
-  kwami.value.soul.updateConfig({
+  const soulConfig = {
     name: saved.name,
     personality: saved.personality,
     systemPrompt: saved.systemPrompt,
@@ -145,7 +141,13 @@ function applySavedSoulState() {
     responseLength: saved.responseLength,
     emotionalTone: saved.emotionalTone,
     emotionalTraits: { ...saved.emotionalTraits },
-  });
+  };
+  kwami.value.soul.updateConfig(soulConfig);
+
+  // Keep active backend agent in sync when switching/applying workspace config.
+  if (isConnected.value) {
+    kwami.value.agent.syncConfigToBackend('soul', soulConfig);
+  }
 }
 
 // Initialize Kwami when canvas becomes available (after auth)
@@ -270,14 +272,6 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <!-- Welcome screen shown after login -->
-  <WelcomeScreen
-    v-if="showWelcome"
-    :visible="showWelcome"
-    :duration="3500"
-    @complete="onWelcomeComplete"
-  />
-
   <AuthGuard>
     <div id="kwami-root" class="root-layout">
       <!-- Main area: canvas + overlays (no nav sidebar) -->
@@ -285,18 +279,20 @@ onUnmounted(() => {
         <canvas id="kwami-canvas" ref="canvasRef"></canvas>
 
         <!-- UI controls only shown when authenticated and welcome complete -->
-        <template v-if="authStore.isAuthenticated && !showWelcome">
+        <template v-if="authStore.isAuthenticated">
           <!-- Search results as orbit cards around the Kwami (blob) -->
           <SearchOrbitCards />
+          <AgentActionOverlay />
           <!-- Control Bar (top-right of main area; moves with canvas when nav opens) -->
           <div class="control-bar-container">
             <EnergyBadge />
             <ControlBar />
           </div>
+          <MusicPlayer />
         </template>
       </div>
 
-      <template v-if="authStore.isAuthenticated && !showWelcome">
+      <template v-if="authStore.isAuthenticated">
         <TheSidebar>
           <AvatarPanel v-if="uiStore.activePanel === 'avatar'" />
           <ScenePanel v-if="uiStore.activePanel === 'scene'" />

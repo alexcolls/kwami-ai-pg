@@ -9,6 +9,7 @@ import {
 } from '@/presets/avatar/avatar-presets';
 import { useBlobXyzStore } from './avatar.blob-xyz';
 import { useBlackHoleStore } from './avatar.black-hole';
+import { useParticlesFaceStore } from './avatar.particles-face';
 
 // Re-export AvatarPreset for backwards compatibility
 export type { AvatarPreset };
@@ -16,7 +17,7 @@ export type { AvatarPreset };
 // Types
 export type SkinSubtype = 'poles' | 'donut' | 'vintage';
 export type AvatarState = 'idle' | 'listening' | 'thinking' | 'speaking';
-export type RendererType = 'blob-xyz' | 'black-hole';
+export type RendererType = 'blob-xyz' | 'black-hole' | 'particles-face';
 
 // Interaction Types
 export type InteractionAction =
@@ -328,11 +329,18 @@ export const useAvatarStore = defineStore('avatar', () => {
     Object.assign(blackHole, getDefaultBlackHoleState());
   }
 
+  function resetParticlesFace() {
+    const pfStore = useParticlesFaceStore();
+    pfStore.resetAll();
+  }
+
   function reset() {
     if (rendererType.value === 'blob-xyz') {
       resetBlob();
     } else if (rendererType.value === 'black-hole') {
       resetBlackHole();
+    } else if (rendererType.value === 'particles-face') {
+      resetParticlesFace();
     }
   }
 
@@ -428,10 +436,12 @@ export const useAvatarStore = defineStore('avatar', () => {
   function getSnapshot() {
     const blobStore = useBlobXyzStore();
     const blackHoleStore = useBlackHoleStore();
+    const pfStore = useParticlesFaceStore();
     return {
       rendererType: rendererType.value,
       blobXyz: blobStore.exportState(),
       blackHole: blackHoleStore.exportState(),
+      particlesFace: pfStore.exportState(),
     };
   }
 
@@ -439,6 +449,7 @@ export const useAvatarStore = defineStore('avatar', () => {
     rendererType?: RendererType;
     blobXyz?: unknown;
     blackHole?: unknown;
+    particlesFace?: unknown;
   }) {
     if (!settings) return;
     isLoading.value = true;
@@ -448,8 +459,10 @@ export const useAvatarStore = defineStore('avatar', () => {
       }
       const blobStore = useBlobXyzStore();
       const blackHoleStore = useBlackHoleStore();
+      const pfStore = useParticlesFaceStore();
       if (settings.blobXyz) blobStore.importState(settings.blobXyz as Parameters<typeof blobStore.importState>[0]);
       if (settings.blackHole) blackHoleStore.importState(settings.blackHole as Parameters<typeof blackHoleStore.importState>[0]);
+      if (settings.particlesFace) pfStore.importState(settings.particlesFace as Parameters<typeof pfStore.importState>[0]);
     } catch (e) {
       console.warn('Failed to apply avatar snapshot:', e);
     }
@@ -503,6 +516,7 @@ export const useAvatarStore = defineStore('avatar', () => {
     updateBlackHole,
     resetBlob,
     resetBlackHole,
+    resetParticlesFace,
     reset,
     applyPreset,
     syncBlobFromExternal,

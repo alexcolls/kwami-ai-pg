@@ -77,6 +77,7 @@ function syncSoulToBackend(soulConfig?: Record<string, unknown>) {
     conversationStyle: config.conversationStyle,
     responseLength: config.responseLength,
     emotionalTone: config.emotionalTone,
+    emotionalTraits: { ...emotionalTraits },
   };
 
   kwami.value.agent.syncConfigToBackend('soul', configToSync);
@@ -250,6 +251,7 @@ watch(emotionalTraits, (v) => {
         v[key as keyof typeof v]
       );
     });
+    syncSoulToBackend();
     saveToStore();
   }
 }, { deep: true });
@@ -257,7 +259,7 @@ watch(emotionalTraits, (v) => {
 function updateTraits(newTraits: string[]) {
   kwami.value?.soul.updateConfig({ traits: newTraits });
   syncFromKwami();
-    syncSoulToBackend();
+  syncSoulToBackend();
 }
 
 function previewPrompt() {

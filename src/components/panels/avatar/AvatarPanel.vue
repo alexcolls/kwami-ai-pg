@@ -5,20 +5,24 @@ import { useKwami } from '@/composables/useKwami';
 import { useAvatarStore, type AvatarState } from '@/stores/avatar';
 import { useBlobXyzStore } from '@/stores/avatar.blob-xyz';
 import { useBlackHoleStore } from '@/stores/avatar.black-hole';
+import { useParticlesFaceStore } from '@/stores/avatar.particles-face';
 import BasePanel from '@/components/ui/BasePanel.vue';
 import PanelSection from '@/components/ui/PanelSection.vue';
 import { panelIcons } from '@/constants/panel-icons';
 import BlobXyzSettings from './BlobXyzSettings.vue';
 import BlackHoleSettings from './BlackHoleSettings.vue';
+import ParticlesFaceSettings from './ParticlesFaceSettings.vue';
 
 // Sync composables
 import { useBlobXyzSync } from '@/composables/avatar/sync/useBlobXyzSync';
 import { useBlackHoleSync } from '@/composables/avatar/sync/useBlackHoleSync';
+import { useParticlesFaceSync } from '@/composables/avatar/sync/useParticlesFaceSync';
 
 const { kwami, rendererType: kwamiRendererType, switchRenderer } = useKwami();
 const avatarStore = useAvatarStore();
 const blobStore = useBlobXyzStore();
 const blackHoleStore = useBlackHoleStore();
+const particlesFaceStore = useParticlesFaceStore();
 
 // Use store state
 const {
@@ -37,6 +41,9 @@ function getBlob() {
 function getBlackHole() {
   return (kwami.value?.avatar as any)?.getBlackHole?.();
 }
+function getParticlesFace() {
+  return (kwami.value?.avatar as any)?.getParticlesFace?.();
+}
 
 // =====================================================
 // SYNC COMPOSABLES
@@ -50,6 +57,11 @@ const { syncFromKwami: syncBlobFromKwami, applyToKwami: applyBlobToKwami } = use
 const { syncFromKwami: syncBlackHoleFromKwami, applyToKwami: applyBlackHoleToKwami } = useBlackHoleSync({
   kwami,
   getBlackHole,
+});
+
+const { syncFromKwami: syncParticlesFaceFromKwami, applyToKwami: applyParticlesFaceToKwami } = useParticlesFaceSync({
+  kwami,
+  getParticlesFace,
 });
 
 // =====================================================
@@ -76,10 +88,10 @@ function syncFromKwami() {
 
   syncBlobFromKwami();
   syncBlackHoleFromKwami();
+  syncParticlesFaceFromKwami();
 
-  // Sync renderer type from kwami
   avatarStore.setRendererType(
-    kwamiRendererType.value as 'blob-xyz' | 'black-hole',
+    kwamiRendererType.value as 'blob-xyz' | 'black-hole' | 'particles-face',
   );
 }
 
@@ -91,6 +103,9 @@ function applyCurrentRendererToKwami(type: string) {
       break;
     case 'black-hole':
       applyBlackHoleToKwami();
+      break;
+    case 'particles-face':
+      applyParticlesFaceToKwami();
       break;
   }
 }
@@ -143,6 +158,12 @@ watch(
   { deep: true }
 );
 
+watch(
+  () => particlesFaceStore.state,
+  () => avatarStore.saveSettings(),
+  { deep: true }
+);
+
 // Save renderer type changes
 watch(rendererType, () => avatarStore.saveSettings());
 
@@ -150,10 +171,9 @@ watch(rendererType, () => avatarStore.saveSettings());
 // ACTIONS
 // =====================================================
 
-function handleSwitchRenderer(type: 'blob-xyz' | 'black-hole') {
+function handleSwitchRenderer(type: 'blob-xyz' | 'black-hole' | 'particles-face') {
   avatarStore.setRendererType(type);
   switchRenderer(type as any);
-  // Apply saved config immediately after switch to avoid showing default state
   applyCurrentRendererToKwami(type);
 }
 
@@ -163,18 +183,20 @@ function handleRandomize() {
 }
 
 function handleReset() {
-  // Reset store state
   avatarStore.reset();
   blobStore.resetAll();
   blackHoleStore.resetAll();
+  particlesFaceStore.resetAll();
 
-  // Apply defaults to kwami instance using sync composables
   switch (rendererType.value) {
     case 'blob-xyz':
       applyBlobToKwami();
       break;
     case 'black-hole':
       applyBlackHoleToKwami();
+      break;
+    case 'particles-face':
+      applyParticlesFaceToKwami();
       break;
   }
 }
@@ -398,6 +420,20 @@ onUnmounted(() => {
             <span class="renderer-desc">Gravitational void effect</span>
           </div>
         </label>
+        <label class="renderer-option" :class="{ active: rendererType === 'particles-face' }">
+          <input
+            type="radio"
+            name="renderer"
+            value="particles-face"
+            :checked="rendererType === 'particles-face'"
+            @change="handleSwitchRenderer('particles-face')"
+          />
+          <iconify-icon icon="ph:smiley-duotone" class="renderer-icon"></iconify-icon>
+          <div class="renderer-content">
+            <span class="renderer-label">Particles Face</span>
+            <span class="renderer-desc">Animated face of particles</span>
+          </div>
+        </label>
       </div>
     </PanelSection>
 
@@ -435,6 +471,7 @@ onUnmounted(() => {
     <!-- Sub-components -->
     <BlobXyzSettings v-if="rendererType === 'blob-xyz'" />
     <BlackHoleSettings v-if="rendererType === 'black-hole'" />
+    <ParticlesFaceSettings v-if="rendererType === 'particles-face'" />
   </BasePanel>
 </template>
 
