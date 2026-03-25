@@ -66,7 +66,10 @@ export interface MediaConfig {
   };
   hdri: {
     url: string;
-    intensity: number; // 0-2, affects lighting intensity
+    /** IBL strength on materials (Three.js scene.environmentIntensity) */
+    intensity: number;
+    /** Visible sky/background only (Three.js scene.backgroundIntensity), separate from overlay gradient */
+    opacity: number;
     rotation: number; // 0-360, rotation of environment
     blur: number; // 0-1, background blur amount
   };
@@ -131,6 +134,7 @@ const defaultBackground: BackgroundConfig = {
     hdri: {
       url: '',
       intensity: 1,
+      opacity: 1,
       rotation: 0,
       blur: 0,
     },
@@ -205,12 +209,14 @@ export const useSceneStore = defineStore('scene', () => {
       if (settings.media?.hdri) {
         background.media.hdri.url = settings.media.hdri.url || '';
         background.media.hdri.intensity = settings.media.hdri.intensity ?? 1;
+        background.media.hdri.opacity = settings.media.hdri.opacity ?? 1;
         background.media.hdri.rotation = settings.media.hdri.rotation ?? 0;
         background.media.hdri.blur = settings.media.hdri.blur ?? 0;
       } else {
         background.media.hdri.url = '';
         if (mediaType !== 'hdri') {
           background.media.hdri.intensity = 1;
+          background.media.hdri.opacity = 1;
           background.media.hdri.rotation = 0;
           background.media.hdri.blur = 0;
         }
@@ -333,6 +339,10 @@ export const useSceneStore = defineStore('scene', () => {
     background.media.hdri.intensity = intensity;
   }
 
+  function setHdriOpacity(opacity: number) {
+    background.media.hdri.opacity = opacity;
+  }
+
   function setHdriRotation(rotation: number) {
     background.media.hdri.rotation = rotation;
   }
@@ -423,6 +433,7 @@ export const useSceneStore = defineStore('scene', () => {
     setVideoMuted,
     setHdriUrl,
     setHdriIntensity,
+    setHdriOpacity,
     setHdriRotation,
     setHdriBlur,
     setGradientEnabled,

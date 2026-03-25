@@ -618,7 +618,14 @@ const gradientPreviewStyle = computed(() => {
       <!-- HDRI Options (always visible) -->
       <div class="media-options">
         <BaseSlider
-          label="Intensity"
+          label="Background opacity"
+          v-model="background.media.hdri.opacity"
+          :min="0"
+          :max="1"
+          :step="0.05"
+        />
+        <BaseSlider
+          label="Environment light"
           v-model="background.media.hdri.intensity"
           :min="0"
           :max="2"

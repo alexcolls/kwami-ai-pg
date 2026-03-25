@@ -30,6 +30,47 @@ let gradientContext: CanvasRenderingContext2D | null = null;
 let gradientDirty = true;
 let imageLoadToken = 0;
 
+/** Offscreen WebGL: equirect HDR → LDR canvas for 2D composite + gradient overlay */
+let hdriRasterCanvas: HTMLCanvasElement | null = null;
+let hdriBlitRenderer: THREE.WebGLRenderer | null = null;
+let hdriBlitScene: THREE.Scene | null = null;
+let hdriBlitCamera: THREE.OrthographicCamera | null = null;
+let hdriBlitMesh: THREE.Mesh | null = null;
+let hdriBlitMaterial: THREE.ShaderMaterial | null = null;
+
+const hdriBlitVertexShader = `
+varying vec2 vUv;
+void main() {
+  vUv = uv;
+  gl_Position = vec4(position.xy, 0.0, 1.0);
+}
+`;
+
+const hdriBlitFragmentShader = `
+precision highp float;
+precision highp sampler2D;
+uniform sampler2D envMap;
+uniform float backgroundIntensity;
+varying vec2 vUv;
+
+vec2 equirectUv(vec3 dir) {
+  vec2 uv = vec2(atan(dir.z, dir.x), asin(clamp(dir.y, -1.0, 1.0)));
+  uv *= vec2(0.15915494, 0.31830988);
+  uv += 0.5;
+  return uv;
+}
+
+void main() {
+  float lon = (vUv.x - 0.5) * 6.2831853;
+  float lat = (0.5 - vUv.y) * 3.14159265;
+  float coslat = cos(lat);
+  vec3 dir = normalize(vec3(coslat * sin(lon), sin(lat), coslat * cos(lon)));
+  vec3 rgb = texture2D(envMap, equirectUv(dir)).rgb * backgroundIntensity;
+  rgb = rgb / (rgb + vec3(1.0));
+  gl_FragColor = vec4(pow(rgb, vec3(0.4545)), 1.0);
+}
+`;
+
 const hdriLoading = ref(false);
 
 export function useSceneBackground() {
@@ -87,6 +128,10 @@ export function useSceneBackground() {
   }
 
   function disposeHdriResources() {
+    if (hdriBlitMaterial) {
+      hdriBlitMaterial.uniforms.envMap.value = null;
+    }
+
     if (currentHdriEnvironment && currentHdriEnvironment !== currentHdriTexture) {
       currentHdriEnvironment.dispose();
     }
@@ -96,6 +141,135 @@ export function useSceneBackground() {
       currentHdriTexture.dispose();
       currentHdriTexture = null;
     }
+  }
+
+  function disposeHdriBlitPipeline() {
+    if (hdriBlitMaterial) {
+      hdriBlitMaterial.uniforms.envMap.value = null;
+      hdriBlitMaterial.dispose();
+      hdriBlitMaterial = null;
+    }
+    if (hdriBlitMesh) {
+      hdriBlitMesh.geometry.dispose();
+      hdriBlitMesh = null;
+    }
+    if (hdriBlitRenderer) {
+      hdriBlitRenderer.dispose();
+      hdriBlitRenderer = null;
+    }
+    hdriBlitScene = null;
+    hdriBlitCamera = null;
+    hdriRasterCanvas = null;
+  }
+
+  function ensureHdriBlitPipeline(): boolean {
+    if (hdriBlitRenderer && hdriRasterCanvas) return true;
+
+    hdriRasterCanvas = document.createElement('canvas');
+    hdriRasterCanvas.width = COMPOSITE_SIZE;
+    hdriRasterCanvas.height = COMPOSITE_SIZE;
+
+    const gl = hdriRasterCanvas.getContext('webgl2', {
+      alpha: false,
+      antialias: false,
+      depth: false,
+      stencil: false,
+    });
+    if (!gl) {
+      console.warn('useSceneBackground: WebGL2 unavailable for HDRI composite');
+      hdriRasterCanvas = null;
+      return false;
+    }
+
+    hdriBlitRenderer = new THREE.WebGLRenderer({
+      canvas: hdriRasterCanvas,
+      context: gl,
+      alpha: false,
+      antialias: false,
+    });
+    hdriBlitRenderer.setSize(COMPOSITE_SIZE, COMPOSITE_SIZE, false);
+    hdriBlitRenderer.outputColorSpace = THREE.SRGBColorSpace;
+    hdriBlitRenderer.toneMapping = THREE.NoToneMapping;
+
+    hdriBlitScene = new THREE.Scene();
+    hdriBlitCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+    hdriBlitCamera.position.z = 1;
+
+    hdriBlitMaterial = new THREE.ShaderMaterial({
+      uniforms: {
+        envMap: { value: null },
+        backgroundIntensity: { value: 1 },
+      },
+      vertexShader: hdriBlitVertexShader,
+      fragmentShader: hdriBlitFragmentShader,
+      depthTest: false,
+      depthWrite: false,
+    });
+
+    const geom = new THREE.PlaneGeometry(2, 2);
+    hdriBlitMesh = new THREE.Mesh(geom, hdriBlitMaterial);
+    hdriBlitScene.add(hdriBlitMesh);
+
+    return true;
+  }
+
+  /** Rasterize equirectangular HDR (or LDR) texture to the WebGL canvas; encodes opacity in shader. */
+  function rasterizeHdriEquirectToCanvas(texture: THREE.Texture): HTMLCanvasElement | null {
+    if (!ensureHdriBlitPipeline() || !hdriBlitRenderer || !hdriBlitMaterial || !hdriBlitCamera || !hdriBlitScene) {
+      return null;
+    }
+
+    const opacity = Math.max(0, Math.min(1, background.value.media.hdri.opacity));
+    hdriBlitMaterial.uniforms.envMap.value = texture;
+    hdriBlitMaterial.uniforms.backgroundIntensity.value = opacity;
+    hdriBlitMaterial.needsUpdate = true;
+
+    hdriBlitRenderer.render(hdriBlitScene, hdriBlitCamera);
+    return hdriRasterCanvas;
+  }
+
+  /**
+   * HDRI visible background: either raw equirect texture (no overlay) or canvas composite (overlay on).
+   */
+  function refreshHdriBackgroundDisplay() {
+    if (!initialized || background.value.media.type !== 'hdri' || !currentHdriTexture) return;
+
+    const scene = getScene();
+    if (!scene) return;
+
+    const { gradient } = background.value;
+
+    if (gradient.enabled) {
+      const raster = rasterizeHdriEquirectToCanvas(currentHdriTexture);
+      if (!raster) {
+        scene.scene.background = currentHdriTexture;
+        applyHdriPresentation();
+        return;
+      }
+
+      ensureCompositeResources();
+      if (!compositeCanvas || !compositeContext || !compositeTexture) return;
+
+      const ctx = compositeContext;
+      ctx.globalAlpha = 1;
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.clearRect(0, 0, COMPOSITE_SIZE, COMPOSITE_SIZE);
+      ctx.drawImage(raster, 0, 0, COMPOSITE_SIZE, COMPOSITE_SIZE);
+
+      const gradientLayer = renderGradientLayer(COMPOSITE_SIZE, COMPOSITE_SIZE);
+      if (gradientLayer) {
+        ctx.globalCompositeOperation = getCanvasBlendMode(gradient.blendMode);
+        ctx.drawImage(gradientLayer, 0, 0);
+        ctx.globalCompositeOperation = 'source-over';
+      }
+
+      compositeTexture.needsUpdate = true;
+      scene.scene.background = compositeTexture;
+    } else {
+      scene.scene.background = currentHdriTexture;
+    }
+
+    applyHdriPresentation();
   }
 
   function getHiddenVideoElement(): ManagedVideoElement | null {
@@ -348,6 +522,26 @@ export function useSceneBackground() {
     scheduleNextVideoFrame();
   }
 
+  /**
+   * HDRI: drive Three.js scene fields only — do not use renderer.toneMappingExposure (that affects
+   * the whole frame including the avatar). When the sky is a canvas composite, opacity is baked in the
+   * blit shader; otherwise backgroundIntensity scales the raw equirect texture.
+   */
+  function applyHdriPresentation() {
+    if (!initialized) return;
+    if (background.value.media.type !== 'hdri') return;
+
+    const scene = getScene();
+    if (!scene) return;
+
+    const { intensity, opacity } = background.value.media.hdri;
+    scene.renderer.toneMappingExposure = 1;
+    const compositeSky =
+      background.value.gradient.enabled && scene.scene.background === compositeTexture;
+    scene.scene.backgroundIntensity = compositeSky ? 1 : Math.max(0, Math.min(1, opacity));
+    scene.scene.environmentIntensity = Math.max(0, intensity);
+  }
+
   function loadHdriEnvironment() {
     if (!initialized) return;
     if (background.value.media.type !== 'hdri') return;
@@ -361,6 +555,9 @@ export function useSceneBackground() {
       disposeHdriResources();
       scene.scene.background = null;
       scene.scene.environment = null;
+      scene.renderer.toneMappingExposure = 1;
+      scene.scene.backgroundIntensity = 1;
+      scene.scene.environmentIntensity = 1;
       return;
     }
 
@@ -376,7 +573,6 @@ export function useSceneBackground() {
         currentHdriTexture = texture;
         currentHdriEnvironment = texture;
 
-        scene.scene.background = texture;
         scene.scene.environment = texture;
 
         if (hdri.blur > 0) {
@@ -387,6 +583,7 @@ export function useSceneBackground() {
           pmremGenerator.dispose();
         }
 
+        refreshHdriBackgroundDisplay();
         hdriLoading.value = false;
       },
       undefined,
@@ -398,14 +595,8 @@ export function useSceneBackground() {
   }
 
   function updateHdriProperties() {
-    if (!initialized) return;
-    if (background.value.media.type !== 'hdri') return;
-
-    const scene = getScene();
-    if (!scene) return;
-
-    const { intensity } = background.value.media.hdri;
-    scene.renderer.toneMappingExposure = intensity;
+    if (!initialized || background.value.media.type !== 'hdri' || !currentHdriTexture) return;
+    refreshHdriBackgroundDisplay();
   }
 
   function applyStarFieldSettings() {
@@ -480,7 +671,10 @@ export function useSceneBackground() {
 
     if (media.type !== 'hdri') {
       disposeHdriResources();
+      disposeHdriBlitPipeline();
       scene.renderer.toneMappingExposure = 1;
+      scene.scene.backgroundIntensity = 1;
+      scene.scene.environmentIntensity = 1;
     }
 
     if (media.type === 'none') {
@@ -577,6 +771,13 @@ export function useSceneBackground() {
       return;
     }
 
+    if (background.value.media.type === 'hdri') {
+      if (currentHdriTexture) {
+        refreshHdriBackgroundDisplay();
+      }
+      return;
+    }
+
     compositeBackground();
   }
 
@@ -623,6 +824,7 @@ export function useSceneBackground() {
 
     watch(() => background.value.media.hdri.url, loadHdriEnvironment);
     watch(() => background.value.media.hdri.intensity, updateHdriProperties);
+    watch(() => background.value.media.hdri.opacity, updateHdriProperties);
     watch(() => background.value.media.hdri.blur, loadHdriEnvironment);
 
     const markGradientDirty = () => {
