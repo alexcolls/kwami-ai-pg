@@ -5,12 +5,14 @@ import { useAvatarStore } from '@/stores/avatar';
 import { useVoiceStore } from '@/stores/voice';
 import { useSceneStore } from '@/stores/scene';
 import { useThemeStore } from '@/stores/theme';
+import { useCommunicationsStore } from '@/stores/communications';
 
 export type KwamiConfig = {
   avatar?: unknown;
   voice?: unknown;
   scene?: unknown;
   theme?: unknown;
+  telephony?: unknown;
 };
 
 /** Clone config to a plain JSON-serializable object so DB/store never holds reactive refs and round-trip is safe. */
@@ -29,6 +31,7 @@ export function useKwamiConfigSync() {
   const voiceStore = useVoiceStore();
   const sceneStore = useSceneStore();
   const themeStore = useThemeStore();
+  const communicationsStore = useCommunicationsStore();
 
   function getConfig(): KwamiConfig {
     return {
@@ -36,6 +39,7 @@ export function useKwamiConfigSync() {
       voice: voiceStore.getSnapshot(),
       scene: sceneStore.getSnapshot(),
       theme: themeStore.getSnapshot(), // mode, accent, glass, ui, accessibility, flashlight, effects
+      telephony: communicationsStore.getSnapshot(),
     };
   }
 
@@ -75,6 +79,11 @@ export function useKwamiConfigSync() {
       if (config.scene && typeof config.scene === 'object') {
         sceneStore.applySnapshot(config.scene as Parameters<typeof sceneStore.applySnapshot>[0]);
       }
+      if (config.telephony && typeof config.telephony === 'object') {
+        communicationsStore.applySnapshot(
+          config.telephony as Parameters<typeof communicationsStore.applySnapshot>[0],
+        );
+      }
       window.dispatchEvent(new CustomEvent('kwami:configApplied'));
     } catch (e) {
       console.warn('Failed to apply kwami config:', e);
@@ -88,6 +97,7 @@ export function useKwamiConfigWatchers() {
   const { getConfig, applyConfig, switchToKwami } = useKwamiConfigSync();
   const workspaceStore = useWorkspaceStore();
   const themeStore = useThemeStore();
+  const sceneStore = useSceneStore();
 
   // When active workspace changes, apply that kwami's config
   watch(
@@ -121,6 +131,13 @@ export function useKwamiConfigWatchers() {
     },
     syncDraftConfig,
     { flush: 'post' },
+  );
+
+  // Scene store: deep watch so overlay/media/star-field edits mark workspace dirty & include in Save.
+  watch(
+    () => sceneStore.background,
+    () => syncDraftConfig(),
+    { deep: true, flush: 'post' },
   );
 
   // Explicit watch on theme so theme changes always sync the local draft.
