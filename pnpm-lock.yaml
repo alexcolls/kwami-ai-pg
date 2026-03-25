@@ -1971,6 +1971,11 @@ packages:
   keyv@4.5.4:
     resolution: {integrity: sha512-oxVHkHR/EJf2CNXnWxRLW6mg7JyCCUcG0DtEGmL2ctUo1PNTin1PUil+r/+4r5MpVgC/fn1kjsx7mjSujKqIpw==}
 
+  kwami@2.0.0:
+    resolution: {integrity: sha512-YdbMGUD5pnRVpI2bRiBd5vOBB8J2OPcLeGdAZrxQxswm/EGFqS1Uipth5JVK5O+DbMnRjalPMmCmYWvuxTAZkA==}
+    peerDependencies:
+      three: '>=0.183.2'
+
   kwami@file:../kwami:
     resolution: {directory: ../kwami, type: directory}
     peerDependencies:
@@ -4767,8 +4772,17 @@ snapshots:
     dependencies:
       json-buffer: 3.0.1
 
+  kwami@2.0.0(@types/dom-mediacapture-record@1.0.22)(three@0.183.2):
+    dependencies:
+      livekit-client: 2.17.2(@types/dom-mediacapture-record@1.0.22)
+      simplex-noise: 4.0.3
+      three: 0.183.2
+    transitivePeerDependencies:
+      - '@types/dom-mediacapture-record'
+
   kwami@file:../kwami(@types/dom-mediacapture-record@1.0.22)(three@0.183.2):
     dependencies:
+      kwami: 2.0.0(@types/dom-mediacapture-record@1.0.22)(three@0.183.2)
       livekit-client: 2.17.2(@types/dom-mediacapture-record@1.0.22)
       simplex-noise: 4.0.3
       three: 0.183.2
