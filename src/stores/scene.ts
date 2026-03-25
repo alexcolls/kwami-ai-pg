@@ -1,13 +1,38 @@
 import { defineStore } from 'pinia';
 import { reactive, watch } from 'vue';
+import type { PaletteType } from '@/composables/avatar/useColorPalettes';
 
 const STORAGE_KEY = 'kwami-scene';
+
+const VALID_PALETTE_TYPES: PaletteType[] = [
+  'complementary',
+  'analogous',
+  'triadic',
+  'split',
+  'monochrome',
+  'warm',
+  'cool',
+  'pastel',
+  'vibrant',
+  'sunset',
+  'ocean',
+  'forest',
+];
+
+function coercePaletteType(value: unknown): PaletteType {
+  return typeof value === 'string' && VALID_PALETTE_TYPES.includes(value as PaletteType)
+    ? (value as PaletteType)
+    : 'analogous';
+}
 
 // Types
 export type MediaType = 'none' | 'image' | 'video' | 'hdri';
 export type MediaFit = 'cover' | 'contain' | 'stretch';
 export type GradientType = 'solid' | 'radial' | 'linear' | 'orbs';
 export type BlendMode = 'normal' | 'multiply' | 'screen' | 'overlay' | 'soft-light';
+/** Used by overlay randomize (dice) for stop/orb/solid colors */
+export type PaletteBrightness = 'dark' | 'light';
+export type { PaletteType as ScenePaletteType } from '@/composables/avatar/useColorPalettes';
 
 export interface GradientStop {
   color: string;
@@ -49,6 +74,10 @@ export interface MediaConfig {
 
 export interface GradientConfig {
   enabled: boolean;
+  /** Dark vs light when remapping generated palette colors */
+  paletteBrightness: PaletteBrightness;
+  /** Same named palettes as blob XYZ (complementary, analogous, …) */
+  paletteType: PaletteType;
   type: GradientType;
   solidColor: string; // For solid mode
   angle: number; // 0-360 for linear
@@ -60,9 +89,24 @@ export interface GradientConfig {
   blendMode: BlendMode;
 }
 
+export interface StarFieldConfig {
+  enabled: boolean;
+  count: number;
+  fieldRadius: number;
+  twinkleSpeed: number;
+  rotationSpeed: number;
+  minSize: number;
+  maxSize: number;
+}
+
+export interface SceneEffectsConfig {
+  starField: StarFieldConfig;
+}
+
 export interface BackgroundConfig {
   media: MediaConfig;
   gradient: GradientConfig;
+  effects: SceneEffectsConfig;
 }
 
 function generateOrbId(): string {
@@ -93,6 +137,8 @@ const defaultBackground: BackgroundConfig = {
   },
   gradient: {
     enabled: true,
+    paletteBrightness: 'dark',
+    paletteType: 'analogous',
     type: 'radial',
     solidColor: '#0a0a15',
     angle: 180,
@@ -104,12 +150,23 @@ const defaultBackground: BackgroundConfig = {
       { color: '#000000', position: 100, opacity: 1 },
     ],
     orbs: [
-      { id: generateOrbId(), x: 20, y: 30, size: 40, color: '#0a1520', opacity: 0.6, softness: 80 },
-      { id: generateOrbId(), x: 80, y: 70, size: 50, color: '#100a18', opacity: 0.5, softness: 70 },
-      { id: generateOrbId(), x: 50, y: 50, size: 60, color: '#080a10', opacity: 0.4, softness: 90 },
+      { id: generateOrbId(), x: 25, y: 30, size: 55, color: '#1a3a6e', opacity: 0.7, softness: 80 },
+      { id: generateOrbId(), x: 75, y: 65, size: 50, color: '#4a1a5e', opacity: 0.6, softness: 75 },
+      { id: generateOrbId(), x: 50, y: 50, size: 65, color: '#0e2a4a', opacity: 0.5, softness: 85 },
     ],
     opacity: 1,
     blendMode: 'normal',
+  },
+  effects: {
+    starField: {
+      enabled: false,
+      count: 7000,
+      fieldRadius: 500,
+      twinkleSpeed: 1.4,
+      rotationSpeed: 0.00025,
+      minSize: 0.6,
+      maxSize: 3.0,
+    },
   },
 };
 
@@ -160,6 +217,9 @@ export const useSceneStore = defineStore('scene', () => {
       }
       if (settings.gradient) {
         background.gradient.enabled = settings.gradient.enabled ?? true;
+        background.gradient.paletteBrightness =
+          settings.gradient.paletteBrightness === 'light' ? 'light' : 'dark';
+        background.gradient.paletteType = coercePaletteType(settings.gradient.paletteType);
         background.gradient.type = settings.gradient.type || 'radial';
         background.gradient.solidColor = settings.gradient.solidColor || '#0a0a15';
         background.gradient.angle = settings.gradient.angle ?? 180;
@@ -173,6 +233,23 @@ export const useSceneStore = defineStore('scene', () => {
         if (settings.gradient.orbs && settings.gradient.orbs.length > 0) {
           background.gradient.orbs = settings.gradient.orbs;
         }
+      }
+      if (settings.effects?.starField) {
+        background.effects.starField.enabled = settings.effects.starField.enabled ?? false;
+        background.effects.starField.count = settings.effects.starField.count ?? 7000;
+        background.effects.starField.fieldRadius = settings.effects.starField.fieldRadius ?? 500;
+        background.effects.starField.twinkleSpeed = settings.effects.starField.twinkleSpeed ?? 1.4;
+        background.effects.starField.rotationSpeed = settings.effects.starField.rotationSpeed ?? 0.00025;
+        background.effects.starField.minSize = settings.effects.starField.minSize ?? 0.6;
+        background.effects.starField.maxSize = settings.effects.starField.maxSize ?? 3.0;
+      } else {
+        background.effects.starField.enabled = false;
+        background.effects.starField.count = 7000;
+        background.effects.starField.fieldRadius = 500;
+        background.effects.starField.twinkleSpeed = 1.4;
+        background.effects.starField.rotationSpeed = 0.00025;
+        background.effects.starField.minSize = 0.6;
+        background.effects.starField.maxSize = 3.0;
       }
     } catch (e) {
       console.warn('Failed to apply scene snapshot:', e);
@@ -202,9 +279,9 @@ export const useSceneStore = defineStore('scene', () => {
     }
   }
 
-  // Auto-save when background changes
+  // Auto-save when background changes (getter () => background never re-ran nested deps)
   watch(
-    () => background,
+    background,
     () => {
       saveSettings();
     },
