@@ -190,6 +190,17 @@ async function sendMessage() {
 function refreshCurrentKwami() {
   if (activeKwamiId.value) void loadCommunications(activeKwamiId.value);
 }
+
+const voiceInfrastructureNote = computed(() => {
+  const metadata = (selectedVoiceChannel.value?.metadata || {}) as Record<string, unknown>;
+  const sharedInfrastructure = (metadata.sharedInfrastructure || {}) as Record<string, unknown>;
+  const notes = Array.isArray(sharedInfrastructure.notes) ? sharedInfrastructure.notes : [];
+  if (notes.length > 0 && typeof notes[0] === 'string') return notes[0];
+  if (selectedVoiceChannel.value?.status === 'routing_pending') {
+    return 'The number has been purchased, but the shared LiveKit caller-ID sync is still pending.';
+  }
+  return 'Numbers bought here are synced onto shared platform trunks automatically. You do not need to pre-register each kwami number in the LiveKit dashboard.';
+});
 </script>
 
 <template>
@@ -215,11 +226,14 @@ function refreshCurrentKwami() {
             <strong>{{ snapshot?.kwami.name || activeKwamiName }}</strong>
           </div>
         </div>
+        <p class="muted-text infra-text">
+          Shared trunks power the platform. Each kwami still owns its own mapped number and sender.
+        </p>
         <p v-if="statusMessage" class="status-text">{{ statusMessage }}</p>
         <p v-if="error" class="error-text">{{ error }}</p>
       </PanelSection>
 
-      <PanelSection title="Buy Number" icon="ph:sim-card-duotone" collapsible>
+      <PanelSection title="Provision Number" icon="ph:sim-card-duotone" collapsible>
         <div class="form-grid">
           <BaseInput
             v-model="communicationsStore.numberSearch.countryCode"
@@ -240,6 +254,9 @@ function refreshCurrentKwami() {
             mono
           />
         </div>
+        <p class="muted-text infra-text">
+          Buying a number here provisions it for the active kwami and syncs it to the shared phone infrastructure automatically.
+        </p>
         <div class="section-actions-row">
           <BaseButton
             variant="primary"
@@ -287,7 +304,8 @@ function refreshCurrentKwami() {
             <strong>{{ selectedVoiceChannel.status }}</strong>
           </div>
         </div>
-        <p v-else class="muted-text">Buy a number to enable calling for this kwami.</p>
+        <p v-if="selectedVoiceChannel" class="muted-text infra-text">{{ voiceInfrastructureNote }}</p>
+        <p v-else class="muted-text">Provision a number to enable calling for this kwami.</p>
         <BaseInput
           v-model="communicationsStore.compose.callTarget"
           label="Call recipient"
@@ -317,7 +335,7 @@ function refreshCurrentKwami() {
             <strong>{{ selectedWhatsappChannel.status }}</strong>
           </div>
         </div>
-        <p v-else class="muted-text">A WhatsApp sender will appear after the first number is purchased.</p>
+        <p v-else class="muted-text">A WhatsApp sender will appear after the first number is provisioned.</p>
         <BaseInput
           v-model="whatsappSender"
           label="Approved sender"
