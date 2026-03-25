@@ -734,6 +734,10 @@ export function useWorkspaceAgentTools() {
         if (typeof value !== 'number') return { success: false, message: 'HDRI intensity expects a number.' };
         sceneStore.setHdriIntensity(value);
         break;
+      case 'hdriopacity':
+        if (typeof value !== 'number') return { success: false, message: 'HDRI opacity expects a number.' };
+        sceneStore.setHdriOpacity(value);
+        break;
       case 'hdrirotation':
         if (typeof value !== 'number') return { success: false, message: 'HDRI rotation expects a number.' };
         sceneStore.setHdriRotation(value);
@@ -1124,6 +1128,7 @@ export function useWorkspaceAgentTools() {
         'videoMuted',
         'hdriUrl',
         'hdriIntensity',
+        'hdriOpacity',
         'hdriRotation',
         'hdriBlur',
         'gradientEnabled',
@@ -1333,7 +1338,7 @@ export function useWorkspaceAgentTools() {
     instance.registerTool({
       name: 'set_scene_control',
       description:
-        'Control scene background settings such as mediaType, image/video/HDRI sources, fit, opacity, HDRI intensity, and gradient settings.',
+        'Control scene background settings such as mediaType, image/video/HDRI sources, fit, opacity, HDRI background opacity, environment light intensity, blur, and gradient settings.',
       parameters: {
         control: { type: 'string' },
         value: {},
