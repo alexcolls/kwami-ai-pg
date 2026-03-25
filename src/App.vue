@@ -13,6 +13,7 @@ import ScenePanel from '@/components/panels/scene/ScenePanel.vue';
 import VoicePanel from '@/components/panels/voice/VoicePanel.vue';
 import EnhancementsPanel from '@/components/panels/enhancements/EnhancementsPanel.vue';
 import TranscriptionPanel from '@/components/panels/transcription/TranscriptionPanel.vue';
+import CommunicationsPanel from '@/components/panels/communications/CommunicationsPanel.vue';
 import SoulPanel from '@/components/panels/soul/SoulPanel.vue';
 import MemoryPanel from '@/components/panels/memory/MemoryPanel.vue';
 import ToolsPanel from '@/components/panels/tools/ToolsPanel.vue';
@@ -34,6 +35,7 @@ import { useAvatarStore } from '@/stores/avatar';
 import { useBlobXyzSync } from '@/composables/avatar/sync/useBlobXyzSync';
 import { useBlackHoleSync } from '@/composables/avatar/sync/useBlackHoleSync';
 import { useParticlesFaceSync } from '@/composables/avatar/sync/useParticlesFaceSync';
+import { randomizeAvatarPanel } from '@/composables/avatar/randomizeAvatarPanel';
 
 const { kwami, init, switchRenderer, rendererType: kwamiRendererType, isConnected } = useKwami();
 const { initialize: initSceneBackground } = useSceneBackground();
@@ -97,13 +99,24 @@ function onKwamiConfigApplied() {
   initSceneBackground();
 }
 
+function onRandomizeAvatarPanel() {
+  randomizeAvatarPanel({
+    applyBlob: applyBlobToKwami,
+    applyBlackHole: applyBlackHoleToKwami,
+    applyParticles: applyParticlesFaceToKwami,
+  });
+  window.dispatchEvent(new CustomEvent('kwami:randomized'));
+}
+
 onMounted(() => {
   window.addEventListener('kwami:disconnected', onKwamiDisconnected);
   window.addEventListener('kwami:configApplied', onKwamiConfigApplied);
+  window.addEventListener('kwami:randomize-avatar-panel', onRandomizeAvatarPanel);
 });
 onUnmounted(() => {
   window.removeEventListener('kwami:disconnected', onKwamiDisconnected);
   window.removeEventListener('kwami:configApplied', onKwamiConfigApplied);
+  window.removeEventListener('kwami:randomize-avatar-panel', onRandomizeAvatarPanel);
 });
 
 
@@ -243,8 +256,7 @@ onMounted(() => {
     if (e.key === 'h' || e.key === 'H') switchRenderer('black-hole');
     // Avatar state shortcuts
     if (e.key === 'r') {
-      kwami.value?.avatar.randomize();
-      window.dispatchEvent(new CustomEvent('kwami:randomized'));
+      onRandomizeAvatarPanel();
       console.log('🎲 Randomized!');
     }
     if (e.key === 'l') {
@@ -297,6 +309,7 @@ onUnmounted(() => {
           <VoicePanel v-if="uiStore.activePanel === 'voice'" />
           <EnhancementsPanel v-if="uiStore.activePanel === 'enhancements'" />
           <TranscriptionPanel v-if="uiStore.activePanel === 'transcription'" />
+          <CommunicationsPanel v-if="uiStore.activePanel === 'communications'" />
           <SoulPanel v-if="uiStore.activePanel === 'soul'" />
           <MemoryPanel v-if="uiStore.activePanel === 'memory'" />
           <ToolsPanel v-if="uiStore.activePanel === 'tools'" />

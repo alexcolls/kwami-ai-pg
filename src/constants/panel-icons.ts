@@ -14,6 +14,7 @@ export const panelIcons: Record<string, string> = {
   tools: 'ph:wrench-duotone',
   metrics: 'ph:chart-line-up-duotone',
   transcription: 'ph:chat-circle-text-duotone',
+  communications: 'ph:phone-call-duotone',
   info: 'ph:info-duotone',
   account: 'ph:user-duotone',
   theme: 'ph:palette-duotone',

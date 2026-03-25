@@ -10,6 +10,7 @@ const PANEL_KEYS: (string | null)[] = [
   'enhancements',
   'metrics',
   'transcription',
+  'communications',
   'soul',
   'memory',
   'tools',

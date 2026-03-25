@@ -27,6 +27,7 @@ const WORKSPACE_PANELS = [
   'voice',
   'enhancements',
   'transcription',
+  'communications',
   'soul',
   'memory',
   'tools',
@@ -45,6 +46,7 @@ const PANEL_ALIASES: Record<string, WorkspacePanel> = {
   account: 'account',
   avatar: 'avatar',
   chat: 'transcription',
+  communications: 'communications',
   credits: 'credits',
   energy: 'credits',
   enhancements: 'enhancements',
@@ -60,6 +62,10 @@ const PANEL_ALIASES: Record<string, WorkspacePanel> = {
   tools: 'tools',
   transcript: 'transcription',
   transcription: 'transcription',
+  whatsapp: 'communications',
+  messages: 'communications',
+  phone: 'communications',
+  calls: 'communications',
   voice: 'voice',
 };
 
