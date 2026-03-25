@@ -18,8 +18,13 @@ import { useBlobXyzSync } from '@/composables/avatar/sync/useBlobXyzSync';
 import { useBlackHoleSync } from '@/composables/avatar/sync/useBlackHoleSync';
 import { useParticlesFaceSync } from '@/composables/avatar/sync/useParticlesFaceSync';
 import { randomizeAvatarPanel } from '@/composables/avatar/randomizeAvatarPanel';
+import { useWorkspaceStore } from '@/stores/workspace';
+import { useKwamiConfigSync } from '@/composables/useKwamiConfigSync';
+import type { KwamiConfig } from '@/composables/useKwamiConfigSync';
 
 const { kwami, rendererType: kwamiRendererType, switchRenderer } = useKwami();
+const workspaceStore = useWorkspaceStore();
+const { getConfig } = useKwamiConfigSync();
 const panelIcon = panelIcons.avatar ?? 'ph:ghost-duotone';
 const avatarStore = useAvatarStore();
 const blobStore = useBlobXyzStore();
@@ -189,22 +194,32 @@ function handleRandomize() {
 }
 
 function handleReset() {
-  avatarStore.reset();
-  blobStore.resetAll();
-  blackHoleStore.resetAll();
-  particlesFaceStore.resetAll();
+  const savedAvatar = workspaceStore.getActiveSavedConfig()?.avatar;
+  const hasSavedAvatar =
+    savedAvatar &&
+    typeof savedAvatar === 'object' &&
+    Object.keys(savedAvatar as object).length > 0;
 
-  switch (rendererType.value) {
-    case 'blob-xyz':
-      applyBlobToKwami();
-      break;
-    case 'black-hole':
-      applyBlackHoleToKwami();
-      break;
-    case 'particles-face':
-      applyParticlesFaceToKwami();
-      break;
+  if (hasSavedAvatar) {
+    avatarStore.applySnapshot(
+      savedAvatar as Parameters<typeof avatarStore.applySnapshot>[0],
+    );
+  } else {
+    avatarStore.reset();
+    blobStore.resetAll();
+    blackHoleStore.resetAll();
+    particlesFaceStore.resetAll();
   }
+
+  if (kwamiRendererType.value !== rendererType.value) {
+    switchRenderer(rendererType.value as 'blob-xyz' | 'black-hole' | 'particles-face');
+  }
+  applyCurrentRendererToKwami(rendererType.value);
+
+  workspaceStore.updateActiveConfigLocal(
+    JSON.parse(JSON.stringify(getConfig())) as KwamiConfig,
+  );
+  avatarStore.saveSettings();
 }
 
 function handleApplyPreset(presetId: string) {
