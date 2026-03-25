@@ -17,6 +17,7 @@ import ParticlesFaceSettings from './ParticlesFaceSettings.vue';
 import { useBlobXyzSync } from '@/composables/avatar/sync/useBlobXyzSync';
 import { useBlackHoleSync } from '@/composables/avatar/sync/useBlackHoleSync';
 import { useParticlesFaceSync } from '@/composables/avatar/sync/useParticlesFaceSync';
+import { randomizeAvatarPanel } from '@/composables/avatar/randomizeAvatarPanel';
 
 const { kwami, rendererType: kwamiRendererType, switchRenderer } = useKwami();
 const panelIcon = panelIcons.avatar ?? 'ph:ghost-duotone';
@@ -179,8 +180,12 @@ function handleSwitchRenderer(type: 'blob-xyz' | 'black-hole' | 'particles-face'
 }
 
 function handleRandomize() {
-  kwami.value?.avatar.randomize();
-  syncFromKwami();
+  randomizeAvatarPanel({
+    applyBlob: applyBlobToKwami,
+    applyBlackHole: applyBlackHoleToKwami,
+    applyParticles: applyParticlesFaceToKwami,
+  });
+  window.dispatchEvent(new CustomEvent('kwami:randomized'));
 }
 
 function handleReset() {

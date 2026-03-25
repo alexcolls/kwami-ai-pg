@@ -90,8 +90,7 @@ export function useAvatarInteractions(options: UseAvatarInteractionsOptions = {}
                 break;
 
             case 'randomize':
-                kwami.value.avatar.randomize();
-                window.dispatchEvent(new CustomEvent('kwami:randomized'));
+                window.dispatchEvent(new CustomEvent('kwami:randomize-avatar-panel'));
                 break;
 
             case 'switchRenderer': {

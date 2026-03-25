@@ -50,10 +50,12 @@ const { palettes, applyPalette } = useColorPalettes();
 // SECTION-SPECIFIC RANDOMIZERS
 // =====================================================
 
-// Skin Style
+// Skin Style (50% poles, 40% donut, 10% vintage)
 function randomizeStyle() {
-  const skins: SkinType[] = ['poles', 'donut', 'vintage'];
-  skin.value.type = skins[Math.floor(Math.random() * skins.length)] ?? 'poles';
+  const r = Math.random();
+  if (r < 0.5) skin.value.type = 'poles';
+  else if (r < 0.9) skin.value.type = 'donut';
+  else skin.value.type = 'vintage';
 }
 
 // Colors

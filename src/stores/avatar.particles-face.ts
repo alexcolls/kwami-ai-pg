@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
 import { reactive } from 'vue';
+import { randomInRange } from '@/utils/color';
 
 export interface ParticlesFaceState {
   color: string;
@@ -82,6 +83,34 @@ export const useParticlesFaceStore = defineStore('particlesFace', () => {
     }
   }
 
+  function randomizeAll() {
+    const h1 = Math.floor(Math.random() * 360);
+    const h2 = (h1 + 60 + Math.floor(Math.random() * 120)) % 360;
+    Object.assign(
+      state,
+      clampState({
+        ...getDefaultParticlesFaceState(),
+        color: `hsl(${h1}, 80%, 75%)`,
+        secondaryColor: `hsl(${h2}, 70%, 60%)`,
+        particleSize: randomInRange(0.02, 0.3, 0.01),
+        faceScale: randomInRange(1.5, 4.5, 0.1),
+        opacity: randomInRange(0.1, 1, 0.05),
+        mouthAmplitude: randomInRange(0, 1.5, 0.05),
+        breathingSpeed: randomInRange(0.1, 4, 0.1),
+        breathingAmplitude: randomInRange(0, 0.03, 0.001),
+        driftSpeed: randomInRange(0, 2, 0.05),
+        driftAmplitude: randomInRange(0, 0.02, 0.001),
+        speakingReactivity: randomInRange(0, 3, 0.1),
+        listeningPulse: randomInRange(0, 2, 0.05),
+        thinkingSpeed: randomInRange(0.5, 6, 0.1),
+        ambientParticles: Math.floor(randomInRange(0, 200, 5)),
+        ambientRadius: randomInRange(1, 10, 0.5),
+        depthSpread: randomInRange(0.2, 1.8, 0.05),
+        scale: randomInRange(0.2, 3, 0.05),
+      }),
+    );
+  }
+
   function syncFromKwami(pf: {
     getConfig: () => {
       color: string;
@@ -130,5 +159,6 @@ export const useParticlesFaceStore = defineStore('particlesFace', () => {
     exportState,
     importState,
     syncFromKwami,
+    randomizeAll,
   };
 });
