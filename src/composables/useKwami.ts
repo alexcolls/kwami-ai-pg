@@ -187,7 +187,15 @@ export function useKwami() {
       });
     }
 
-    console.log('📤 Synced all configs to backend on connect');
+    // 6. Client tool definitions — must be synced every connect so the backend
+    //    knows which tools the frontend can execute. Tools are registered before
+    //    the session opens, so this is the only reliable sync point.
+    const toolDefs = kwami.tools.getToolDefinitions();
+    if (toolDefs.length > 0) {
+      agent.syncConfigToBackend('tools', toolDefs);
+    }
+
+    console.log('📤 Synced all configs to backend on connect (including', toolDefs.length, 'tools)');
   }
 
   /**
