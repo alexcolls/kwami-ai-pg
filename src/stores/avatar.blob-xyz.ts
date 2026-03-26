@@ -18,7 +18,11 @@ import { randomHex, randomInRange } from '@/utils/color';
 // TYPES
 // =====================================================
 
-export type SkinType = 'poles' | 'donut' | 'vintage';
+export type SkinType =
+  | 'poles' | 'donut' | 'vintage' | 'marble' | 'fresnel' | 'iridescent' | 'spiral' | 'plasma' | 'gradient'
+  | 'matte' | 'glossy' | 'metallic' | 'subsurface'
+  | 'chrome' | 'clay' | 'jade' | 'toon-matcap' | 'hologram'
+  | 'flat' | 'stepped' | 'halftone' | 'outlined';
 
 export type InteractionAction =
   | 'none'
@@ -560,10 +564,13 @@ export const useBlobXyzStore = defineStore('blob-xyz', () => {
   }
 
   function randomizeAll() {
-    const r = Math.random();
-    if (r < 0.5) skin.type = 'poles';
-    else if (r < 0.9) skin.type = 'donut';
-    else skin.type = 'vintage';
+    const allSkins: SkinType[] = [
+      'poles', 'donut', 'vintage', 'marble', 'fresnel', 'iridescent', 'spiral', 'plasma', 'gradient',
+      'matte', 'glossy', 'metallic', 'subsurface',
+      'chrome', 'clay', 'jade', 'toon-matcap', 'hologram',
+      'flat', 'stepped', 'halftone', 'outlined',
+    ];
+    skin.type = allSkins[Math.floor(Math.random() * allSkins.length)]!;
     skin.colors.x = randomHex();
     skin.colors.y = randomHex();
     skin.colors.z = randomHex();

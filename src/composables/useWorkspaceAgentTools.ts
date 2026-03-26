@@ -564,11 +564,18 @@ export function useWorkspaceAgentTools() {
     }
 
     switch (normalized) {
-      case 'blobskintype':
-        if (value !== 'poles' && value !== 'donut' && value !== 'vintage') {
-          return { success: false, message: 'Blob skin type must be poles, donut, or vintage.' };
+      case 'blobskintype': {
+        const validSkins = [
+          'poles', 'donut', 'vintage', 'marble', 'fresnel', 'iridescent', 'spiral', 'plasma', 'gradient',
+          'matte', 'glossy', 'metallic', 'subsurface',
+          'chrome', 'clay', 'jade', 'toon-matcap', 'hologram',
+          'flat', 'stepped', 'halftone', 'outlined',
+        ];
+        if (!validSkins.includes(value as string)) {
+          return { success: false, message: `Blob skin type must be one of: ${validSkins.join(', ')}.` };
         }
-        blobStore.skin.type = value;
+        blobStore.skin.type = value as typeof blobStore.skin.type;
+      }
         break;
       case 'blobcolors':
         if (!isRecord(value)) return { success: false, message: 'Blob colors expects an object with x, y, and z.' };

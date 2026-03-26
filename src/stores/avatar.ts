@@ -15,7 +15,11 @@ import { useParticlesFaceStore } from './avatar.particles-face';
 export type { AvatarPreset };
 
 // Types
-export type SkinSubtype = 'poles' | 'donut' | 'vintage';
+export type SkinSubtype =
+  | 'poles' | 'donut' | 'vintage' | 'marble' | 'fresnel' | 'iridescent' | 'spiral' | 'plasma' | 'gradient'
+  | 'matte' | 'glossy' | 'metallic' | 'subsurface'
+  | 'chrome' | 'clay' | 'jade' | 'toon-matcap' | 'hologram'
+  | 'flat' | 'stepped' | 'halftone' | 'outlined';
 export type AvatarState = 'idle' | 'listening' | 'thinking' | 'speaking';
 export type RendererType = 'blob-xyz' | 'black-hole' | 'particles-face';
 

@@ -50,12 +50,17 @@ const { palettes, applyPalette } = useColorPalettes();
 // SECTION-SPECIFIC RANDOMIZERS
 // =====================================================
 
-// Skin Style (50% poles, 40% donut, 10% vintage)
+const SKIN_FAMILIES = {
+  tricolor: ['poles', 'donut', 'vintage', 'marble', 'fresnel', 'iridescent', 'spiral', 'plasma', 'gradient'],
+  monochrome: ['matte', 'glossy', 'metallic', 'subsurface'],
+  matcap: ['chrome', 'clay', 'jade', 'toon-matcap', 'hologram'],
+  toon: ['flat', 'stepped', 'halftone', 'outlined'],
+} as const;
+
+const ALL_SKIN_TYPES = Object.values(SKIN_FAMILIES).flat();
+
 function randomizeStyle() {
-  const r = Math.random();
-  if (r < 0.5) skin.value.type = 'poles';
-  else if (r < 0.9) skin.value.type = 'donut';
-  else skin.value.type = 'vintage';
+  skin.value.type = ALL_SKIN_TYPES[Math.floor(Math.random() * ALL_SKIN_TYPES.length)]!;
 }
 
 // Colors
@@ -266,7 +271,26 @@ const skinGradient = computed(() => {
     poles: `conic-gradient(${x}, ${y}, ${z}, ${x})`,
     donut: `linear-gradient(180deg, ${x} 0%, ${y} 50%, ${z} 100%)`,
     vintage: `radial-gradient(circle, ${x}, ${y}, ${z})`,
-  };
+    marble: `radial-gradient(ellipse at 30% 40%, ${x}, ${y} 50%, ${z})`,
+    fresnel: `radial-gradient(circle, transparent 20%, ${x} 50%, ${y} 75%, ${z})`,
+    iridescent: `linear-gradient(135deg, ${x}, ${y}, ${z}, ${x})`,
+    spiral: `conic-gradient(from 45deg, ${x}, ${y}, ${z}, ${x}, ${y}, ${z})`,
+    plasma: `radial-gradient(circle at 30% 70%, ${x}, transparent), radial-gradient(circle at 70% 30%, ${y}, transparent), radial-gradient(circle at 50% 50%, ${z}, transparent)`,
+    gradient: `linear-gradient(180deg, ${x} 0%, ${y} 50%, ${z} 100%)`,
+    matte: `linear-gradient(135deg, ${x}, ${x}dd)`,
+    glossy: `radial-gradient(circle at 35% 35%, white 0%, ${x} 40%, ${x}88 100%)`,
+    metallic: `linear-gradient(160deg, ${x}44, ${x}, white, ${x}, ${x}44)`,
+    subsurface: `radial-gradient(circle, ${x}88, ${x}, ${x}cc)`,
+    chrome: `linear-gradient(160deg, #333, #eee, #999, #fff, #666)`,
+    clay: `linear-gradient(135deg, #c4956a, #d4a574, #e8c9a8)`,
+    jade: `radial-gradient(circle, #6ee7a0, #2ecc71, #1a9c52)`,
+    'toon-matcap': `linear-gradient(180deg, ${x}, ${x}88, ${x}44)`,
+    hologram: `linear-gradient(135deg, #ff6b6b, #feca57, #48dbfb, #ff9ff3, #54a0ff)`,
+    flat: `linear-gradient(180deg, ${x} 50%, ${x}66 50%)`,
+    stepped: `linear-gradient(180deg, ${x} 25%, ${y} 25%, ${y} 50%, ${x}88 50%, ${x}88 75%, ${x}44 75%)`,
+    halftone: `radial-gradient(circle, ${x} 30%, ${y} 30%)`,
+    outlined: `linear-gradient(135deg, ${x}22, ${x}, ${x}22)`,
+  } as Record<string, string>;
 });
 </script>
 
@@ -279,17 +303,21 @@ const skinGradient = computed(() => {
       </button>
     </template>
     <p class="section-desc">Choose how colors blend across the surface</p>
-    <div class="skin-selector">
-      <label
-        v-for="skinType in (['poles', 'donut', 'vintage'] as const)"
-        :key="skinType"
-        class="skin-option"
-        :class="{ active: skin.type === skinType }"
-      >
-        <input type="radio" :value="skinType" v-model="skin.type" />
-        <span class="skin-preview" :style="{ background: skinGradient[skinType] }"></span>
-        <span class="skin-label">{{ skinType.charAt(0).toUpperCase() + skinType.slice(1) }}</span>
-      </label>
+
+    <div v-for="(subtypes, family) in SKIN_FAMILIES" :key="family" class="skin-family">
+      <span class="skin-family-label">{{ family.charAt(0).toUpperCase() + family.slice(1) }}</span>
+      <div class="skin-selector">
+        <label
+          v-for="skinType in subtypes"
+          :key="skinType"
+          class="skin-option"
+          :class="{ active: skin.type === skinType }"
+        >
+          <input type="radio" :value="skinType" v-model="skin.type" />
+          <span class="skin-preview" :style="{ background: skinGradient[skinType] }"></span>
+          <span class="skin-label">{{ skinType.charAt(0).toUpperCase() + skinType.slice(1) }}</span>
+        </label>
+      </div>
     </div>
   </PanelSection>
 
