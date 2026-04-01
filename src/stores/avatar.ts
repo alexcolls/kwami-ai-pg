@@ -124,10 +124,8 @@ export interface BlobState {
     bassSpike: number;
     midSpike: number;
     highSpike: number;
-    timeEnabled: boolean;
-    midTime: number;
-    highTime: number;
-    ultraTime: number;
+    spikeDensity: number;
+    rotateWhilePlaying: boolean;
   };
 }
 
@@ -218,13 +216,11 @@ export function getDefaultBlobState(): BlobState {
       breathing: 0.035,
       responseSpeed: 0.75,
       transientBoost: 0.5,
-      bassSpike: 0.65,
-      midSpike: 0.5,
-      highSpike: 0.38,
-      timeEnabled: false,
-      midTime: 0.1,
-      highTime: 0.18,
-      ultraTime: 0.08,
+      bassSpike: 0.55,
+      midSpike: 0.65,
+      highSpike: 0.35,
+      spikeDensity: 1.5,
+      rotateWhilePlaying: true,
     }
   };
 }

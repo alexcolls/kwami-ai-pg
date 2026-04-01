@@ -137,16 +137,12 @@ export interface BlobXyzAudio {
   sensitivity: number;
   responseSpeed: number;
   transientBoost: number;
+  spikeDensity: number;
+  rotateWhilePlaying: boolean;
   frequencySpikes: {
     bass: number;
     mid: number;
     high: number;
-  };
-  timeModulation: {
-    enabled: boolean;
-    mid: number;
-    high: number;
-    ultra: number;
   };
 }
 
@@ -261,20 +257,16 @@ export function getDefaultCursorTouch(): BlobXyzCursorTouch {
 export function getDefaultAudio(): BlobXyzAudio {
   return {
     enabled: true,
-    reactivity: 1.9,
+    reactivity: 1.8,
     sensitivity: 0.075,
-    responseSpeed: 0.75,
-    transientBoost: 0.5,
+    responseSpeed: 0.65,
+    transientBoost: 0.35,
+    spikeDensity: 1.5,
+    rotateWhilePlaying: true,
     frequencySpikes: {
-      bass: 0.65,
-      mid: 0.5,
-      high: 0.38,
-    },
-    timeModulation: {
-      enabled: false,
-      mid: 0.1,
-      high: 0.18,
-      ultra: 0.08,
+      bass: 0.55,
+      mid: 0.65,
+      high: 0.35,
     },
   };
 }
@@ -434,10 +426,8 @@ export const useBlobXyzStore = defineStore('blob-xyz', () => {
       bassSpike?: number;
       midSpike?: number;
       highSpike?: number;
-      timeEnabled?: boolean;
-      midTime?: number;
-      highTime?: number;
-      ultraTime?: number;
+      spikeDensity?: number;
+      rotateWhilePlaying?: boolean;
     };
   }) {
     // Sync skin
@@ -480,13 +470,11 @@ export const useBlobXyzStore = defineStore('blob-xyz', () => {
       animation.breathing = blob.audioEffects.breathing ?? animation.breathing;
       audio.responseSpeed = blob.audioEffects.responseSpeed ?? audio.responseSpeed;
       audio.transientBoost = blob.audioEffects.transientBoost ?? audio.transientBoost;
+      audio.spikeDensity = blob.audioEffects.spikeDensity ?? audio.spikeDensity;
+      audio.rotateWhilePlaying = blob.audioEffects.rotateWhilePlaying ?? audio.rotateWhilePlaying;
       audio.frequencySpikes.bass = blob.audioEffects.bassSpike ?? audio.frequencySpikes.bass;
       audio.frequencySpikes.mid = blob.audioEffects.midSpike ?? audio.frequencySpikes.mid;
       audio.frequencySpikes.high = blob.audioEffects.highSpike ?? audio.frequencySpikes.high;
-      audio.timeModulation.enabled = blob.audioEffects.timeEnabled ?? audio.timeModulation.enabled;
-      audio.timeModulation.mid = blob.audioEffects.midTime ?? audio.timeModulation.mid;
-      audio.timeModulation.high = blob.audioEffects.highTime ?? audio.timeModulation.high;
-      audio.timeModulation.ultra = blob.audioEffects.ultraTime ?? audio.timeModulation.ultra;
     }
   }
 
@@ -629,13 +617,14 @@ export const useBlobXyzStore = defineStore('blob-xyz', () => {
     };
 
     audio.enabled = Math.random() > 0.1;
-    audio.reactivity = randomInRange(0, 5, 0.1);
-    audio.sensitivity = randomInRange(0, 0.3, 0.005);
-    audio.responseSpeed = randomInRange(0, 1, 0.05);
-    audio.transientBoost = randomInRange(0, 1, 0.05);
-    audio.frequencySpikes.bass = randomInRange(0, 2, 0.05);
-    audio.frequencySpikes.mid = randomInRange(0, 2, 0.05);
-    audio.frequencySpikes.high = randomInRange(0, 2, 0.05);
+    audio.reactivity = randomInRange(1.0, 2.5, 0.1);
+    audio.sensitivity = randomInRange(0.03, 0.12, 0.005);
+    audio.responseSpeed = randomInRange(0.4, 0.85, 0.05);
+    audio.transientBoost = randomInRange(0.2, 0.7, 0.05);
+    audio.spikeDensity = randomInRange(0.5, 2.5, 0.1);
+    audio.frequencySpikes.bass = randomInRange(0.3, 1.0, 0.05);
+    audio.frequencySpikes.mid = randomInRange(0.3, 1.0, 0.05);
+    audio.frequencySpikes.high = randomInRange(0.15, 0.7, 0.05);
   }
 
   return {

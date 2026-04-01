@@ -169,10 +169,11 @@ function randomizeTouch() {
 
 // Audio
 function randomizeAudio() {
-  audio.value.reactivity = randomInRange(0.5, 3, 0.1);
-  audio.value.sensitivity = randomInRange(0.02, 0.15, 0.005);
-  audio.value.responseSpeed = randomInRange(0.3, 0.9, 0.05);
-  audio.value.transientBoost = randomInRange(0.2, 0.8, 0.05);
+  audio.value.reactivity = randomInRange(1.0, 3.0, 0.1);
+  audio.value.spikeDensity = randomInRange(0.5, 2.5, 0.1);
+  audio.value.sensitivity = randomInRange(0.03, 0.12, 0.005);
+  audio.value.responseSpeed = randomInRange(0.3, 0.85, 0.05);
+  audio.value.transientBoost = randomInRange(0.2, 0.7, 0.05);
 }
 
 // Frequency Bands
@@ -624,52 +625,45 @@ const skinGradient = computed(() => {
         <iconify-icon icon="ph:dice-three-duotone"></iconify-icon>
       </button>
     </template>
-    <p class="section-desc">React to microphone or audio input</p>
+    <p class="section-desc">How the blob responds to sound</p>
     <div class="toggle-row">
       <BaseToggle label="Enable Audio Effects" v-model="audio.enabled" />
     </div>
-    
+
     <MicrophoneControl />
     <AudioVisualizer />
 
     <div v-if="audio.enabled" class="slider-group" style="margin-top: 12px">
-      <BaseSlider label="Reactivity" :min="0" :max="5" :step="0.1" v-model="audio.reactivity" />
-      <BaseSlider label="Sensitivity" :min="0" :max="0.3" :step="0.005" v-model="audio.sensitivity" />
+      <BaseSlider label="Intensity" description="How far spikes push outward with sound" :min="0.1" :max="4" :step="0.1" v-model="audio.reactivity" />
+      <BaseSlider label="Spike Density" description="How many new spikes appear with sound. Higher = more spikes burst out" :min="0" :max="4" :step="0.1" v-model="audio.spikeDensity" />
+      <BaseSlider label="Threshold" description="Minimum sound level before the blob starts reacting" :min="0.01" :max="0.2" :step="0.005" v-model="audio.sensitivity" />
     </div>
   </PanelSection>
 
   <!-- ==================== AUDIO DYNAMICS ==================== -->
-  <PanelSection v-if="audio.enabled" title="Audio Dynamics" icon="ph:chart-line-up-duotone" collapsible>
-    <p class="section-desc">Response speed and transient handling</p>
+  <PanelSection v-if="audio.enabled" title="Audio Dynamics" icon="ph:waveform-duotone" collapsible>
+    <p class="section-desc">Controls how the blob follows the rhythm</p>
     <div class="slider-group">
-      <BaseSlider label="Response Speed" :min="0" :max="1" :step="0.05" v-model="audio.responseSpeed" />
-      <BaseSlider label="Transient Boost" :min="0" :max="1" :step="0.05" v-model="audio.transientBoost" />
+      <BaseSlider label="Smoothness" description="Low = punchy, reacts to every syllable. High = fluid, liquid motion" :min="0" :max="1" :step="0.05" v-model="audio.responseSpeed" />
+      <BaseSlider label="Punch" description="How sharply the blob reacts to sudden sounds like beats and plosives" :min="0" :max="1" :step="0.05" v-model="audio.transientBoost" />
+    </div>
+    <div class="toggle-row" style="margin-top: 12px">
+      <BaseToggle label="Rotate while playing" v-model="audio.rotateWhilePlaying" />
     </div>
   </PanelSection>
 
-  <!-- ==================== FREQUENCY RESPONSE ==================== -->
-  <PanelSection v-if="audio.enabled" title="Frequency Response" icon="ph:equalizer-duotone" collapsible>
+  <!-- ==================== FREQUENCY BALANCE ==================== -->
+  <PanelSection v-if="audio.enabled" title="Frequency Balance" icon="ph:equalizer-duotone" collapsible>
     <template #actions>
       <button class="dice-btn" @click="randomizeFrequencyBands" title="Randomize frequencies">
         <iconify-icon icon="ph:dice-three-duotone"></iconify-icon>
       </button>
     </template>
-    <p class="section-desc">How different frequencies affect the blob</p>
+    <p class="section-desc">Which frequencies drive the blob's movement</p>
     <div class="slider-group">
-      <BaseSlider label="Bass (20-250Hz)" :min="0" :max="2" :step="0.05" v-model="audio.frequencySpikes.bass" />
-      <BaseSlider label="Mid (250Hz-2kHz)" :min="0" :max="2" :step="0.05" v-model="audio.frequencySpikes.mid" />
-      <BaseSlider label="High (2-8kHz)" :min="0" :max="2" :step="0.05" v-model="audio.frequencySpikes.high" />
-    </div>
-  </PanelSection>
-
-  <!-- ==================== TIME MODULATION ==================== -->
-  <PanelSection v-if="audio.enabled" title="Time Modulation" icon="ph:clock-duotone" collapsible>
-    <p class="section-desc">Audio-driven animation speed changes</p>
-    <BaseToggle label="Enable Time Effects" v-model="audio.timeModulation.enabled" />
-    <div v-if="audio.timeModulation.enabled" class="slider-group" style="margin-top: 12px">
-      <BaseSlider label="Mid Influence" :min="0" :max="0.5" :step="0.01" v-model="audio.timeModulation.mid" />
-      <BaseSlider label="High Influence" :min="0" :max="0.5" :step="0.01" v-model="audio.timeModulation.high" />
-      <BaseSlider label="Ultra Influence" :min="0" :max="0.5" :step="0.01" v-model="audio.timeModulation.ultra" />
+      <BaseSlider label="Bass" description="Low rumble, bass drops, drum kicks" :min="0" :max="2" :step="0.05" v-model="audio.frequencySpikes.bass" />
+      <BaseSlider label="Mid" description="Voice, melody, main instruments" :min="0" :max="2" :step="0.05" v-model="audio.frequencySpikes.mid" />
+      <BaseSlider label="High" description="Sibilance, cymbals, high detail" :min="0" :max="2" :step="0.05" v-model="audio.frequencySpikes.high" />
     </div>
   </PanelSection>
 </template>

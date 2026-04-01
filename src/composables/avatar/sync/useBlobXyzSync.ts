@@ -187,13 +187,11 @@ export function useBlobXyzSync(options: UseBlobXyzSyncOptions) {
             b.audioEffects.sensitivity = a.sensitivity;
             b.audioEffects.responseSpeed = a.responseSpeed;
             b.audioEffects.transientBoost = a.transientBoost;
+            b.audioEffects.spikeDensity = a.spikeDensity;
+            b.audioEffects.rotateWhilePlaying = a.rotateWhilePlaying;
             b.audioEffects.bassSpike = a.frequencySpikes.bass;
             b.audioEffects.midSpike = a.frequencySpikes.mid;
             b.audioEffects.highSpike = a.frequencySpikes.high;
-            b.audioEffects.timeEnabled = a.timeModulation.enabled;
-            b.audioEffects.midTime = a.timeModulation.mid;
-            b.audioEffects.highTime = a.timeModulation.high;
-            b.audioEffects.ultraTime = a.timeModulation.ultra;
         },
         { deep: true }
     );
@@ -278,13 +276,11 @@ export function useBlobXyzSync(options: UseBlobXyzSyncOptions) {
             b.audioEffects.sensitivity = audio.value.sensitivity;
             b.audioEffects.responseSpeed = audio.value.responseSpeed;
             b.audioEffects.transientBoost = audio.value.transientBoost;
+            b.audioEffects.spikeDensity = audio.value.spikeDensity;
+            b.audioEffects.rotateWhilePlaying = audio.value.rotateWhilePlaying;
             b.audioEffects.bassSpike = audio.value.frequencySpikes.bass;
             b.audioEffects.midSpike = audio.value.frequencySpikes.mid;
             b.audioEffects.highSpike = audio.value.frequencySpikes.high;
-            b.audioEffects.timeEnabled = audio.value.timeModulation.enabled;
-            b.audioEffects.midTime = audio.value.timeModulation.mid;
-            b.audioEffects.highTime = audio.value.timeModulation.high;
-            b.audioEffects.ultraTime = audio.value.timeModulation.ultra;
         }
     }
 
