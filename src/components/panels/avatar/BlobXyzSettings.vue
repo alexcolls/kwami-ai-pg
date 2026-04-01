@@ -2,8 +2,23 @@
 import { ref, computed, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useKwami } from '@/composables/useKwami';
-import { useBlobXyzStore, type SkinType } from '@/stores/avatar.blob-xyz';
-import { randomHex, randomInRange } from '@/utils/color';
+import { useBlobXyzStore } from '@/stores/avatar.blob-xyz';
+import {
+  BLOB_SKIN_FAMILIES,
+  randomBlobSkinType,
+  randomBlobColors,
+  randomBlobSurface,
+  randomBlobScale,
+  randomBlobVector3Degrees,
+  randomBlobSpikes,
+  randomBlobAmplitude,
+  randomBlobTime,
+  randomBlobRotation,
+  randomBlobBreathing,
+  randomBlobTouch,
+  randomBlobAudio,
+  randomBlobFrequencyBands,
+} from 'kwami';
 import { 
   useColorPalettes, 
   type PaletteType 
@@ -50,137 +65,70 @@ const { palettes, applyPalette } = useColorPalettes();
 // SECTION-SPECIFIC RANDOMIZERS
 // =====================================================
 
-const SKIN_FAMILIES = {
-  tricolor: ['poles', 'donut', 'vintage', 'marble', 'fresnel', 'iridescent', 'spiral', 'plasma', 'gradient'],
-  monochrome: ['matte', 'glossy', 'metallic', 'subsurface'],
-  matcap: ['chrome', 'clay', 'jade', 'toon-matcap', 'hologram'],
-  toon: ['flat', 'stepped', 'halftone', 'outlined'],
-} as const;
-
-const ALL_SKIN_TYPES = Object.values(SKIN_FAMILIES).flat();
+const SKIN_FAMILIES = BLOB_SKIN_FAMILIES;
 
 function randomizeStyle() {
-  skin.value.type = ALL_SKIN_TYPES[Math.floor(Math.random() * ALL_SKIN_TYPES.length)]!;
+  skin.value.type = randomBlobSkinType();
 }
 
 // Colors
 function randomizeColors() {
-  skin.value.colors.x = randomHex();
-  skin.value.colors.y = randomHex();
-  skin.value.colors.z = randomHex();
+  skin.value.colors = randomBlobColors();
 }
 
 // Surface properties
 function randomizeSurface() {
-  skin.value.opacity = randomInRange(0.7, 1, 0.01);
-  skin.value.shininess = randomInRange(20, 150, 1);
-  skin.value.lightIntensity = randomInRange(0, 2, 0.1);
-  skin.value.resolution = randomInRange(64, 256, 8);
-  skin.value.wireframe = Math.random() > 0.8;
-  skin.value.glassMode = Math.random() > 0.85;
+  Object.assign(skin.value, randomBlobSurface());
 }
 
 // Scale
 function randomizeScale() {
-  shape.value.scale = randomInRange(1.5, 5, 0.1);
+  shape.value.scale = randomBlobScale();
 }
 
 // Position
 function randomizePosition() {
-  if (linkPosition.value) {
-    const pos = randomInRange(0, 360, 1);
-    shape.value.position = { x: pos, y: pos, z: pos };
-  } else {
-    shape.value.position = {
-      x: randomInRange(0, 360, 1),
-      y: randomInRange(0, 360, 1),
-      z: randomInRange(0, 360, 1),
-    };
-  }
+  shape.value.position = randomBlobVector3Degrees(linkPosition.value);
 }
 
 // Spikes
 function randomizeSpikes() {
-  if (linkSpikes.value) {
-    const spike = randomInRange(0, 3, 0.05);
-    shape.value.spikes = { x: spike, y: spike, z: spike };
-  } else {
-    shape.value.spikes = {
-      x: randomInRange(0, 3, 0.05),
-      y: randomInRange(0, 3, 0.05),
-      z: randomInRange(0, 3, 0.05),
-    };
-  }
+  shape.value.spikes = randomBlobSpikes(linkSpikes.value);
 }
 
 // Amplitude
 function randomizeAmplitude() {
-  if (linkAmplitude.value) {
-    const amp = randomInRange(0.3, 1.5, 0.05);
-    shape.value.amplitude = { x: amp, y: amp, z: amp };
-  } else {
-    shape.value.amplitude = {
-      x: randomInRange(0.3, 1.5, 0.05),
-      y: randomInRange(0.3, 1.5, 0.05),
-      z: randomInRange(0.3, 1.5, 0.05),
-    };
-  }
+  shape.value.amplitude = randomBlobAmplitude(linkAmplitude.value);
 }
 
 // Animation Speed
 function randomizeSpeed() {
-  if (linkTime.value) {
-    const time = randomInRange(0.5, 5, 0.1);
-    animation.value.time = { x: time, y: time, z: time };
-  } else {
-    animation.value.time = {
-      x: randomInRange(0.5, 5, 0.1),
-      y: randomInRange(0.5, 5, 0.1),
-      z: randomInRange(0.5, 5, 0.1),
-    };
-  }
+  animation.value.time = randomBlobTime(linkTime.value);
 }
 
 // Rotation
 function randomizeRotation() {
-  if (linkRotation.value) {
-    const rot = randomInRange(0, 0.01, 0.001);
-    animation.value.rotation = { x: rot, y: rot, z: rot };
-  } else {
-    animation.value.rotation = {
-      x: randomInRange(0, 0.01, 0.001),
-      y: randomInRange(0, 0.01, 0.001),
-      z: randomInRange(0, 0.01, 0.001),
-    };
-  }
+  animation.value.rotation = randomBlobRotation(linkRotation.value);
 }
 
 // Breathing
 function randomizeBreathing() {
-  animation.value.breathing = randomInRange(0, 0.15, 0.005);
+  animation.value.breathing = randomBlobBreathing();
 }
 
 // Touch
 function randomizeTouch() {
-  cursorTouch.value.touch.strength = randomInRange(0.5, 2.5, 0.1);
-  cursorTouch.value.touch.duration = randomInRange(500, 2000, 100);
-  cursorTouch.value.touch.maxPoints = Math.floor(randomInRange(3, 12, 1));
+  cursorTouch.value.touch = randomBlobTouch();
 }
 
 // Audio
 function randomizeAudio() {
-  audio.value.reactivity = randomInRange(1.0, 3.0, 0.1);
-  audio.value.spikeDensity = randomInRange(0.5, 2.5, 0.1);
-  audio.value.sensitivity = randomInRange(0.03, 0.12, 0.005);
-  audio.value.responseSpeed = randomInRange(0.3, 0.85, 0.05);
-  audio.value.transientBoost = randomInRange(0.2, 0.7, 0.05);
+  Object.assign(audio.value, randomBlobAudio());
 }
 
 // Frequency Bands
 function randomizeFrequencyBands() {
-  audio.value.frequencySpikes.bass = randomInRange(0.3, 1.5, 0.05);
-  audio.value.frequencySpikes.mid = randomInRange(0.2, 1.2, 0.05);
-  audio.value.frequencySpikes.high = randomInRange(0.1, 1.0, 0.05);
+  audio.value.frequencySpikes = randomBlobFrequencyBands();
 }
 
 // =====================================================

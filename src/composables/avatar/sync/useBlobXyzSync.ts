@@ -7,23 +7,11 @@
 
 import { watch, type Ref } from 'vue';
 import { storeToRefs } from 'pinia';
-import { useBlobXyzStore, type SkinType } from '@/stores/avatar.blob-xyz';
+import { useBlobXyzStore } from '@/stores/avatar.blob-xyz';
+import { blobSkinSelectionFromSubtype } from 'kwami'
 
 // Local type for Kwami instance (avoid external dependency)
 type KwamiInstance = ReturnType<typeof import('@/composables/useKwami').useKwami>['kwami']['value'];
-
-const SKIN_FAMILY_MAP: Record<string, 'tricolor' | 'monochrome' | 'matcap' | 'toon'> = {
-    poles: 'tricolor', donut: 'tricolor', vintage: 'tricolor', marble: 'tricolor',
-    fresnel: 'tricolor', iridescent: 'tricolor', spiral: 'tricolor', plasma: 'tricolor', gradient: 'tricolor',
-    matte: 'monochrome', glossy: 'monochrome', metallic: 'monochrome', subsurface: 'monochrome',
-    chrome: 'matcap', clay: 'matcap', jade: 'matcap', 'toon-matcap': 'matcap', hologram: 'matcap',
-    flat: 'toon', stepped: 'toon', halftone: 'toon', outlined: 'toon',
-};
-
-function skinSelection(subtype: string) {
-    const family = SKIN_FAMILY_MAP[subtype] ?? 'tricolor';
-    return { skin: family, subtype } as import('kwami').BlobXyzSkinSelection;
-}
 
 // =====================================================
 // TYPES
@@ -51,7 +39,7 @@ export function useBlobXyzSync(options: UseBlobXyzSyncOptions) {
 
     watch(
         () => skin.value.type,
-        (v) => kwami.value?.avatar.setSkin(skinSelection(v))
+        (v) => kwami.value?.avatar.setSkin(blobSkinSelectionFromSubtype(v))
     );
 
     watch(
@@ -231,7 +219,7 @@ export function useBlobXyzSync(options: UseBlobXyzSyncOptions) {
         if (!b || !kwami.value) return;
 
         // Skin
-        kwami.value.avatar.setSkin(skinSelection(skin.value.type));
+        kwami.value.avatar.setSkin(blobSkinSelectionFromSubtype(skin.value.type));
         b.setColors(skin.value.colors.x, skin.value.colors.y, skin.value.colors.z);
         kwami.value.avatar.setOpacity(skin.value.opacity);
         kwami.value.avatar.setShininess(skin.value.shininess);

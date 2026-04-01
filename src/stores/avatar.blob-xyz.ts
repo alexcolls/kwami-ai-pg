@@ -12,7 +12,8 @@
 
 import { defineStore } from 'pinia';
 import { reactive } from 'vue';
-import { randomHex, randomInRange } from '@/utils/color';
+import { randomInRange } from '@/utils/color';
+import { randomizeBlobState } from 'kwami';
 
 // =====================================================
 // TYPES
@@ -552,49 +553,13 @@ export const useBlobXyzStore = defineStore('blob-xyz', () => {
   }
 
   function randomizeAll() {
-    const allSkins: SkinType[] = [
-      'poles', 'donut', 'vintage', 'marble', 'fresnel', 'iridescent', 'spiral', 'plasma', 'gradient',
-      'matte', 'glossy', 'metallic', 'subsurface',
-      'chrome', 'clay', 'jade', 'toon-matcap', 'hologram',
-      'flat', 'stepped', 'halftone', 'outlined',
-    ];
-    skin.type = allSkins[Math.floor(Math.random() * allSkins.length)]!;
-    skin.colors.x = randomHex();
-    skin.colors.y = randomHex();
-    skin.colors.z = randomHex();
-    skin.opacity = randomInRange(0.7, 1, 0.01);
-    skin.shininess = randomInRange(1, 200, 1);
-    skin.lightIntensity = randomInRange(0, 5, 0.1);
-    skin.wireframe = Math.random() > 0.8;
-    skin.glassMode = Math.random() > 0.85;
-
-    shape.position = {
-      x: randomInRange(0, 360, 1),
-      y: randomInRange(0, 360, 1),
-      z: randomInRange(0, 360, 1),
-    };
-    shape.spikes = {
-      x: randomInRange(0, 8, 0.05),
-      y: randomInRange(0, 8, 0.05),
-      z: randomInRange(0, 8, 0.05),
-    };
-    shape.amplitude = {
-      x: randomInRange(0.1, 2, 0.05),
-      y: randomInRange(0.1, 2, 0.05),
-      z: randomInRange(0.1, 2, 0.05),
-    };
-
-    animation.time = {
-      x: randomInRange(0.1, 10, 0.1),
-      y: randomInRange(0.1, 10, 0.1),
-      z: randomInRange(0.1, 10, 0.1),
-    };
-    animation.rotation = {
-      x: randomInRange(0, 0.02, 0.001),
-      y: randomInRange(0, 0.02, 0.001),
-      z: randomInRange(0, 0.02, 0.001),
-    };
-    animation.breathing = randomInRange(0, 0.2, 0.005);
+    randomizeBlobState({
+      skin,
+      shape,
+      animation,
+      cursorTouch,
+      audio,
+    });
 
     clickEvents.click = { enabled: Math.random() > 0.2, action: pickAction() };
     clickEvents.doubleClick = { enabled: Math.random() > 0.2, action: pickAction() };
@@ -610,21 +575,6 @@ export const useBlobXyzStore = defineStore('blob-xyz', () => {
       enabled: Math.random() > 0.15,
       sensitivity: randomInRange(0.1, 3, 0.1),
     };
-    cursorTouch.touch = {
-      strength: randomInRange(0.1, 3, 0.1),
-      duration: randomInRange(100, 3000, 100),
-      maxPoints: Math.floor(randomInRange(1, 20, 1)),
-    };
-
-    audio.enabled = Math.random() > 0.1;
-    audio.reactivity = randomInRange(1.0, 2.5, 0.1);
-    audio.sensitivity = randomInRange(0.03, 0.12, 0.005);
-    audio.responseSpeed = randomInRange(0.4, 0.85, 0.05);
-    audio.transientBoost = randomInRange(0.2, 0.7, 0.05);
-    audio.spikeDensity = randomInRange(0.5, 2.5, 0.1);
-    audio.frequencySpikes.bass = randomInRange(0.3, 1.0, 0.05);
-    audio.frequencySpikes.mid = randomInRange(0.3, 1.0, 0.05);
-    audio.frequencySpikes.high = randomInRange(0.15, 0.7, 0.05);
   }
 
   return {
