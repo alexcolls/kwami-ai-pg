@@ -15,8 +15,8 @@ import { useParticlesFaceStore } from './avatar.particles-face';
 export type { AvatarPreset };
 
 // Types
-export type SkinSubtype =
-  | 'poles' | 'donut' | 'vintage' | 'marble' | 'fresnel' | 'iridescent' | 'spiral' | 'plasma' | 'gradient'
+export type SkinType =
+  | 'radial' | 'banded' | 'striped' | 'marble' | 'fresnel' | 'iridescent' | 'spiral' | 'plasma' | 'gradient'
   | 'matte' | 'glossy' | 'metallic' | 'subsurface'
   | 'chrome' | 'clay' | 'jade' | 'toon-matcap' | 'hologram'
   | 'flat' | 'stepped' | 'halftone' | 'outlined';
@@ -105,7 +105,7 @@ export interface BlobState {
   wireframe: boolean;
   /** Enable glass effect (stencil-based transparency) */
   glassMode: boolean;
-  skin: SkinSubtype;
+  skin: SkinType;
   resolution: number;
   touchStrength: number;
   touchDuration: number;
@@ -200,7 +200,7 @@ export function getDefaultBlobState(): BlobState {
     lightIntensity: 0,
     wireframe: false,
     glassMode: false,
-    skin: 'poles',
+    skin: 'radial',
     resolution: 180,
     touchStrength: 1,
     touchDuration: 1100,
@@ -375,7 +375,7 @@ export const useAvatarStore = defineStore('avatar', () => {
     getShininess: () => number;
     lightIntensity: number;
     getWireframe: () => boolean;
-    getCurrentSkinSubtype: () => string;
+    getCurrentSkinType: () => string;
     audioEffects?: any;
     interaction?: any;
     scene?: any;
@@ -391,7 +391,7 @@ export const useAvatarStore = defineStore('avatar', () => {
     blob.shininess = externalBlob.getShininess();
     blob.lightIntensity = externalBlob.lightIntensity;
     blob.wireframe = externalBlob.getWireframe();
-    blob.skin = externalBlob.getCurrentSkinSubtype() as SkinSubtype;
+    blob.skin = externalBlob.getCurrentSkinType() as SkinType;
 
     // Sync audio effects if available
     if (externalBlob.audioEffects) {

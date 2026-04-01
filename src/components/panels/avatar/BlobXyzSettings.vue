@@ -4,8 +4,6 @@ import { storeToRefs } from 'pinia';
 import { useKwami } from '@/composables/useKwami';
 import { useBlobXyzStore } from '@/stores/avatar.blob-xyz';
 import {
-  BLOB_SKIN_FAMILIES,
-  randomBlobSkinType,
   randomBlobColors,
   randomBlobSurface,
   randomBlobScale,
@@ -65,10 +63,100 @@ const { palettes, applyPalette } = useColorPalettes();
 // SECTION-SPECIFIC RANDOMIZERS
 // =====================================================
 
-const SKIN_FAMILIES = BLOB_SKIN_FAMILIES;
+const SKINS = [
+  'radial', 'banded', 'striped', 'marble', 'fresnel', 'iridescent', 'spiral', 'plasma', 'gradient',
+  'matte', 'glossy', 'metallic', 'subsurface',
+  'chrome', 'clay', 'jade', 'toon-matcap', 'hologram',
+  'flat', 'stepped', 'halftone', 'outlined',
+] as const;
+
+const SKIN_LABELS: Record<string, string> = {
+  radial: 'Radial',
+  banded: 'Banded',
+  striped: 'Striped',
+  marble: 'Veined Marble',
+  fresnel: 'Edge Glow',
+  iridescent: 'Prism Shift',
+  spiral: 'Vortex',
+  plasma: 'Plasma Storm',
+  gradient: 'Soft Blend',
+  matte: 'Matte',
+  glossy: 'Gloss',
+  metallic: 'Metal',
+  subsurface: 'Soft Scatter',
+  chrome: 'Chrome',
+  clay: 'Clay',
+  jade: 'Jade',
+  'toon-matcap': 'Toon Shine',
+  hologram: 'Hologram',
+  flat: 'Flat',
+  stepped: 'Stepped',
+  halftone: 'Halftone',
+  outlined: 'Outlined',
+};
+
+type SkinFilter = 'all' | 'core' | 'material' | 'stylized';
+
+const SKIN_FILTERS: { id: SkinFilter; label: string }[] = [
+  { id: 'all', label: 'All' },
+  { id: 'core', label: 'Core' },
+  { id: 'material', label: 'Material' },
+  { id: 'stylized', label: 'Stylized' },
+];
+
+const SKIN_CATEGORIES: Record<string, Exclude<SkinFilter, 'all'>> = {
+  radial: 'core',
+  banded: 'core',
+  striped: 'core',
+  marble: 'core',
+  fresnel: 'core',
+  iridescent: 'core',
+  spiral: 'core',
+  plasma: 'core',
+  gradient: 'core',
+  matte: 'material',
+  glossy: 'material',
+  metallic: 'material',
+  subsurface: 'material',
+  chrome: 'material',
+  clay: 'material',
+  jade: 'material',
+  'toon-matcap': 'stylized',
+  hologram: 'stylized',
+  flat: 'stylized',
+  stepped: 'stylized',
+  halftone: 'stylized',
+  outlined: 'stylized',
+};
+
+const activeSkinFilter = ref<SkinFilter>('all');
+
+function formatSkinLabel(value: string) {
+  return SKIN_LABELS[value] ?? value
+    .split('-')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
+const filteredSkins = computed(() => {
+  if (activeSkinFilter.value === 'all') return SKINS;
+  return SKINS.filter((skinType) => SKIN_CATEGORIES[skinType] === activeSkinFilter.value);
+});
+
+const selectedSkinLabel = computed(() => formatSkinLabel(skin.value.type));
+
+function setSkinFilter(filter: SkinFilter) {
+  activeSkinFilter.value = filter;
+}
+
+function skinFilterCount(filter: SkinFilter) {
+  if (filter === 'all') return SKINS.length;
+  return SKINS.filter((skinType) => SKIN_CATEGORIES[skinType] === filter).length;
+}
 
 function randomizeStyle() {
-  skin.value.type = randomBlobSkinType();
+  const pool = filteredSkins.value.length ? filteredSkins.value : SKINS;
+  skin.value.type = pool[Math.floor(Math.random() * pool.length)]!;
 }
 
 // Colors
@@ -217,9 +305,9 @@ watch(clickEvents, (config) => {
 const skinGradient = computed(() => {
   const { x, y, z } = skin.value.colors;
   return {
-    poles: `conic-gradient(${x}, ${y}, ${z}, ${x})`,
-    donut: `linear-gradient(180deg, ${x} 0%, ${y} 50%, ${z} 100%)`,
-    vintage: `radial-gradient(circle, ${x}, ${y}, ${z})`,
+    radial: `conic-gradient(${x}, ${y}, ${z}, ${x})`,
+    banded: `linear-gradient(180deg, ${x} 0%, ${y} 50%, ${z} 100%)`,
+    striped: `radial-gradient(circle, ${x}, ${y}, ${z})`,
     marble: `radial-gradient(ellipse at 30% 40%, ${x}, ${y} 50%, ${z})`,
     fresnel: `radial-gradient(circle, transparent 20%, ${x} 50%, ${y} 75%, ${z})`,
     iridescent: `linear-gradient(135deg, ${x}, ${y}, ${z}, ${x})`,
@@ -251,22 +339,34 @@ const skinGradient = computed(() => {
         <iconify-icon icon="ph:dice-three-duotone"></iconify-icon>
       </button>
     </template>
-    <p class="section-desc">Choose how colors blend across the surface</p>
+    <p class="section-desc">Choose a style family and then pick a skin</p>
 
-    <div v-for="(subtypes, family) in SKIN_FAMILIES" :key="family" class="skin-family">
-      <span class="skin-family-label">{{ family.charAt(0).toUpperCase() + family.slice(1) }}</span>
-      <div class="skin-selector">
-        <label
-          v-for="skinType in subtypes"
-          :key="skinType"
-          class="skin-option"
-          :class="{ active: skin.type === skinType }"
-        >
-          <input type="radio" :value="skinType" v-model="skin.type" />
-          <span class="skin-preview" :style="{ background: skinGradient[skinType] }"></span>
-          <span class="skin-label">{{ skinType.charAt(0).toUpperCase() + skinType.slice(1) }}</span>
-        </label>
-      </div>
+    <div class="skin-filter-row">
+      <button
+        v-for="filter in SKIN_FILTERS"
+        :key="filter.id"
+        class="skin-filter-btn"
+        :class="{ active: activeSkinFilter === filter.id }"
+        @click="setSkinFilter(filter.id)"
+        type="button"
+      >
+        {{ filter.label }} ({{ skinFilterCount(filter.id) }})
+      </button>
+    </div>
+
+    <p class="skin-current">Current: {{ selectedSkinLabel }}</p>
+
+    <div class="skin-selector skin-selector-grid">
+      <label
+        v-for="skinType in filteredSkins"
+        :key="skinType"
+        class="skin-option"
+        :class="{ active: skin.type === skinType }"
+      >
+        <input type="radio" :value="skinType" v-model="skin.type" />
+        <span class="skin-preview" :style="{ background: skinGradient[skinType] }"></span>
+        <span class="skin-label">{{ formatSkinLabel(skinType) }}</span>
+      </label>
     </div>
   </PanelSection>
 
@@ -618,4 +718,48 @@ const skinGradient = computed(() => {
 
 <style scoped>
 @import '@/styles/avatar-settings.css';
+
+.skin-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.skin-filter-btn {
+  border: 1px solid var(--glass-border);
+  background: var(--surface-1);
+  color: var(--text-secondary);
+  border-radius: 999px;
+  font-size: 10px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+.skin-filter-btn.active {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+  background: var(--accent-glow);
+}
+
+.skin-current {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin: 0 0 8px 0;
+}
+
+.skin-selector-grid .skin-option {
+  min-width: 0;
+}
+
+.skin-selector-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.skin-selector-grid .skin-option {
+  width: 100%;
+  flex: unset;
+}
 </style>

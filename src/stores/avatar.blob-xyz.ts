@@ -20,7 +20,7 @@ import { randomizeBlobState } from 'kwami';
 // =====================================================
 
 export type SkinType =
-  | 'poles' | 'donut' | 'vintage' | 'marble' | 'fresnel' | 'iridescent' | 'spiral' | 'plasma' | 'gradient'
+  | 'radial' | 'banded' | 'striped' | 'marble' | 'fresnel' | 'iridescent' | 'spiral' | 'plasma' | 'gradient'
   | 'matte' | 'glossy' | 'metallic' | 'subsurface'
   | 'chrome' | 'clay' | 'jade' | 'toon-matcap' | 'hologram'
   | 'flat' | 'stepped' | 'halftone' | 'outlined';
@@ -163,7 +163,7 @@ export interface BlobXyzState {
 
 export function getDefaultSkin(): BlobXyzSkin {
   return {
-    type: 'poles',
+    type: 'radial',
     colors: {
       x: '#ff0066',
       y: '#00ff66',
@@ -416,7 +416,7 @@ export const useBlobXyzStore = defineStore('blob-xyz', () => {
     getShininess: () => number;
     lightIntensity: number;
     getWireframe: () => boolean;
-    getCurrentSkinSubtype: () => string;
+    getCurrentSkinType: () => string;
     audioEffects?: {
       enabled?: boolean;
       reactivity?: number;
@@ -436,7 +436,7 @@ export const useBlobXyzStore = defineStore('blob-xyz', () => {
     skin.colors.x = colors.x;
     skin.colors.y = colors.y;
     skin.colors.z = colors.z;
-    skin.type = blob.getCurrentSkinSubtype() as SkinType;
+    skin.type = blob.getCurrentSkinType() as SkinType;
     skin.opacity = blob.getOpacity();
     skin.shininess = blob.getShininess();
     skin.lightIntensity = blob.lightIntensity;

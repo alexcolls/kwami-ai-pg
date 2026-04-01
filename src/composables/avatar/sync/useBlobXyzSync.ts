@@ -8,7 +8,6 @@
 import { watch, type Ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useBlobXyzStore } from '@/stores/avatar.blob-xyz';
-import { blobSkinSelectionFromSubtype } from 'kwami'
 
 // Local type for Kwami instance (avoid external dependency)
 type KwamiInstance = ReturnType<typeof import('@/composables/useKwami').useKwami>['kwami']['value'];
@@ -39,7 +38,7 @@ export function useBlobXyzSync(options: UseBlobXyzSyncOptions) {
 
     watch(
         () => skin.value.type,
-        (v) => kwami.value?.avatar.setSkin(blobSkinSelectionFromSubtype(v))
+        (v) => kwami.value?.avatar.setSkin(v)
     );
 
     watch(
@@ -219,7 +218,7 @@ export function useBlobXyzSync(options: UseBlobXyzSyncOptions) {
         if (!b || !kwami.value) return;
 
         // Skin
-        kwami.value.avatar.setSkin(blobSkinSelectionFromSubtype(skin.value.type));
+        kwami.value.avatar.setSkin(skin.value.type);
         b.setColors(skin.value.colors.x, skin.value.colors.y, skin.value.colors.z);
         kwami.value.avatar.setOpacity(skin.value.opacity);
         kwami.value.avatar.setShininess(skin.value.shininess);
