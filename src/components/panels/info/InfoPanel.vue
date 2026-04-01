@@ -49,7 +49,7 @@ function logState() {
     console.log('Spikes:', blob.getSpikes());
     console.log('Rotation:', blob.getRotation());
     console.log('Scale:', blob.getScale());
-    console.log('Skin:', blob.getCurrentSkinSubtype());
+    console.log('Skin:', blob.getCurrentSkinType());
     console.groupEnd();
   }
   console.group('Soul');

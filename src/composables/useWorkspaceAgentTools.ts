@@ -566,7 +566,7 @@ export function useWorkspaceAgentTools() {
     switch (normalized) {
       case 'blobskintype': {
         const validSkins = [
-          'poles', 'donut', 'vintage', 'marble', 'fresnel', 'iridescent', 'spiral', 'plasma', 'gradient',
+          'radial', 'banded', 'striped', 'marble', 'fresnel', 'iridescent', 'spiral', 'plasma', 'gradient',
           'matte', 'glossy', 'metallic', 'subsurface',
           'chrome', 'clay', 'jade', 'toon-matcap', 'hologram',
           'flat', 'stepped', 'halftone', 'outlined',

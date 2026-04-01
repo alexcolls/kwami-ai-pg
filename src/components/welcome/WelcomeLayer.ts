@@ -442,7 +442,7 @@ export class WelcomeLayer {
               y: '#808080',
               z: '#000000'
             },
-            skin: { skin: 'tricolor', subtype: 'donut' }
+            skin: 'banded'
           },
           scene: {
             enableControls: false
@@ -481,7 +481,7 @@ export class WelcomeLayer {
       this.blobTimeState = { x: 3, y: 6, z: 3 };
       
       // FORCE set skin and shininess
-      this.kwami.avatar.setSkin({ skin: 'tricolor', subtype: 'donut' });
+      this.kwami.avatar.setSkin('banded');
       this.kwami.avatar.setShininess(0.5);
 
       const blobMesh = blob.getMesh();
