@@ -128,7 +128,7 @@ export function useSceneBackground() {
   }
 
   function disposeHdriResources() {
-    if (hdriBlitMaterial) {
+    if (hdriBlitMaterial?.uniforms?.envMap) {
       hdriBlitMaterial.uniforms.envMap.value = null;
     }
 
@@ -145,7 +145,9 @@ export function useSceneBackground() {
 
   function disposeHdriBlitPipeline() {
     if (hdriBlitMaterial) {
-      hdriBlitMaterial.uniforms.envMap.value = null;
+      if (hdriBlitMaterial.uniforms?.envMap) {
+        hdriBlitMaterial.uniforms.envMap.value = null;
+      }
       hdriBlitMaterial.dispose();
       hdriBlitMaterial = null;
     }
@@ -220,8 +222,12 @@ export function useSceneBackground() {
     }
 
     const opacity = Math.max(0, Math.min(1, background.value.media.hdri.opacity));
-    hdriBlitMaterial.uniforms.envMap.value = texture;
-    hdriBlitMaterial.uniforms.backgroundIntensity.value = opacity;
+    const envMapUniform = hdriBlitMaterial.uniforms?.envMap;
+    const intensityUniform = hdriBlitMaterial.uniforms?.backgroundIntensity;
+    if (!envMapUniform || !intensityUniform) return null;
+
+    envMapUniform.value = texture;
+    intensityUniform.value = opacity;
     hdriBlitMaterial.needsUpdate = true;
 
     hdriBlitRenderer.render(hdriBlitScene, hdriBlitCamera);

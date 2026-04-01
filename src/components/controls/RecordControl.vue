@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
+import { ref, computed, watch, onUnmounted } from 'vue';
 import RecordingRegionPicker from './RecordingRegionPicker.vue';
 import { useRecording } from '@/composables/useRecording';
 import type { ViewportRegion, RecordingReadyDetail } from '@/composables/useRecording';
