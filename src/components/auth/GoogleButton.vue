@@ -9,7 +9,28 @@ const isLoading = ref(false);
 const error = ref<string | null>(null);
 let popupRef: Window | null = null;
 
-// Use Supabase OAuth with popup instead of redirect
+async function fallbackToRedirect(oauthUrl?: string) {
+  // Keep UX clear when popup is blocked: continue with redirect auth.
+  error.value = 'Popup blocked. Redirecting to Google sign-in...';
+
+  if (oauthUrl) {
+    window.location.assign(oauthUrl);
+    return;
+  }
+
+  const { error: redirectError } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: window.location.origin,
+    },
+  });
+
+  if (redirectError) {
+    throw redirectError;
+  }
+}
+
+// Use Supabase OAuth with popup by default, fallback to redirect if blocked
 async function handleGoogleClick() {
   isLoading.value = true;
   error.value = null;
@@ -43,10 +64,22 @@ async function handleGoogleClick() {
       );
 
       if (!popupRef) {
-        error.value = 'Popup blocked. Please allow popups and try again.';
-        isLoading.value = false;
+        await fallbackToRedirect(data.url);
         return;
       }
+
+      // Some browsers return a reference but still block the popup.
+      setTimeout(async () => {
+        if (popupRef && popupRef.closed && !authStore.isAuthenticated && isLoading.value) {
+          try {
+            await fallbackToRedirect(data.url);
+          } catch (fallbackError) {
+            console.error('Google redirect fallback error:', fallbackError);
+            error.value = 'Unable to start Google sign-in. Please try again.';
+            isLoading.value = false;
+          }
+        }
+      }, 250);
 
       // Poll for popup close (as backup if message passing fails)
       const checkPopup = setInterval(() => {
