@@ -7,8 +7,8 @@ import { useAuthStore } from '@/stores/auth';
 import AuthGuard from '@/components/auth/AuthGuard.vue';
 import TheSidebar from '@/components/sidebar/TheSidebar.vue';
 import ControlBar from '@/components/controls/ControlBar.vue';
-import MusicPlayer from '@/components/controls/MusicPlayer.vue';
 import AvatarPanel from '@/components/panels/avatar/AvatarPanel.vue';
+import AudioPanel from '@/components/panels/audio/AudioPanel.vue';
 import ScenePanel from '@/components/panels/scene/ScenePanel.vue';
 import VoicePanel from '@/components/panels/voice/VoicePanel.vue';
 import EnhancementsPanel from '@/components/panels/enhancements/EnhancementsPanel.vue';
@@ -298,13 +298,13 @@ onUnmounted(() => {
             <EnergyBadge />
             <ControlBar />
           </div>
-          <MusicPlayer />
         </template>
       </div>
 
       <template v-if="authStore.isAuthenticated">
         <TheSidebar>
           <AvatarPanel v-if="uiStore.activePanel === 'avatar'" />
+          <AudioPanel v-if="uiStore.activePanel === 'audio'" />
           <ScenePanel v-if="uiStore.activePanel === 'scene'" />
           <VoicePanel v-if="uiStore.activePanel === 'voice'" />
           <EnhancementsPanel v-if="uiStore.activePanel === 'enhancements'" />

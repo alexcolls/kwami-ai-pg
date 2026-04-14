@@ -18,7 +18,7 @@ const { handlePanelClick } = usePanelShortcuts();
     <div class="nav-group">
       <span class="switcher-label">Visual</span>
       <button
-        v-for="p in ['avatar', 'scene', 'theme']"
+        v-for="p in ['avatar', 'audio', 'scene', 'theme']"
         :key="p"
         class="nav-btn"
         :class="{ active: uiStore.activePanel === p && uiStore.isPanelOpen }"

@@ -8,7 +8,6 @@ const { kwami } = useKwami();
 const fileInput = ref<HTMLInputElement | null>(null);
 const visualizerCanvas = ref<HTMLCanvasElement | null>(null);
 
-const isExpanded = ref(true);
 const isLoaded = ref(false);
 const isPlaying = ref(false);
 const isDraggingSeek = ref(false);
@@ -287,15 +286,6 @@ async function togglePlayback() {
   }
 }
 
-async function handlePrimaryAction() {
-  if (isLoaded.value) {
-    await togglePlayback();
-    return;
-  }
-
-  openFilePicker();
-}
-
 function stopPlayback() {
   const audio = getAudio();
   if (!audio) return;
@@ -420,11 +410,9 @@ onUnmounted(() => {
 <template>
   <div
     class="music-player"
-    :class="{ expanded: isExpanded, loaded: isLoaded, playing: isPlaying }"
+    :class="{ loaded: isLoaded, playing: isPlaying }"
     :style="{ '--player-energy': energy.toFixed(3) }"
   >
-    <div class="player-chrome"></div>
-
     <input
       ref="fileInput"
       type="file"
@@ -450,13 +438,6 @@ onUnmounted(() => {
         <div class="header-actions">
           <button class="icon-btn" title="Load music" @click="openFilePicker">
             <iconify-icon icon="ph:upload-simple-bold"></iconify-icon>
-          </button>
-          <button
-            class="icon-btn"
-            :title="isExpanded ? 'Collapse player' : 'Expand player'"
-            @click="isExpanded = !isExpanded"
-          >
-            <iconify-icon :icon="isExpanded ? 'ph:caret-down-bold' : 'ph:music-notes-bold'"></iconify-icon>
           </button>
         </div>
       </div>
@@ -547,160 +528,26 @@ onUnmounted(() => {
 
       <p :class="errorMessage ? 'error-text' : 'helper-text'">{{ helperText }}</p>
     </div>
-
-    <div class="collapsed-content">
-      <div class="collapsed-topbar">
-        <span class="collapsed-indicator" :class="{ active: isPlaying }"></span>
-        <button
-          class="icon-btn collapse-toggle"
-          :title="isExpanded ? 'Collapse player' : 'Expand player'"
-          @click="isExpanded = !isExpanded"
-        >
-          <iconify-icon :icon="isExpanded ? 'ph:caret-down-bold' : 'ph:music-notes-bold'"></iconify-icon>
-        </button>
-      </div>
-
-      <button
-        class="transport-btn primary collapsed-action"
-        :title="isLoaded ? (isPlaying ? 'Pause track' : 'Play track') : 'Load music'"
-        @click="handlePrimaryAction"
-      >
-        <iconify-icon :icon="isLoaded ? (isPlaying ? 'ph:pause-fill' : 'ph:play-fill') : 'ph:upload-simple-bold'"></iconify-icon>
-      </button>
-
-      <div class="collapsed-copy">
-        <strong>{{ isLoaded ? trackName : 'Load track' }}</strong>
-        <span>{{ isLoaded ? playbackLabel : 'Avatar audio drive' }}</span>
-      </div>
-    </div>
   </div>
 </template>
 
 <style scoped>
 .music-player {
-  position: absolute;
-  right: 20px;
-  bottom: 20px;
-  width: 92px;
-  height: 92px;
-  padding: 12px;
-  border-radius: calc(var(--radius-xl) + 6px);
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
-  backdrop-filter: blur(var(--glass-blur, 24px));
-  -webkit-backdrop-filter: blur(var(--glass-blur, 24px));
-  box-shadow:
-    var(--glass-shadow),
-    0 0 34px color-mix(in srgb, var(--accent-primary) calc(6% + var(--player-energy) * 20%), transparent);
-  overflow: hidden;
-  z-index: 120;
-  contain: layout paint;
-  will-change: width, height, transform;
-  transition:
-    width 180ms var(--ease-out),
-    height 220ms var(--ease-out),
-    transform 180ms var(--ease-out),
-    border-color var(--duration-fast) var(--ease-in-out);
+  position: relative;
+  width: 100%;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
 }
 
-.music-player.expanded {
-  width: min(388px, calc(100vw - 32px));
-  height: 414px;
-}
-
-.music-player:hover {
-  transform: translateY(-2px);
-  border-color: color-mix(in srgb, var(--accent-primary) 26%, var(--glass-border));
-}
-
-.music-player::before,
-.music-player::after {
-  content: '';
-  position: absolute;
-  inset: auto;
-  border-radius: 999px;
-  filter: blur(36px);
-  pointer-events: none;
-  opacity: calc(0.18 + var(--player-energy) * 0.26);
-}
-
-.music-player::before {
-  width: 140px;
-  height: 140px;
-  top: -56px;
-  left: -32px;
-  background: color-mix(in srgb, var(--accent-primary) 42%, transparent);
-}
-
-.music-player::after {
-  width: 180px;
-  height: 180px;
-  right: -72px;
-  bottom: -84px;
-  background: color-mix(in srgb, var(--accent-secondary) 34%, transparent);
-}
-
-.player-chrome {
-  position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--glass-highlight) 100%, transparent), transparent 38%),
-    linear-gradient(315deg, color-mix(in srgb, var(--surface-2) 100%, transparent), transparent 34%);
-  pointer-events: none;
-}
-
-.player-content,
-.collapsed-content {
+.player-content {
   position: relative;
   z-index: 1;
   display: flex;
   flex-direction: column;
   gap: 14px;
-  transition:
-    opacity 160ms ease,
-    transform 220ms var(--ease-out),
-    max-height 220ms var(--ease-out);
-  will-change: opacity, transform;
-}
-
-.player-content {
-  overflow: hidden;
-  opacity: 1;
-  transform: translateY(0) scale(1);
-  max-height: 360px;
-}
-
-.collapsed-content {
-  min-height: 68px;
-  justify-content: center;
-  align-items: center;
-  gap: 12px;
-  overflow: hidden;
-  opacity: 0;
-  transform: translateY(6px) scale(0.98);
-  max-height: 0;
-  pointer-events: none;
-}
-
-.music-player:not(.expanded) .player-content {
-  opacity: 0;
-  transform: translateY(8px) scale(0.985);
-  max-height: 0;
-  pointer-events: none;
-}
-
-.music-player.expanded .collapsed-content {
-  opacity: 0;
-  transform: translateY(6px) scale(0.98);
-  max-height: 0;
-  pointer-events: none;
-}
-
-.music-player:not(.expanded) .collapsed-content {
-  opacity: 1;
-  transform: translateY(0) scale(1);
-  max-height: 120px;
-  pointer-events: auto;
 }
 
 .icon-btn,
@@ -1024,76 +871,7 @@ onUnmounted(() => {
   color: var(--error);
 }
 
-.collapsed-topbar {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.collapsed-indicator {
-  width: 10px;
-  height: 10px;
-  border-radius: 999px;
-  background: var(--surface-4);
-}
-
-.collapsed-indicator.active {
-  background: var(--accent-primary);
-  box-shadow:
-    0 0 0 4px color-mix(in srgb, var(--accent-primary) 18%, transparent),
-    0 0 18px color-mix(in srgb, var(--accent-primary) 24%, transparent);
-}
-
-.collapse-toggle {
-  width: 34px;
-  height: 34px;
-}
-
-.collapsed-action {
-  width: 52px;
-  height: 52px;
-  border-radius: calc(var(--radius-lg) + 4px);
-}
-
-.collapsed-copy {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  text-align: center;
-}
-
-.collapsed-copy strong,
-.collapsed-copy span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.collapsed-copy strong {
-  font-size: 12px;
-  color: var(--text-primary);
-}
-
-.collapsed-copy span {
-  font-size: 11px;
-  color: var(--text-secondary);
-}
-
-:global(body.compact-mode) .music-player {
-  right: 12px;
-  bottom: 12px;
-  padding: 10px;
-}
-
-:global(body.compact-mode) .music-player.expanded {
-  width: min(352px, calc(100vw - 24px));
-  height: 384px;
-}
-
-:global(body.compact-mode) .player-content,
-:global(body.compact-mode) .collapsed-content {
+:global(body.compact-mode) .player-content {
   gap: 10px;
 }
 
@@ -1102,36 +880,13 @@ onUnmounted(() => {
   padding: 10px;
 }
 
-:global(body.sidebar-right) .music-player {
-  right: auto;
-  left: 20px;
-}
-
-:global(body.sidebar-right.compact-mode) .music-player {
-  left: 12px;
-}
-
 @media (max-width: 768px) {
-  .music-player {
-    right: 12px;
-    bottom: 12px;
-  }
-
-  .music-player.expanded {
-    width: min(340px, calc(100vw - 24px));
-    height: 388px;
-  }
-
   .visualizer-footer {
     align-items: flex-start;
   }
 
   .band-pill {
     min-width: 64px;
-  }
-
-  :global(body.sidebar-right) .music-player {
-    left: 12px;
   }
 }
 </style>
