@@ -12,12 +12,16 @@ import BaseInput from '@/components/ui/BaseInput.vue';
 import BaseSelect from '@/components/ui/BaseSelect.vue';
 import BaseSlider from '@/components/ui/BaseSlider.vue';
 import BaseTagInput from '@/components/ui/BaseTagInput.vue';
+import PanelHeaderControls from '@/components/ui/PanelHeaderControls.vue';
 import { soulPresets, templateCategories, type SoulPreset } from '@/presets/agent/soul-presets';
 import { panelIcons } from '@/constants/panel-icons';
+import { useThemeStore } from '@/stores/theme';
 
 const toast = useToast();
 
 const { kwami, isConnected } = useKwami();
+const themeStore = useThemeStore();
+const isRightSidebar = computed(() => themeStore.sidebarPosition === 'right');
 const voiceStore = useVoiceStore();
 const workspaceStore = useWorkspaceStore();
 const authStore = useAuthStore();
@@ -336,9 +340,18 @@ onMounted(() => {
     <div class="panel-header">
       <iconify-icon :icon="panelIcons.soul" class="panel-icon"></iconify-icon>
       <h2>Soul</h2>
-      <button class="refresh-btn" @click="syncFromKwami" title="Refresh from Kwami">
-        <iconify-icon icon="ph:arrows-clockwise-duotone"></iconify-icon>
-      </button>
+      <template v-if="isRightSidebar">
+        <PanelHeaderControls :show-divider="true" />
+        <button class="refresh-btn" @click="syncFromKwami" title="Refresh from Kwami">
+          <iconify-icon icon="ph:arrows-clockwise-duotone"></iconify-icon>
+        </button>
+      </template>
+      <template v-else>
+        <button class="refresh-btn" @click="syncFromKwami" title="Refresh from Kwami">
+          <iconify-icon icon="ph:arrows-clockwise-duotone"></iconify-icon>
+        </button>
+        <PanelHeaderControls :show-divider="true" />
+      </template>
     </div>
 
     <div class="panel-body">

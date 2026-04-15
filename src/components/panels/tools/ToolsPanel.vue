@@ -8,6 +8,7 @@ import PanelSection from '@/components/ui/PanelSection.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
 import BaseInput from '@/components/ui/BaseInput.vue';
 import BaseSelect from '@/components/ui/BaseSelect.vue';
+import PanelHeaderControls from '@/components/ui/PanelHeaderControls.vue';
 
 const toast = useToast();
 
@@ -139,6 +140,7 @@ onMounted(refreshTools);
     <div class="panel-header">
       <iconify-icon :icon="panelIcons.tools" class="panel-icon"></iconify-icon>
       <h2>Tools</h2>
+      <PanelHeaderControls />
     </div>
 
     <div class="panel-body">

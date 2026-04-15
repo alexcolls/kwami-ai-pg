@@ -4,6 +4,7 @@ import PanelSection from '@/components/ui/PanelSection.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
 import BaseInput from '@/components/ui/BaseInput.vue';
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue';
+import PanelHeaderControls from '@/components/ui/PanelHeaderControls.vue';
 import { panelIcons } from '@/constants/panel-icons';
 import { useWorkspaceStore } from '@/stores/workspace';
 import { useCommunicationsStore } from '@/stores/communications';
@@ -301,6 +302,7 @@ const anyCallInProgress = computed(() => callingTwilioDirect.value || callingWit
     <div class="panel-header">
       <iconify-icon :icon="panelIcons.communications" class="panel-icon"></iconify-icon>
       <h2>Communications</h2>
+      <PanelHeaderControls />
     </div>
 
     <div class="panel-body">

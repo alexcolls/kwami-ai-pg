@@ -4,6 +4,7 @@ import { panelIcons } from '@/constants/panel-icons';
 import { useAuthStore } from '@/stores/auth';
 import PanelSection from '@/components/ui/PanelSection.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
+import PanelHeaderControls from '@/components/ui/PanelHeaderControls.vue';
 
 const authStore = useAuthStore();
 
@@ -27,6 +28,7 @@ async function handleLogout() {
     <div class="panel-header">
       <iconify-icon :icon="panelIcons.account" class="panel-icon"></iconify-icon>
       <h2>Account</h2>
+      <PanelHeaderControls />
     </div>
 
     <div class="panel-body">

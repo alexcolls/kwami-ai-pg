@@ -4,6 +4,7 @@ import { panelIcons } from '@/constants/panel-icons';
 import { useCreditsStore } from '@/stores/credits';
 import PanelSection from '@/components/ui/PanelSection.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
+import PanelHeaderControls from '@/components/ui/PanelHeaderControls.vue';
 
 const creditsStore = useCreditsStore();
 
@@ -99,6 +100,7 @@ function packIcon(packId: string): string {
     <div class="panel-header">
       <iconify-icon :icon="panelIcons.credits" class="panel-icon"></iconify-icon>
       <h2>Energy</h2>
+      <PanelHeaderControls />
     </div>
 
     <div class="panel-body">

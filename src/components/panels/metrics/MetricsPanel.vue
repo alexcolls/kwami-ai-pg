@@ -1,13 +1,17 @@
 <script setup lang="ts">
-import { reactive, onMounted, onUnmounted } from 'vue';
+import { reactive, computed, onMounted, onUnmounted } from 'vue';
 import { panelIcons } from '@/constants/panel-icons';
 import { useKwami } from '@/composables/useKwami';
 import { useMetricsState } from '@/composables/useMetricsState';
 import PanelSection from '@/components/ui/PanelSection.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
+import PanelHeaderControls from '@/components/ui/PanelHeaderControls.vue';
+import { useThemeStore } from '@/stores/theme';
 import type { VoicePipelineConfig } from 'kwami';
 
 const { kwami } = useKwami();
+const themeStore = useThemeStore();
+const isRightSidebar = computed(() => themeStore.sidebarPosition === 'right');
 const {
   latency,
   stats,
@@ -84,10 +88,20 @@ onUnmounted(() => {
     <div class="panel-header">
       <iconify-icon :icon="panelIcons.metrics" class="panel-icon"></iconify-icon>
       <h2>Metrics</h2>
-      <span class="status-pill" :class="{ active: isLive }">
-        <span class="pulse-dot"></span>
-        {{ isLive ? 'Live' : 'Waiting' }}
-      </span>
+      <template v-if="isRightSidebar">
+        <PanelHeaderControls :show-divider="true" />
+        <span class="status-pill" :class="{ active: isLive }">
+          <span class="pulse-dot"></span>
+          {{ isLive ? 'Live' : 'Waiting' }}
+        </span>
+      </template>
+      <template v-else>
+        <span class="status-pill" :class="{ active: isLive }">
+          <span class="pulse-dot"></span>
+          {{ isLive ? 'Live' : 'Waiting' }}
+        </span>
+        <PanelHeaderControls :show-divider="true" />
+      </template>
     </div>
 
     <div class="panel-body">

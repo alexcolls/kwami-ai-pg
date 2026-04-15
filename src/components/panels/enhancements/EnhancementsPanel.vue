@@ -9,6 +9,7 @@ import PanelSection from '@/components/ui/PanelSection.vue';
 import BaseToggle from '@/components/ui/BaseToggle.vue';
 import BaseSlider from '@/components/ui/BaseSlider.vue';
 import BaseSelect from '@/components/ui/BaseSelect.vue';
+import PanelHeaderControls from '@/components/ui/PanelHeaderControls.vue';
 
 const { kwami, isConnected } = useKwami();
 const voiceStore = useVoiceStore();
@@ -156,6 +157,7 @@ watch(() => performance.preemptiveGeneration, debouncedApply);
     <div class="panel-header">
       <iconify-icon :icon="panelIcons.enhancements" class="panel-icon"></iconify-icon>
       <h2>Enhancements</h2>
+      <PanelHeaderControls />
     </div>
 
     <div class="panel-body">

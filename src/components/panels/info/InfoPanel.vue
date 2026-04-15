@@ -2,6 +2,7 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import { panelIcons } from '@/constants/panel-icons';
 import { useKwami } from '@/composables/useKwami';
+import PanelHeaderControls from '@/components/ui/PanelHeaderControls.vue';
 
 import { Kwami } from 'kwami';
 
@@ -113,6 +114,7 @@ onUnmounted(() => {
     <div class="panel-header">
       <iconify-icon :icon="panelIcons.info" class="panel-icon"></iconify-icon>
       <h2>Info</h2>
+      <PanelHeaderControls />
     </div>
 
     <div class="panel-body">

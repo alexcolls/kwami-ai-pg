@@ -4,8 +4,12 @@ import { panelIcons } from '@/constants/panel-icons';
 import { useKwami } from '@/composables/useKwami';
 import { useTranscriptionState } from '@/composables/useTranscriptionState';
 import { useSearchResults } from '@/composables/useSearchResults';
+import PanelHeaderControls from '@/components/ui/PanelHeaderControls.vue';
+import { useThemeStore } from '@/stores/theme';
 
 const { kwami } = useKwami();
+const themeStore = useThemeStore();
+const isRightSidebar = computed(() => themeStore.sidebarPosition === 'right');
 const {
   query: searchQuery,
   results: searchItems,
@@ -106,9 +110,18 @@ onUnmounted(() => {
     <div class="panel-header">
       <iconify-icon :icon="panelIcons.transcription" class="panel-icon"></iconify-icon>
       <h2>Transcription</h2>
-      <span class="message-count"
-        >{{ messages.length }} message{{ messages.length !== 1 ? 's' : '' }}</span
-      >
+      <template v-if="isRightSidebar">
+        <PanelHeaderControls :show-divider="true" />
+        <span class="message-count"
+          >{{ messages.length }} message{{ messages.length !== 1 ? 's' : '' }}</span
+        >
+      </template>
+      <template v-else>
+        <span class="message-count"
+          >{{ messages.length }} message{{ messages.length !== 1 ? 's' : '' }}</span
+        >
+        <PanelHeaderControls :show-divider="true" />
+      </template>
     </div>
 
     <!-- Past sessions (stored locally per Kwami) -->
