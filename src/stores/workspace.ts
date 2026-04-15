@@ -279,6 +279,19 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     setWorkspaceConfig(ws, config, false);
   }
 
+  /**
+   * Re-anchors savedConfig to the provided config without marking dirty.
+   * Called after applyConfig so that store defaults for schema-evolved fields
+   * (fields added after the config was originally saved) don't permanently
+   * show as unsaved changes.
+   */
+  function rebaseActiveSavedConfig(config: KwamiConfig) {
+    const ws = getActiveWorkspace();
+    if (!ws) return;
+    ws.savedConfig = cloneConfig(config);
+    syncDirtyState(ws);
+  }
+
   function getActiveSavedConfig(): KwamiConfig | undefined {
     const ws = getActiveWorkspace();
     return cloneConfig(ws?.savedConfig);
@@ -338,6 +351,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     setActive,
     getActiveWorkspace,
     updateActiveConfigLocal,
+    rebaseActiveSavedConfig,
     getActiveSavedConfig,
     discardActiveConfigChanges,
     loadFromDb,
