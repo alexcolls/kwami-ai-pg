@@ -1,4 +1,6 @@
 import { watch } from 'vue';
+import { useI18n } from 'vue-i18n';
+import { i18n } from '@/i18n';
 import type {
   Kwami,
   LLMProvider,
@@ -109,12 +111,6 @@ const UI_DOMAIN_ALIASES: Record<string, UiControlDomain> = {
   workspace: 'workspace',
 };
 
-function humanizePanel(panel: WorkspacePanel): string {
-  if (panel === 'credits') return 'Energy';
-  if (panel === 'transcription') return 'Transcription';
-  return panel.charAt(0).toUpperCase() + panel.slice(1);
-}
-
 function normalizePanel(panelName: unknown): WorkspacePanel | null {
   if (typeof panelName !== 'string') return null;
   const normalized = panelName.trim().toLowerCase().replace(/\s+/g, '_').replace(/-/g, '_');
@@ -149,7 +145,12 @@ function buildSoulConfig(voiceStore: ReturnType<typeof useVoiceStore>) {
 }
 
 export function useWorkspaceAgentTools() {
+  const { t } = useI18n();
   const { kwami, rendererType, isConnected } = useKwami();
+
+  function humanizePanel(panel: WorkspacePanel): string {
+    return t(`workspaceAgentTools.panels.${panel}`);
+  }
   const uiStore = useUIStore();
   const searchStore = useSearchStore();
   const voiceStore = useVoiceStore();
@@ -279,8 +280,8 @@ export function useWorkspaceAgentTools() {
     return actionState.requestConfirmation({
       title,
       message,
-      confirmLabel: 'Apply',
-      cancelLabel: 'Cancel',
+      confirmLabel: t('workspaceAgentTools.confirmApply'),
+      cancelLabel: t('workspaceAgentTools.confirmCancel'),
     });
   }
 
@@ -288,98 +289,115 @@ export function useWorkspaceAgentTools() {
     const panel = normalizePanel(panelName);
     if (!panel) {
       const allowedPanels = WORKSPACE_PANELS.join(', ');
-      actionState.recordError('Unable to open panel', `Unknown panel "${String(panelName)}"`);
+      actionState.recordError(
+        t('workspaceAgentTools.errOpenPanel'),
+        t('workspaceAgentTools.unknownPanel', { panel: String(panelName), allowed: allowedPanels }),
+      );
       return {
         success: false,
-        message: `Unknown panel "${String(panelName)}". Available panels: ${allowedPanels}.`,
+        message: t('workspaceAgentTools.unknownPanel', { panel: String(panelName), allowed: allowedPanels }),
       };
     }
 
     uiStore.setPanel(panel);
     const readablePanel = humanizePanel(panel);
-    actionState.recordAction('Opened panel', readablePanel, { announce: true });
+    actionState.recordAction(t('workspaceAgentTools.actionOpenedPanel'), readablePanel, { announce: true });
     return {
       success: true,
       panel,
-      message: `Opened the ${readablePanel} panel.`,
+      message: t('workspaceAgentTools.openedPanel', { panel: readablePanel }),
     };
   }
 
   async function closePanel() {
     if (!uiStore.isPanelOpen) {
-      return { success: true, message: 'The workspace panel is already closed.' };
+      return { success: true, message: t('workspaceAgentTools.panelAlreadyClosed') };
     }
 
     uiStore.togglePanel();
-    actionState.recordAction('Closed panel', humanizePanel(uiStore.activePanel as WorkspacePanel), {
-      announce: true,
-    });
-    return { success: true, message: 'Closed the workspace panel.' };
+    actionState.recordAction(
+      t('workspaceAgentTools.actionClosedPanel'),
+      humanizePanel(uiStore.activePanel as WorkspacePanel),
+      {
+        announce: true,
+      },
+    );
+    return { success: true, message: t('workspaceAgentTools.closedPanel') };
   }
 
   async function setRenderer(renderer: unknown) {
     if (renderer !== 'blob-xyz' && renderer !== 'black-hole' && renderer !== 'particles-face') {
-      actionState.recordError('Unable to switch renderer', `Unknown renderer "${String(renderer)}"`);
+      actionState.recordError(
+        t('workspaceAgentTools.errSwitchRenderer'),
+        `Unknown renderer "${String(renderer)}"`,
+      );
       return {
         success: false,
-        message: 'Unknown renderer. Use blob-xyz, black-hole, or particles-face.',
+        message: t('workspaceAgentTools.unknownRenderer'),
       };
     }
 
     avatarStore.setRendererType(renderer);
     persistAvatarChanges();
-    actionState.recordAction('Switched renderer', renderer, { announce: true });
+    actionState.recordAction(t('workspaceAgentTools.actionSwitchedRenderer'), renderer, { announce: true });
     return {
       success: true,
       renderer,
-      message: `Switched the renderer to ${renderer}.`,
+      message: t('workspaceAgentTools.switchedRenderer', { renderer }),
     };
   }
 
   async function setResponseLength(length: unknown, confirm: unknown) {
     if (length !== 'short' && length !== 'medium' && length !== 'long') {
-      actionState.recordError('Unable to change response length', `Unknown length "${String(length)}"`);
+      actionState.recordError(
+        t('workspaceAgentTools.errResponseLength'),
+        `Unknown length "${String(length)}"`,
+      );
       return {
         success: false,
-        message: 'Unknown response length. Use short, medium, or long.',
+        message: t('workspaceAgentTools.unknownResponseLength'),
       };
     }
 
     const approved = await confirmIfNeeded(
       true,
       confirm,
-      'Confirm response style change',
-      `Change response length to ${length}? This updates the current workspace preference.`,
+      t('workspaceAgentTools.confirmResponseTitle'),
+      t('workspaceAgentTools.confirmResponseBody', { length }),
     );
     if (!approved) {
-      actionState.recordAction('Kept current response length', undefined, { announce: true });
-      return { success: false, cancelled: true, message: 'Response length change was cancelled.' };
+      actionState.recordAction(t('workspaceAgentTools.actionKeptResponseLength'), undefined, { announce: true });
+      return { success: false, cancelled: true, message: t('workspaceAgentTools.responseLengthCancelled') };
     }
 
     voiceStore.soulConfig.responseLength = length as ResponseLength;
     syncSoulToAgent();
-    actionState.recordAction('Updated response length', length, { announce: true });
+    actionState.recordAction(t('workspaceAgentTools.actionUpdatedResponseLength'), length, { announce: true });
     return {
       success: true,
       responseLength: length,
-      message: `Changed response length to ${length}.`,
+      message: t('workspaceAgentTools.changedResponseLength', { length }),
     };
   }
 
   async function clearSearchResults() {
     if (!searchStore.hasSearchData) {
-      return { success: true, message: 'There are no search results to clear.' };
+      return { success: true, message: t('workspaceAgentTools.noSearchToClear') };
     }
 
     const clearedCount = searchStore.results.length;
     searchStore.clear();
-    actionState.recordAction('Cleared search results', `${clearedCount} result${clearedCount === 1 ? '' : 's'}`, {
-      announce: true,
-    });
+    actionState.recordAction(
+      t('workspaceAgentTools.actionClearedSearch'),
+      t('workspaceAgentTools.searchResultsDetail', clearedCount, { n: clearedCount }),
+      {
+        announce: true,
+      },
+    );
     return {
       success: true,
       clearedCount,
-      message: 'Cleared the current search results.',
+      message: t('workspaceAgentTools.clearedSearch'),
     };
   }
 
@@ -395,10 +413,15 @@ export function useWorkspaceAgentTools() {
       themeMode: themeStore.mode,
       sidebarPosition: themeStore.sidebarPosition,
       visibleMessages: messages.value.length,
-      message:
-        `Workspace status: panel ${uiStore.isPanelOpen ? 'open' : 'closed'}, ` +
-        `active panel ${uiStore.activePanel}, renderer ${rendererType.value}, ` +
-        `theme ${themeStore.mode}, sidebar ${themeStore.sidebarPosition}.`,
+      message: t('workspaceAgentTools.workspaceStatus', {
+        panelState: uiStore.isPanelOpen
+          ? t('workspaceAgentTools.panelStateOpen')
+          : t('workspaceAgentTools.panelStateClosed'),
+        activePanel: String(uiStore.activePanel),
+        renderer: String(rendererType.value),
+        theme: String(themeStore.mode),
+        sidebar: String(themeStore.sidebarPosition),
+      }),
     };
   }
 
@@ -409,51 +432,62 @@ export function useWorkspaceAgentTools() {
 
     if (control === 'isOpen') {
       if (typeof value !== 'boolean') {
-        return { success: false, message: 'Panel open state expects a boolean value.' };
+        return { success: false, message: t('workspaceAgentTools.panelOpenBool') };
       }
       if (uiStore.isPanelOpen !== value) {
         uiStore.togglePanel();
       }
-      actionState.recordAction(value ? 'Opened panel column' : 'Closed panel column', undefined, {
-        announce: true,
-      });
-      return { success: true, message: `Panel column is now ${value ? 'open' : 'closed'}.` };
+      actionState.recordAction(
+        value ? t('workspaceAgentTools.actionOpenedPanelColumn') : t('workspaceAgentTools.actionClosedPanelColumn'),
+        undefined,
+        {
+          announce: true,
+        },
+      );
+      return {
+        success: true,
+        message: t('workspaceAgentTools.panelColumnState', {
+          state: value ? t('workspaceAgentTools.panelColumnOpen') : t('workspaceAgentTools.panelColumnClosed'),
+        }),
+      };
     }
 
     if (control === 'sizePreset') {
       if (value !== 'small' && value !== 'medium' && value !== 'large') {
-        return { success: false, message: 'Size preset must be small, medium, or large.' };
+        return { success: false, message: t('workspaceAgentTools.sizePresetInvalid') };
       }
       uiStore.setSizePreset(value as PanelSizePreset);
-      actionState.recordAction('Updated panel size preset', value, { announce: true });
-      return { success: true, message: `Panel size preset set to ${value}.` };
+      actionState.recordAction(t('workspaceAgentTools.actionUpdatedPanelSize'), value, { announce: true });
+      return { success: true, message: t('workspaceAgentTools.sizePresetSet', { value }) };
     }
 
-    return { success: false, message: `Unknown panel control "${String(control)}".` };
+    return { success: false, message: t('workspaceAgentTools.unknownPanelControl', { control: String(control) }) };
   }
 
   async function setThemeControl(control: unknown, value: unknown) {
     if (typeof control !== 'string') {
-      return { success: false, message: 'Theme control must be a string.' };
+      return { success: false, message: t('workspaceAgentTools.themeControlString') };
     }
 
     const normalized = normalizeKey(control);
     if (normalized === 'preset') {
-      if (typeof value !== 'string') return { success: false, message: 'Theme preset expects a preset name.' };
+      if (typeof value !== 'string') return { success: false, message: t('workspaceAgentTools.themePresetName') };
       const preset = themePresets.find((item) => normalizeKey(item.name) === normalizeKey(value));
-      if (!preset) return { success: false, message: `Unknown theme preset "${value}".` };
+      if (!preset)
+        return { success: false, message: t('workspaceAgentTools.unknownThemePreset', { value }) };
       themeStore.applyPreset(preset);
-      actionState.recordAction('Applied theme preset', preset.name, { announce: true });
-      return { success: true, message: `Applied the ${preset.name} theme preset.` };
+      actionState.recordAction(t('workspaceAgentTools.actionAppliedThemePreset'), preset.name, { announce: true });
+      return { success: true, message: t('workspaceAgentTools.appliedThemePreset', { name: preset.name }) };
     }
 
     if (normalized === 'accentpreset') {
-      if (typeof value !== 'string') return { success: false, message: 'Accent preset expects a preset name.' };
+      if (typeof value !== 'string') return { success: false, message: t('workspaceAgentTools.accentPresetName') };
       const preset = accentPresets.find((item) => normalizeKey(item.name) === normalizeKey(value));
-      if (!preset) return { success: false, message: `Unknown accent preset "${value}".` };
+      if (!preset)
+        return { success: false, message: t('workspaceAgentTools.unknownAccentPreset', { value }) };
       themeStore.setAccentPreset(preset);
-      actionState.recordAction('Applied accent preset', preset.name, { announce: true });
-      return { success: true, message: `Applied the ${preset.name} accent preset.` };
+      actionState.recordAction(t('workspaceAgentTools.actionAppliedAccentPreset'), preset.name, { announce: true });
+      return { success: true, message: t('workspaceAgentTools.appliedAccentPreset', { name: preset.name }) };
     }
 
     switch (normalized) {
@@ -462,88 +496,88 @@ export function useWorkspaceAgentTools() {
           themeStore.setMode(value);
           break;
         }
-        return { success: false, message: 'Theme mode must be dark, light, system, or auto.' };
+        return { success: false, message: t('workspaceAgentTools.themeModeInvalid') };
       case 'sidebarposition':
         if (value === 'left' || value === 'right') {
           themeStore.setSidebarPosition(value);
           break;
         }
-        return { success: false, message: 'Sidebar position must be left or right.' };
+        return { success: false, message: t('workspaceAgentTools.sidebarInvalid') };
       case 'compactmode':
-        if (typeof value !== 'boolean') return { success: false, message: 'Compact mode expects a boolean value.' };
+        if (typeof value !== 'boolean') return { success: false, message: t('workspaceAgentTools.compactBool') };
         themeStore.setCompactMode(value);
         break;
       case 'accentprimary':
-        if (typeof value !== 'string') return { success: false, message: 'Accent primary expects a hex color string.' };
+        if (typeof value !== 'string') return { success: false, message: t('workspaceAgentTools.accentPrimaryHex') };
         themeStore.setAccentPrimary(value);
         break;
       case 'accentsecondary':
-        if (typeof value !== 'string') return { success: false, message: 'Accent secondary expects a hex color string.' };
+        if (typeof value !== 'string') return { success: false, message: t('workspaceAgentTools.accentSecondaryHex') };
         themeStore.setAccentSecondary(value);
         break;
       case 'glassblur':
-        if (typeof value !== 'number') return { success: false, message: 'Glass blur expects a number.' };
+        if (typeof value !== 'number') return { success: false, message: t('workspaceAgentTools.glassBlurNum') };
         themeStore.setGlassBlur(value);
         break;
       case 'glassopacity':
-        if (typeof value !== 'number') return { success: false, message: 'Glass opacity expects a number.' };
+        if (typeof value !== 'number') return { success: false, message: t('workspaceAgentTools.glassOpacityNum') };
         themeStore.setGlassOpacity(value);
         break;
       case 'saturation':
-        if (typeof value !== 'number') return { success: false, message: 'Saturation expects a number.' };
+        if (typeof value !== 'number') return { success: false, message: t('workspaceAgentTools.saturationNum') };
         themeStore.setSaturation(value);
         break;
       case 'gradientdirection':
-        if (typeof value !== 'number') return { success: false, message: 'Gradient direction expects a number.' };
+        if (typeof value !== 'number') return { success: false, message: t('workspaceAgentTools.gradientDirectionNum') };
         themeStore.setGradientDirection(value);
         break;
       case 'panelborder':
-        if (typeof value !== 'boolean') return { success: false, message: 'Panel border expects a boolean value.' };
+        if (typeof value !== 'boolean') return { success: false, message: t('workspaceAgentTools.panelBorderBool') };
         themeStore.setPanelBorder(value);
         break;
       case 'gloweffects':
-        if (typeof value !== 'boolean') return { success: false, message: 'Glow effects expects a boolean value.' };
+        if (typeof value !== 'boolean') return { success: false, message: t('workspaceAgentTools.glowBool') };
         themeStore.setGlowEffects(value);
         break;
       case 'highcontrast':
-        if (typeof value !== 'boolean') return { success: false, message: 'High contrast expects a boolean value.' };
+        if (typeof value !== 'boolean') return { success: false, message: t('workspaceAgentTools.highContrastBool') };
         themeStore.setHighContrast(value);
         break;
       case 'focusindicators':
-        if (typeof value !== 'boolean') return { success: false, message: 'Focus indicators expects a boolean value.' };
+        if (typeof value !== 'boolean') return { success: false, message: t('workspaceAgentTools.focusIndicatorsBool') };
         themeStore.setFocusIndicators(value);
         break;
       case 'cursorflashlight':
-        if (typeof value !== 'boolean') return { success: false, message: 'Cursor flashlight expects a boolean value.' };
+        if (typeof value !== 'boolean') return { success: false, message: t('workspaceAgentTools.cursorFlashlightBool') };
         themeStore.setCursorFlashlight(value);
         break;
       case 'flashlightsize':
-        if (typeof value !== 'number') return { success: false, message: 'Flashlight size expects a number.' };
+        if (typeof value !== 'number') return { success: false, message: t('workspaceAgentTools.flashlightSizeNum') };
         themeStore.setFlashlightSize(value);
         break;
       case 'flashlightintensity':
-        if (typeof value !== 'number') return { success: false, message: 'Flashlight intensity expects a number.' };
+        if (typeof value !== 'number') return { success: false, message: t('workspaceAgentTools.flashlightIntensityNum') };
         themeStore.setFlashlightIntensity(value);
         break;
       case 'flashlightcolor':
-        if (typeof value !== 'string') return { success: false, message: 'Flashlight color expects a hex color string.' };
+        if (typeof value !== 'string') return { success: false, message: t('workspaceAgentTools.flashlightColorHex') };
         themeStore.setFlashlightColor(value);
         break;
       case 'borderradius':
-        if (typeof value !== 'number') return { success: false, message: 'Border radius expects a number.' };
+        if (typeof value !== 'number') return { success: false, message: t('workspaceAgentTools.borderRadiusNum') };
         themeStore.setBorderRadius(value);
         break;
       default:
-        return { success: false, message: `Unknown theme control "${control}".` };
+        return { success: false, message: t('workspaceAgentTools.unknownThemeControl', { control }) };
     }
 
-    actionState.recordAction('Updated theme control', String(control), { announce: true });
-    return { success: true, message: `Updated theme control ${control}.` };
+    actionState.recordAction(t('workspaceAgentTools.actionUpdatedThemeControl'), String(control), { announce: true });
+    return { success: true, message: t('workspaceAgentTools.updatedThemeControl', { control }) };
   }
 
   async function setAvatarControl(control: unknown, value: unknown) {
     if (typeof control !== 'string') {
-      return { success: false, message: 'Avatar control must be a string.' };
+      return { success: false, message: t('workspaceAgentTools.avatarControlString') };
     }
 
     const normalized = normalizeKey(control);
@@ -552,15 +586,15 @@ export function useWorkspaceAgentTools() {
     }
 
     if (normalized === 'preset') {
-      if (typeof value !== 'string') return { success: false, message: 'Avatar preset expects a preset id or name.' };
+      if (typeof value !== 'string') return { success: false, message: t('workspaceAgentTools.avatarPresetName') };
       const preset = avatarPresets.find(
         (item) => normalizeKey(item.id) === normalizeKey(value) || normalizeKey(item.name) === normalizeKey(value),
       );
-      if (!preset) return { success: false, message: `Unknown avatar preset "${value}".` };
+      if (!preset) return { success: false, message: t('workspaceAgentTools.unknownAvatarPreset', { value }) };
       avatarStore.applyPreset(preset.id);
       persistAvatarChanges();
-      actionState.recordAction('Applied avatar preset', preset.name, { announce: true });
-      return { success: true, message: `Applied the ${preset.name} avatar preset.` };
+      actionState.recordAction(t('workspaceAgentTools.actionAppliedAvatarPreset'), preset.name, { announce: true });
+      return { success: true, message: t('workspaceAgentTools.appliedAvatarPreset', { name: preset.name }) };
     }
 
     switch (normalized) {
@@ -572,13 +606,16 @@ export function useWorkspaceAgentTools() {
           'flat', 'stepped', 'halftone', 'outlined',
         ];
         if (!validSkins.includes(value as string)) {
-          return { success: false, message: `Blob skin type must be one of: ${validSkins.join(', ')}.` };
+          return {
+            success: false,
+            message: t('workspaceAgentTools.blobSkinInvalid', { list: validSkins.join(', ') }),
+          };
         }
         blobStore.skin.type = value as typeof blobStore.skin.type;
       }
         break;
       case 'blobcolors':
-        if (!isRecord(value)) return { success: false, message: 'Blob colors expects an object with x, y, and z.' };
+        if (!isRecord(value)) return { success: false, message: t('workspaceAgentTools.blobColorsObject') };
         blobStore.setColors(
           typeof value.x === 'string' ? value.x : blobStore.skin.colors.x,
           typeof value.y === 'string' ? value.y : blobStore.skin.colors.y,
@@ -586,7 +623,7 @@ export function useWorkspaceAgentTools() {
         );
         break;
       case 'blobspikes':
-        if (!isRecord(value)) return { success: false, message: 'Blob spikes expects an object with x, y, and z.' };
+        if (!isRecord(value)) return { success: false, message: t('workspaceAgentTools.blobSpikesObject') };
         blobStore.setSpikes(
           typeof value.x === 'number' ? value.x : blobStore.shape.spikes.x,
           typeof value.y === 'number' ? value.y : blobStore.shape.spikes.y,
@@ -594,7 +631,7 @@ export function useWorkspaceAgentTools() {
         );
         break;
       case 'blobamplitude':
-        if (!isRecord(value)) return { success: false, message: 'Blob amplitude expects an object with x, y, and z.' };
+        if (!isRecord(value)) return { success: false, message: t('workspaceAgentTools.blobAmplitudeObject') };
         blobStore.setAmplitude(
           typeof value.x === 'number' ? value.x : blobStore.shape.amplitude.x,
           typeof value.y === 'number' ? value.y : blobStore.shape.amplitude.y,
@@ -602,7 +639,7 @@ export function useWorkspaceAgentTools() {
         );
         break;
       case 'blobrotation':
-        if (!isRecord(value)) return { success: false, message: 'Blob rotation expects an object with x, y, and z.' };
+        if (!isRecord(value)) return { success: false, message: t('workspaceAgentTools.blobRotationObject') };
         blobStore.setRotation(
           typeof value.x === 'number' ? value.x : blobStore.animation.rotation.x,
           typeof value.y === 'number' ? value.y : blobStore.animation.rotation.y,
@@ -610,39 +647,39 @@ export function useWorkspaceAgentTools() {
         );
         break;
       case 'blobscale':
-        if (typeof value !== 'number') return { success: false, message: 'Blob scale expects a number.' };
+        if (typeof value !== 'number') return { success: false, message: t('workspaceAgentTools.blobScaleNum') };
         blobStore.shape.scale = value;
         break;
       case 'blobopacity':
-        if (typeof value !== 'number') return { success: false, message: 'Blob opacity expects a number.' };
+        if (typeof value !== 'number') return { success: false, message: t('workspaceAgentTools.blobOpacityNum') };
         blobStore.skin.opacity = value;
         break;
       case 'blobshininess':
-        if (typeof value !== 'number') return { success: false, message: 'Blob shininess expects a number.' };
+        if (typeof value !== 'number') return { success: false, message: t('workspaceAgentTools.blobShininessNum') };
         blobStore.skin.shininess = value;
         break;
       case 'blobwireframe':
-        if (typeof value !== 'boolean') return { success: false, message: 'Blob wireframe expects a boolean value.' };
+        if (typeof value !== 'boolean') return { success: false, message: t('workspaceAgentTools.blobWireframeBool') };
         blobStore.skin.wireframe = value;
         break;
       case 'blobglassmode':
-        if (typeof value !== 'boolean') return { success: false, message: 'Blob glass mode expects a boolean value.' };
+        if (typeof value !== 'boolean') return { success: false, message: t('workspaceAgentTools.blobGlassBool') };
         blobStore.skin.glassMode = value;
         break;
       case 'blobaudioreactivity':
-        if (typeof value !== 'number') return { success: false, message: 'Blob audio reactivity expects a number.' };
+        if (typeof value !== 'number') return { success: false, message: t('workspaceAgentTools.blobAudioReactivityNum') };
         blobStore.audio.reactivity = value;
         break;
       case 'blobaudioenabled':
-        if (typeof value !== 'boolean') return { success: false, message: 'Blob audio enabled expects a boolean value.' };
+        if (typeof value !== 'boolean') return { success: false, message: t('workspaceAgentTools.blobAudioEnabledBool') };
         blobStore.audio.enabled = value;
         break;
       case 'blackholecolorscheme':
-        if (typeof value !== 'string') return { success: false, message: 'Black hole color scheme expects a preset name.' };
+        if (typeof value !== 'string') return { success: false, message: t('workspaceAgentTools.bhColorScheme') };
         blackHoleStore.setColorSchemePreset(value as 'classic' | 'fire' | 'ice' | 'nebula' | 'void');
         break;
       case 'blackholecolors':
-        if (!isRecord(value)) return { success: false, message: 'Black hole colors expects an object with hot, mid1, mid2, mid3, and outer.' };
+        if (!isRecord(value)) return { success: false, message: t('workspaceAgentTools.bhColorsObject') };
         blackHoleStore.updateColors({
           hot: typeof value.hot === 'string' ? value.hot : blackHoleStore.colors.hot,
           mid1: typeof value.mid1 === 'string' ? value.mid1 : blackHoleStore.colors.mid1,
@@ -652,137 +689,137 @@ export function useWorkspaceAgentTools() {
         });
         break;
       case 'blackholecore':
-        if (!isRecord(value)) return { success: false, message: 'Black hole core expects a settings object.' };
+        if (!isRecord(value)) return { success: false, message: t('workspaceAgentTools.bhCoreObject') };
         blackHoleStore.updateCore(value);
         break;
       case 'blackholedisk':
-        if (!isRecord(value)) return { success: false, message: 'Black hole disk expects a settings object.' };
+        if (!isRecord(value)) return { success: false, message: t('workspaceAgentTools.bhDiskObject') };
         blackHoleStore.updateDisk(value);
         break;
       case 'blackholeanimation':
-        if (!isRecord(value)) return { success: false, message: 'Black hole animation expects a settings object.' };
+        if (!isRecord(value)) return { success: false, message: t('workspaceAgentTools.bhAnimObject') };
         blackHoleStore.updateAnimation(value);
         break;
       case 'blackholeeffects':
-        if (!isRecord(value)) return { success: false, message: 'Black hole effects expects a settings object.' };
+        if (!isRecord(value)) return { success: false, message: t('workspaceAgentTools.bhEffectsObject') };
         blackHoleStore.updateEffects(value);
         break;
       case 'blackholescale':
-        if (typeof value !== 'number') return { success: false, message: 'Black hole scale expects a number.' };
+        if (typeof value !== 'number') return { success: false, message: t('workspaceAgentTools.bhScaleNum') };
         blackHoleStore.setScale(value);
         break;
       case 'particlesfaceappearance':
       case 'particlesfacemotion':
-        if (!isRecord(value)) return { success: false, message: 'Particles face settings expect an object.' };
+        if (!isRecord(value)) return { success: false, message: t('workspaceAgentTools.particlesFaceObject') };
         particlesFaceStore.update(value);
         break;
       default:
-        return { success: false, message: `Unknown avatar control "${control}".` };
+        return { success: false, message: t('workspaceAgentTools.unknownAvatarControl', { control }) };
     }
 
     persistAvatarChanges();
-    actionState.recordAction('Updated avatar control', String(control), { announce: true });
-    return { success: true, message: `Updated avatar control ${control}.` };
+    actionState.recordAction(t('workspaceAgentTools.actionUpdatedAvatarControl'), String(control), { announce: true });
+    return { success: true, message: t('workspaceAgentTools.updatedAvatarControl', { control }) };
   }
 
   async function setSceneControl(control: unknown, value: unknown) {
     if (typeof control !== 'string') {
-      return { success: false, message: 'Scene control must be a string.' };
+      return { success: false, message: t('workspaceAgentTools.sceneControlString') };
     }
 
     switch (normalizeKey(control)) {
       case 'mediatype':
         if (value !== 'none' && value !== 'image' && value !== 'video' && value !== 'hdri') {
-          return { success: false, message: 'Media type must be none, image, video, or hdri.' };
+          return { success: false, message: t('workspaceAgentTools.mediaTypeInvalid') };
         }
         sceneStore.setMediaType(value);
         break;
       case 'imageurl':
-        if (typeof value !== 'string') return { success: false, message: 'Image URL expects a string.' };
+        if (typeof value !== 'string') return { success: false, message: t('workspaceAgentTools.imageUrlString') };
         sceneStore.setImageUrl(value);
         break;
       case 'imagefit':
         if (value !== 'cover' && value !== 'contain' && value !== 'stretch') {
-          return { success: false, message: 'Image fit must be cover, contain, or stretch.' };
+          return { success: false, message: t('workspaceAgentTools.imageFitInvalid') };
         }
         sceneStore.setImageFit(value);
         break;
       case 'imageopacity':
-        if (typeof value !== 'number') return { success: false, message: 'Image opacity expects a number.' };
+        if (typeof value !== 'number') return { success: false, message: t('workspaceAgentTools.imageOpacityNum') };
         sceneStore.setImageOpacity(value);
         break;
       case 'videourl':
-        if (typeof value !== 'string') return { success: false, message: 'Video URL expects a string.' };
+        if (typeof value !== 'string') return { success: false, message: t('workspaceAgentTools.videoUrlString') };
         sceneStore.setVideoUrl(value);
         break;
       case 'videofit':
         if (value !== 'cover' && value !== 'contain' && value !== 'stretch') {
-          return { success: false, message: 'Video fit must be cover, contain, or stretch.' };
+          return { success: false, message: t('workspaceAgentTools.videoFitInvalid') };
         }
         sceneStore.setVideoFit(value);
         break;
       case 'videoopacity':
-        if (typeof value !== 'number') return { success: false, message: 'Video opacity expects a number.' };
+        if (typeof value !== 'number') return { success: false, message: t('workspaceAgentTools.videoOpacityNum') };
         sceneStore.setVideoOpacity(value);
         break;
       case 'videoloop':
-        if (typeof value !== 'boolean') return { success: false, message: 'Video loop expects a boolean value.' };
+        if (typeof value !== 'boolean') return { success: false, message: t('workspaceAgentTools.videoLoopBool') };
         sceneStore.setVideoLoop(value);
         break;
       case 'videomuted':
-        if (typeof value !== 'boolean') return { success: false, message: 'Video muted expects a boolean value.' };
+        if (typeof value !== 'boolean') return { success: false, message: t('workspaceAgentTools.videoMutedBool') };
         sceneStore.setVideoMuted(value);
         break;
       case 'hdriurl':
-        if (typeof value !== 'string') return { success: false, message: 'HDRI URL expects a string.' };
+        if (typeof value !== 'string') return { success: false, message: t('workspaceAgentTools.hdriUrlString') };
         sceneStore.setHdriUrl(value);
         break;
       case 'hdriintensity':
-        if (typeof value !== 'number') return { success: false, message: 'HDRI intensity expects a number.' };
+        if (typeof value !== 'number') return { success: false, message: t('workspaceAgentTools.hdriIntensityNum') };
         sceneStore.setHdriIntensity(value);
         break;
       case 'hdriopacity':
-        if (typeof value !== 'number') return { success: false, message: 'HDRI opacity expects a number.' };
+        if (typeof value !== 'number') return { success: false, message: t('workspaceAgentTools.hdriOpacityNum') };
         sceneStore.setHdriOpacity(value);
         break;
       case 'hdrirotation':
-        if (typeof value !== 'number') return { success: false, message: 'HDRI rotation expects a number.' };
+        if (typeof value !== 'number') return { success: false, message: t('workspaceAgentTools.hdriRotationNum') };
         sceneStore.setHdriRotation(value);
         break;
       case 'hdriblur':
-        if (typeof value !== 'number') return { success: false, message: 'HDRI blur expects a number.' };
+        if (typeof value !== 'number') return { success: false, message: t('workspaceAgentTools.hdriBlurNum') };
         sceneStore.setHdriBlur(value);
         break;
       case 'gradientenabled':
-        if (typeof value !== 'boolean') return { success: false, message: 'Gradient enabled expects a boolean value.' };
+        if (typeof value !== 'boolean') return { success: false, message: t('workspaceAgentTools.gradientEnabledBool') };
         sceneStore.setGradientEnabled(value);
         break;
       case 'gradienttype':
         if (value !== 'solid' && value !== 'radial' && value !== 'linear' && value !== 'orbs') {
-          return { success: false, message: 'Gradient type must be solid, radial, linear, or orbs.' };
+          return { success: false, message: t('workspaceAgentTools.gradientTypeInvalid') };
         }
         sceneStore.setGradientType(value);
         break;
       case 'gradientsolidcolor':
-        if (typeof value !== 'string') return { success: false, message: 'Gradient solid color expects a hex color string.' };
+        if (typeof value !== 'string') return { success: false, message: t('workspaceAgentTools.gradientSolidHex') };
         sceneStore.background.gradient.solidColor = value;
         break;
       case 'gradientangle':
-        if (typeof value !== 'number') return { success: false, message: 'Gradient angle expects a number.' };
+        if (typeof value !== 'number') return { success: false, message: t('workspaceAgentTools.gradientAngleNum') };
         sceneStore.setGradientAngle(value);
         break;
       case 'gradientradialcenter':
         if (!isRecord(value) || typeof value.x !== 'number' || typeof value.y !== 'number') {
-          return { success: false, message: 'Gradient radial center expects an object with x and y.' };
+          return { success: false, message: t('workspaceAgentTools.gradientRadialCenterObject') };
         }
         sceneStore.setGradientRadialCenter(value.x, value.y);
         break;
       case 'gradientradialsize':
-        if (typeof value !== 'number') return { success: false, message: 'Gradient radial size expects a number.' };
+        if (typeof value !== 'number') return { success: false, message: t('workspaceAgentTools.gradientRadialSizeNum') };
         sceneStore.setGradientRadialSize(value);
         break;
       case 'gradientopacity':
-        if (typeof value !== 'number') return { success: false, message: 'Gradient opacity expects a number.' };
+        if (typeof value !== 'number') return { success: false, message: t('workspaceAgentTools.gradientOpacityNum') };
         sceneStore.setGradientOpacity(value);
         break;
       case 'gradientblendmode':
@@ -793,37 +830,37 @@ export function useWorkspaceAgentTools() {
           value !== 'overlay' &&
           value !== 'soft-light'
         ) {
-          return { success: false, message: 'Gradient blend mode is invalid.' };
+          return { success: false, message: t('workspaceAgentTools.gradientBlendInvalid') };
         }
         sceneStore.setGradientBlendMode(value);
         break;
       default:
-        return { success: false, message: `Unknown scene control "${control}".` };
+        return { success: false, message: t('workspaceAgentTools.unknownSceneControl', { control }) };
     }
 
-    actionState.recordAction('Updated scene control', String(control), { announce: true });
-    return { success: true, message: `Updated scene control ${control}.` };
+    actionState.recordAction(t('workspaceAgentTools.actionUpdatedSceneControl'), String(control), { announce: true });
+    return { success: true, message: t('workspaceAgentTools.updatedSceneControl', { control }) };
   }
 
   async function setVoiceControl(control: unknown, value: unknown, confirm: unknown) {
     if (typeof control !== 'string') {
-      return { success: false, message: 'Voice control must be a string.' };
+      return { success: false, message: t('workspaceAgentTools.voiceControlString') };
     }
 
     const normalized = normalizeKey(control);
     const approved = await confirmIfNeeded(
       ADVANCED_VOICE_CONTROLS.has(normalized),
       confirm,
-      'Confirm advanced voice change',
-      `Apply the ${control} voice change? Advanced model and pipeline updates may require reconnecting the current session.`,
+      t('workspaceAgentTools.confirmVoiceTitle'),
+      t('workspaceAgentTools.confirmVoiceBody', { control }),
     );
     if (!approved) {
-      return { success: false, cancelled: true, message: `Cancelled voice control ${control}.` };
+      return { success: false, cancelled: true, message: t('workspaceAgentTools.cancelledVoiceControl', { control }) };
     }
 
     if (normalized === 'pipelinemode') {
       if (value !== 'realtime' && value !== 'stt-llm-tts') {
-        return { success: false, message: 'Pipeline mode must be realtime or stt-llm-tts.' };
+        return { success: false, message: t('workspaceAgentTools.pipelineModeInvalid') };
       }
       voiceStore.setPipelineMode(value);
       if (kwami.value) {
@@ -834,35 +871,35 @@ export function useWorkspaceAgentTools() {
           },
         });
       }
-      actionState.recordAction('Updated pipeline mode', value, { announce: true });
+      actionState.recordAction(t('workspaceAgentTools.actionUpdatedPipeline'), value, { announce: true });
       return {
         success: true,
         message: isConnected.value
-          ? `Pipeline mode set to ${value}. Reconnect the session if the active backend pipeline does not change immediately.`
-          : `Pipeline mode set to ${value}.`,
+          ? t('workspaceAgentTools.pipelineModeSetReconnect', { mode: value })
+          : t('workspaceAgentTools.pipelineModeSet', { mode: value }),
       };
     }
 
     if (normalized === 'ttsvoice') {
-      if (typeof value !== 'string') return { success: false, message: 'TTS voice expects a voice id string.' };
+      if (typeof value !== 'string') return { success: false, message: t('workspaceAgentTools.ttsVoiceString') };
       voiceStore.updateTTS({ voice: value });
       if (isConnected.value && kwami.value) {
         kwami.value.agent.updateTtsLive({ voice: value, speed: voiceStore.tts.speed });
       }
     } else if (normalized === 'ttsspeed') {
-      if (typeof value !== 'number') return { success: false, message: 'TTS speed expects a number.' };
+      if (typeof value !== 'number') return { success: false, message: t('workspaceAgentTools.ttsSpeedNum') };
       voiceStore.updateTTS({ speed: value });
       if (isConnected.value && kwami.value) {
         kwami.value.agent.updateTtsLive({ voice: voiceStore.tts.voice, speed: value });
       }
     } else if (normalized === 'realtimevoice') {
-      if (typeof value !== 'string') return { success: false, message: 'Realtime voice expects a voice id string.' };
+      if (typeof value !== 'string') return { success: false, message: t('workspaceAgentTools.realtimeVoiceString') };
       voiceStore.updateRealtime({ voice: value });
       if (isConnected.value && kwami.value) {
         kwami.value.agent.updateRealtimeLive({ voice: value });
       }
     } else if (normalized === 'sttlanguage') {
-      if (typeof value !== 'string') return { success: false, message: 'STT language expects a language code.' };
+      if (typeof value !== 'string') return { success: false, message: t('workspaceAgentTools.sttLanguageString') };
       voiceStore.updateSTT({ language: value as STTLanguage });
       if (isConnected.value && kwami.value) {
         kwami.value.agent.updateSttLive({
@@ -875,12 +912,13 @@ export function useWorkspaceAgentTools() {
       return setResponseLength(value, true);
     } else if (normalized === 'emotionaltone') {
       if (value !== 'neutral' && value !== 'warm' && value !== 'enthusiastic' && value !== 'calm') {
-        return { success: false, message: 'Emotional tone must be neutral, warm, enthusiastic, or calm.' };
+        return { success: false, message: t('workspaceAgentTools.emotionalToneInvalid') };
       }
       voiceStore.soulConfig.emotionalTone = value;
       syncSoulToAgent();
     } else if (normalized === 'llmmodel' || normalized === 'sttmodel' || normalized === 'ttsmodel' || normalized === 'realtimemodel') {
-      if (!isRecord(value)) return { success: false, message: `Voice control ${control} expects a settings object.` };
+      if (!isRecord(value))
+        return { success: false, message: t('workspaceAgentTools.voiceControlSettingsObject', { control }) };
       if (normalized === 'llmmodel') {
         voiceStore.updateLLM({
           provider:
@@ -934,102 +972,102 @@ export function useWorkspaceAgentTools() {
         value,
       );
     } else {
-      return { success: false, message: `Unknown voice control "${control}".` };
+      return { success: false, message: t('workspaceAgentTools.unknownVoiceControl', { control }) };
     }
 
-    actionState.recordAction('Updated voice control', String(control), { announce: true });
-    return { success: true, message: `Updated voice control ${control}.` };
+    actionState.recordAction(t('workspaceAgentTools.actionUpdatedVoiceControl'), String(control), { announce: true });
+    return { success: true, message: t('workspaceAgentTools.updatedVoiceControl', { control }) };
   }
 
   async function setEnhancementControl(control: unknown, value: unknown) {
     if (typeof control !== 'string') {
-      return { success: false, message: 'Enhancement control must be a string.' };
+      return { success: false, message: t('workspaceAgentTools.enhancementControlString') };
     }
 
     const eState = voiceStore.enhancementsState;
     switch (normalizeKey(control)) {
       case 'turndetectionenabled':
-        if (typeof value !== 'boolean') return { success: false, message: 'Turn detection enabled expects a boolean value.' };
+        if (typeof value !== 'boolean') return { success: false, message: t('workspaceAgentTools.turnDetectionEnabledBool') };
         eState.turnDetection.enabled = value;
         break;
       case 'turndetectionmode':
         if (value !== 'vad' && value !== 'stt' && value !== 'model' && value !== 'manual') {
-          return { success: false, message: 'Turn detection mode is invalid.' };
+          return { success: false, message: t('workspaceAgentTools.turnDetectionModeInvalid') };
         }
         eState.turnDetection.mode = value;
         break;
       case 'turndetectionmodel':
         if (value !== 'english' && value !== 'multilingual') {
-          return { success: false, message: 'Turn detection model must be english or multilingual.' };
+          return { success: false, message: t('workspaceAgentTools.turnDetectionModelInvalid') };
         }
         eState.turnDetection.model = value;
         break;
       case 'minendpointingdelay':
-        if (typeof value !== 'number') return { success: false, message: 'Min endpointing delay expects a number.' };
+        if (typeof value !== 'number') return { success: false, message: t('workspaceAgentTools.minEndpointingNum') };
         eState.turnDetection.minEndpointingDelay = value;
         break;
       case 'maxendpointingdelay':
-        if (typeof value !== 'number') return { success: false, message: 'Max endpointing delay expects a number.' };
+        if (typeof value !== 'number') return { success: false, message: t('workspaceAgentTools.maxEndpointingNum') };
         eState.turnDetection.maxEndpointingDelay = value;
         break;
       case 'interruptionsenabled':
-        if (typeof value !== 'boolean') return { success: false, message: 'Interruptions enabled expects a boolean value.' };
+        if (typeof value !== 'boolean') return { success: false, message: t('workspaceAgentTools.interruptionsEnabledBool') };
         eState.interruptions.enabled = value;
         break;
       case 'interruptionduration':
-        if (typeof value !== 'number') return { success: false, message: 'Interruption duration expects a number.' };
+        if (typeof value !== 'number') return { success: false, message: t('workspaceAgentTools.interruptionDurationNum') };
         eState.interruptions.minDuration = value;
         break;
       case 'interruptionwords':
-        if (typeof value !== 'number') return { success: false, message: 'Interruption words expects a number.' };
+        if (typeof value !== 'number') return { success: false, message: t('workspaceAgentTools.interruptionWordsNum') };
         eState.interruptions.minWords = value;
         break;
       case 'noisecancellationenabled':
-        if (typeof value !== 'boolean') return { success: false, message: 'Noise cancellation enabled expects a boolean value.' };
+        if (typeof value !== 'boolean') return { success: false, message: t('workspaceAgentTools.noiseCancellationEnabledBool') };
         eState.noiseCancellation.enabled = value;
         break;
       case 'noisecancellationmode':
         if (value !== 'bvc' && value !== 'krisp' && value !== 'default') {
-          return { success: false, message: 'Noise cancellation mode is invalid.' };
+          return { success: false, message: t('workspaceAgentTools.noiseCancellationModeInvalid') };
         }
         eState.noiseCancellation.mode = value;
         break;
       case 'vadthreshold':
-        if (typeof value !== 'number') return { success: false, message: 'VAD threshold expects a number.' };
+        if (typeof value !== 'number') return { success: false, message: t('workspaceAgentTools.vadThresholdNum') };
         eState.vad.threshold = value;
         break;
       case 'vadminspeech':
-        if (typeof value !== 'number') return { success: false, message: 'VAD min speech expects a number.' };
+        if (typeof value !== 'number') return { success: false, message: t('workspaceAgentTools.vadMinSpeechNum') };
         eState.vad.minSpeech = value;
         break;
       case 'vadminsilence':
-        if (typeof value !== 'number') return { success: false, message: 'VAD min silence expects a number.' };
+        if (typeof value !== 'number') return { success: false, message: t('workspaceAgentTools.vadMinSilenceNum') };
         eState.vad.minSilence = value;
         break;
       case 'echocancellation':
-        if (typeof value !== 'boolean') return { success: false, message: 'Echo cancellation expects a boolean value.' };
+        if (typeof value !== 'boolean') return { success: false, message: t('workspaceAgentTools.echoCancellationBool') };
         eState.audioProcessing.echoCancellation = value;
         break;
       case 'autogaincontrol':
-        if (typeof value !== 'boolean') return { success: false, message: 'Auto gain control expects a boolean value.' };
+        if (typeof value !== 'boolean') return { success: false, message: t('workspaceAgentTools.autoGainBool') };
         eState.audioProcessing.autoGainControl = value;
         break;
       case 'preemptivegeneration':
-        if (typeof value !== 'boolean') return { success: false, message: 'Preemptive generation expects a boolean value.' };
+        if (typeof value !== 'boolean') return { success: false, message: t('workspaceAgentTools.preemptiveGenBool') };
         eState.performance.preemptiveGeneration = value;
         break;
       default:
-        return { success: false, message: `Unknown enhancement control "${control}".` };
+        return { success: false, message: t('workspaceAgentTools.unknownEnhancementControl', { control }) };
     }
 
     syncEnhancementsToAgent();
-    actionState.recordAction('Updated enhancement control', String(control), { announce: true });
-    return { success: true, message: `Updated enhancement control ${control}.` };
+    actionState.recordAction(t('workspaceAgentTools.actionUpdatedEnhancementControl'), String(control), { announce: true });
+    return { success: true, message: t('workspaceAgentTools.updatedEnhancementControl', { control }) };
   }
 
   async function setMemoryUiControl(control: unknown, value: unknown) {
     if (typeof control !== 'string') {
-      return { success: false, message: 'Memory UI control must be a string.' };
+      return { success: false, message: t('workspaceAgentTools.memoryUiControlString') };
     }
 
     const normalizedControl = normalizeKey(control);
@@ -1046,13 +1084,13 @@ export function useWorkspaceAgentTools() {
 
     if (normalizedControl === 'activetab') {
       if (value !== 'facts' && value !== 'entities' && value !== 'messages') {
-        return { success: false, message: 'Memory tab must be facts, entities, or messages.' };
+        return { success: false, message: t('workspaceAgentTools.memoryTabInvalid') };
       }
       voiceStore.memoryUI.activeTab = value;
       voiceStore.memoryUI.graphModalOpen = false;
       uiStore.setPanel('memory');
-      actionState.recordAction('Opened memory view', String(value), { announce: true });
-      return { success: true, message: `Opened the memory ${value} view.` };
+      actionState.recordAction(t('workspaceAgentTools.actionOpenedMemoryView'), String(value), { announce: true });
+      return { success: true, message: t('workspaceAgentTools.openedMemoryView', { tab: String(value) }) };
     }
 
     if (openGraphControls.has(normalizedControl)) {
@@ -1065,31 +1103,36 @@ export function useWorkspaceAgentTools() {
           || value === 1;
       voiceStore.memoryUI.graphModalOpen = shouldOpen;
       uiStore.setPanel('memory');
-      actionState.recordAction(shouldOpen ? 'Opened memory graph view' : 'Closed memory graph view', 'knowledge-graph', { announce: true });
+      actionState.recordAction(
+        shouldOpen ? t('workspaceAgentTools.actionOpenedMemoryGraph') : t('workspaceAgentTools.actionClosedMemoryGraph'),
+        'knowledge-graph',
+        { announce: true },
+      );
       return {
         success: true,
-        message: shouldOpen
-          ? 'Opened the memory knowledge graph view.'
-          : 'Closed the memory knowledge graph view.',
+        message: shouldOpen ? t('workspaceAgentTools.openedMemoryGraph') : t('workspaceAgentTools.closedMemoryGraph'),
       };
     }
 
-    return { success: false, message: `Unknown memory UI control "${String(control)}".` };
+    return { success: false, message: t('workspaceAgentTools.unknownMemoryUiControl', { control: String(control) }) };
   }
 
   async function resetUiDomain(domain: unknown, confirm: unknown) {
     if (domain !== 'avatar' && domain !== 'theme' && domain !== 'scene') {
-      return { success: false, message: `Resettable domains are ${RESETTABLE_DOMAINS.join(', ')}.` };
+      return {
+        success: false,
+        message: t('workspaceAgentTools.resettableDomains', { list: RESETTABLE_DOMAINS.join(', ') }),
+      };
     }
 
     const approved = await confirmIfNeeded(
       true,
       confirm,
-      `Reset ${domain} settings`,
-      `Reset the ${domain} settings to defaults? This will overwrite your current ${domain} configuration.`,
+      t('workspaceAgentTools.confirmResetTitle', { domain: String(domain) }),
+      t('workspaceAgentTools.confirmResetBody', { domain: String(domain) }),
     );
     if (!approved) {
-      return { success: false, cancelled: true, message: `Cancelled reset for ${domain}.` };
+      return { success: false, cancelled: true, message: t('workspaceAgentTools.cancelledReset', { domain: String(domain) }) };
     }
 
     if (domain === 'avatar') {
@@ -1104,8 +1147,8 @@ export function useWorkspaceAgentTools() {
       sceneStore.resetToDefaults();
     }
 
-    actionState.recordAction('Reset UI domain', String(domain), { announce: true });
-    return { success: true, message: `Reset ${domain} settings to defaults.` };
+    actionState.recordAction(t('workspaceAgentTools.actionResetUiDomain'), String(domain), { announce: true });
+    return { success: true, message: t('workspaceAgentTools.resetDomainDone', { domain: String(domain) }) };
   }
 
   async function listUiControls() {
@@ -1217,7 +1260,7 @@ export function useWorkspaceAgentTools() {
       ],
       memoryUiControls: ['activeTab', 'openGraphView'],
       resettableDomains: [...RESETTABLE_DOMAINS],
-      message: 'Structured UI controls are available across panels, theme, avatar, scene, voice, enhancements, memory, and search.',
+      message: t('workspaceAgentTools.listUiMessage'),
     };
   }
 
@@ -1231,14 +1274,17 @@ export function useWorkspaceAgentTools() {
     if (!normalizedDomain) {
       return {
         success: false,
-        message: `Unknown UI domain "${String(domain)}". Supported domains: ${UI_CONTROL_DOMAINS.join(', ')}.`,
+        message: t('workspaceAgentTools.unknownUiDomain', {
+          domain: String(domain),
+          supported: UI_CONTROL_DOMAINS.join(', '),
+        }),
       };
     }
 
     if (typeof control !== 'string') {
       return {
         success: false,
-        message: 'UI control requests need a string control name.',
+        message: t('workspaceAgentTools.uiControlNameString'),
       };
     }
 
@@ -1254,8 +1300,7 @@ export function useWorkspaceAgentTools() {
       if (normalizedControl === 'listcontrols') return listUiControls();
       return {
         success: false,
-        message:
-          'Workspace controls include openPanel, closePanel, focusTranscription, renderer, responseLength, status, and listControls.',
+        message: t('workspaceAgentTools.workspaceControlsHint'),
       };
     }
 
@@ -1296,21 +1341,20 @@ export function useWorkspaceAgentTools() {
       }
       return {
         success: false,
-        message: 'Search controls currently support clear or clearResults.',
+        message: t('workspaceAgentTools.searchControlsHint'),
       };
     }
 
     return {
       success: false,
-      message: `Unsupported UI domain "${normalizedDomain}".`,
+      message: t('workspaceAgentTools.unsupportedUiDomain', { domain: normalizedDomain }),
     };
   }
 
   function registerTools(instance: Kwami) {
     instance.registerTool({
       name: 'set_ui_control',
-      description:
-        'Primary tool for natural-language UI control. Route app changes through domain/control/value requests. Examples: domain=theme control=mode value=dark; domain=theme control=sidebarPosition value=right; domain=avatar control=blobSpikes value={x:0.6,y:0.5,z:0.7}; domain=workspace control=openPanel value=memory; domain=voice control=ttsSpeed value=1.2.',
+      description: t('workspaceAgentTools.toolDescSetUiControl'),
       parameters: {
         domain: {
           type: 'string',
@@ -1330,26 +1374,26 @@ export function useWorkspaceAgentTools() {
 
     instance.registerTool({
       name: 'open_workspace_panel',
-      description: 'Open a workspace panel in the app UI.',
+      description: t('workspaceAgentTools.toolDescOpenWorkspacePanel'),
       parameters: { panelName: { type: 'string', enum: [...WORKSPACE_PANELS] } },
       handler: async ({ panelName }) => openPanel(panelName),
     });
 
     instance.registerTool({
       name: 'close_workspace_panel',
-      description: 'Close the currently visible workspace side panel.',
+      description: t('workspaceAgentTools.toolDescCloseWorkspacePanel'),
       handler: async () => closePanel(),
     });
 
     instance.registerTool({
       name: 'focus_transcription_panel',
-      description: 'Open the transcription panel so the user can see the conversation log.',
+      description: t('workspaceAgentTools.toolDescFocusTranscription'),
       handler: async () => openPanel('transcription'),
     });
 
     instance.registerTool({
       name: 'set_panel_control',
-      description: 'Control panel UI properties like activePanel, isOpen, or sizePreset.',
+      description: t('workspaceAgentTools.toolDescSetPanelControl'),
       parameters: {
         control: { type: 'string', enum: ['activePanel', 'isOpen', 'sizePreset'] },
         value: { type: 'string' },
@@ -1359,8 +1403,7 @@ export function useWorkspaceAgentTools() {
 
     instance.registerTool({
       name: 'set_theme_control',
-      description:
-        'Control the theme UI. Supports preset, accentPreset, mode, sidebarPosition, compactMode, accent colors, glass settings, saturation, glow, border, contrast, and flashlight controls.',
+      description: t('workspaceAgentTools.toolDescSetThemeControl'),
       parameters: {
         control: { type: 'string' },
         value: {},
@@ -1370,8 +1413,7 @@ export function useWorkspaceAgentTools() {
 
     instance.registerTool({
       name: 'set_avatar_control',
-      description:
-        'Control avatar UI settings across blob, black-hole, and particles-face renderers. Supports renderer switching, presets, colors, spikes, amplitude, rotation, scale, black-hole core/disk/effects, and particles-face appearance or motion.',
+      description: t('workspaceAgentTools.toolDescSetAvatarControl'),
       parameters: {
         control: { type: 'string' },
         value: {},
@@ -1381,8 +1423,7 @@ export function useWorkspaceAgentTools() {
 
     instance.registerTool({
       name: 'set_scene_control',
-      description:
-        'Control scene background settings such as mediaType, image/video/HDRI sources, fit, opacity, HDRI background opacity, environment light intensity, blur, and gradient settings.',
+      description: t('workspaceAgentTools.toolDescSetSceneControl'),
       parameters: {
         control: { type: 'string' },
         value: {},
@@ -1392,8 +1433,7 @@ export function useWorkspaceAgentTools() {
 
     instance.registerTool({
       name: 'set_voice_control',
-      description:
-        'Control voice and model UI settings such as ttsVoice, ttsSpeed, realtimeVoice, sttLanguage, responseLength, emotionalTone, llmModel, sttModel, ttsModel, realtimeModel, or pipelineMode. Advanced model and pipeline changes can require confirmation.',
+      description: t('workspaceAgentTools.toolDescSetVoiceControl'),
       parameters: {
         control: { type: 'string' },
         value: {},
@@ -1404,8 +1444,7 @@ export function useWorkspaceAgentTools() {
 
     instance.registerTool({
       name: 'set_enhancement_control',
-      description:
-        'Control enhancement UI settings such as turn detection, interruptions, noise cancellation, VAD thresholds, echo cancellation, auto gain control, and preemptive generation.',
+      description: t('workspaceAgentTools.toolDescSetEnhancementControl'),
       parameters: {
         control: { type: 'string' },
         value: {},
@@ -1415,7 +1454,7 @@ export function useWorkspaceAgentTools() {
 
     instance.registerTool({
       name: 'set_memory_ui_control',
-      description: 'Control memory UI settings such as activeTab or opening the knowledge graph modal.',
+      description: t('workspaceAgentTools.toolDescSetMemoryUi'),
       parameters: {
         control: { type: 'string', enum: ['activeTab', 'openGraphView', 'knowledgeGraph', 'graphView'] },
         value: {},
@@ -1425,7 +1464,7 @@ export function useWorkspaceAgentTools() {
 
     instance.registerTool({
       name: 'set_workspace_renderer',
-      description: 'Switch the visual renderer for the main Kwami avatar.',
+      description: t('workspaceAgentTools.toolDescSetRenderer'),
       parameters: {
         renderer: { type: 'string', enum: ['blob-xyz', 'black-hole', 'particles-face'] },
       },
@@ -1434,7 +1473,7 @@ export function useWorkspaceAgentTools() {
 
     instance.registerTool({
       name: 'set_response_length',
-      description: 'Change how long your spoken responses should be. This updates a workspace preference and requires confirmation.',
+      description: t('workspaceAgentTools.toolDescSetResponseLength'),
       parameters: {
         length: { type: 'string', enum: ['short', 'medium', 'long'] },
         confirm: { type: 'boolean' },
@@ -1444,13 +1483,13 @@ export function useWorkspaceAgentTools() {
 
     instance.registerTool({
       name: 'clear_search_results',
-      description: 'Clear the current search cards and search summary from the app UI.',
+      description: t('workspaceAgentTools.toolDescClearSearch'),
       handler: async () => clearSearchResults(),
     });
 
     instance.registerTool({
       name: 'reset_ui_domain',
-      description: 'Reset an app UI domain to defaults. Supports avatar, theme, or scene and requires confirmation.',
+      description: t('workspaceAgentTools.toolDescResetUiDomain'),
       parameters: {
         domain: { type: 'string', enum: [...RESETTABLE_DOMAINS] },
         confirm: { type: 'boolean' },
@@ -1460,13 +1499,13 @@ export function useWorkspaceAgentTools() {
 
     instance.registerTool({
       name: 'list_ui_controls',
-      description: 'List the available structured UI controls that the app supports.',
+      description: t('workspaceAgentTools.toolDescListUiControls'),
       handler: async () => listUiControls(),
     });
 
     instance.registerTool({
       name: 'show_workspace_status',
-      description: 'Get a short summary of the current workspace state, including panel, renderer, theme, and search visibility.',
+      description: t('workspaceAgentTools.toolDescShowWorkspaceStatus'),
       handler: async () => showWorkspaceStatus(),
     });
   }
@@ -1478,5 +1517,12 @@ export function useWorkspaceAgentTools() {
       registerTools(instance);
     },
     { immediate: true },
+  );
+
+  watch(
+    () => i18n.global.locale.value,
+    () => {
+      if (kwami.value) registerTools(kwami.value);
+    },
   );
 }
