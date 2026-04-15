@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useModelsApi, type InferenceModel } from '@/composables/useModelsApi';
 import { useVoiceStore } from '@/stores/voice';
 import { useKwami } from '@/composables/useKwami';
@@ -9,6 +10,7 @@ import ModelCard from '@/components/ui/ModelCard.vue';
 import BaseSlider from '@/components/ui/BaseSlider.vue';
 
 const { fetchLLMInferenceModels, llmInferenceModels, isLoading } = useModelsApi();
+const { t } = useI18n();
 const voiceStore = useVoiceStore();
 const { llm, modelsUI } = storeToRefs(voiceStore);
 const { kwami, isConnected } = useKwami();
@@ -205,38 +207,38 @@ function updateMaxTokens(value: number) {
     <!-- Loading State -->
     <div v-if="isLoading" class="loading-state">
       <iconify-icon icon="ph:spinner-duotone" class="spinner"></iconify-icon>
-      <span>Loading models...</span>
+      <span>{{ t('modelTabs.loadingModels') }}</span>
     </div>
 
     <template v-if="!isLoading">
       <!-- Sort Controls -->
       <div class="sort-row">
-        <span class="sort-label">Sort:</span>
+        <span class="sort-label">{{ t('modelTabs.sort') }}</span>
         <button 
           class="sort-btn" 
           :class="{ active: sortBy === 'provider' }"
           @click="sortBy = 'provider'"
-        >Provider</button>
+        >{{ t('modelTabs.provider') }}</button>
         <button 
           class="sort-btn" 
           :class="{ active: sortBy === 'price' }"
           @click="sortBy = 'price'"
-        >Price</button>
+        >{{ t('modelTabs.price') }}</button>
         <button 
           class="sort-btn" 
           :class="{ active: sortBy === 'context' }"
           @click="sortBy = 'context'"
-        >Context</button>
+        >{{ t('modelTabs.context') }}</button>
         <button 
           class="sort-btn" 
           :class="{ active: sortBy === 'languages' }"
           @click="sortBy = 'languages'"
-        >Languages</button>
+        >{{ t('modelTabs.languages') }}</button>
         <button 
           class="sort-btn" 
           :class="{ active: sortBy === 'speed' }"
           @click="sortBy = 'speed'"
-        >Speed</button>
+        >{{ t('modelTabs.speed') }}</button>
       </div>
 
       <!-- Models by Provider (accordion view) -->
@@ -287,14 +289,14 @@ function updateMaxTokens(value: number) {
 
       <div v-if="!hasInferenceModels" class="empty-state">
         <iconify-icon icon="ph:brain-duotone"></iconify-icon>
-        <span>No models available</span>
+        <span>{{ t('modelTabs.noModelsAvailable') }}</span>
       </div>
 
       <!-- Parameters -->
-      <PanelSection title="Parameters" icon="ph:sliders-horizontal-duotone" collapsible defaultCollapsed>
+      <PanelSection :title="t('modelTabs.parameters')" icon="ph:sliders-horizontal-duotone" collapsible defaultCollapsed>
         <div class="params-form">
           <BaseSlider
-            label="Temperature"
+            :label="t('modelTabs.temperature')"
             :min="0"
             :max="1"
             :step="0.05"
@@ -302,10 +304,10 @@ function updateMaxTokens(value: number) {
             @update:modelValue="updateTemperature"
             :showValue="true"
           />
-          <p class="param-hint">Lower = focused, Higher = creative</p>
+          <p class="param-hint">{{ t('modelTabs.temperatureHint') }}</p>
           
           <BaseSlider
-            label="Max Tokens"
+            :label="t('modelTabs.maxTokens')"
             :min="64"
             :max="4096"
             :step="64"
@@ -313,7 +315,7 @@ function updateMaxTokens(value: number) {
             @update:modelValue="updateMaxTokens"
             :showValue="true"
           />
-          <p class="param-hint">Maximum response length</p>
+          <p class="param-hint">{{ t('modelTabs.maxTokensHint') }}</p>
         </div>
       </PanelSection>
     </template>

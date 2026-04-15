@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useKwami } from '@/composables/useKwami';
 import { hexToRgb } from '@/utils/color';
 
+const { t } = useI18n();
 const { kwami } = useKwami();
 
 const fileInput = ref<HTMLInputElement | null>(null);
@@ -11,7 +13,7 @@ const visualizerCanvas = ref<HTMLCanvasElement | null>(null);
 const isLoaded = ref(false);
 const isPlaying = ref(false);
 const isDraggingSeek = ref(false);
-const trackName = ref('Drop in a track');
+const trackName = ref('');
 const currentTime = ref(0);
 const duration = ref(0);
 const volume = ref(0.8);
@@ -35,24 +37,24 @@ const energy = computed(() => {
 });
 
 const playbackLabel = computed(() => {
-  if (errorMessage.value) return 'Error';
-  if (!isLoaded.value) return 'Ready';
-  if (isPlaying.value) return 'Playing';
-  if (currentTime.value > 0) return 'Paused';
-  return 'Loaded';
+  if (errorMessage.value) return t('musicPlayer.statusError');
+  if (!isLoaded.value) return t('musicPlayer.statusReady');
+  if (isPlaying.value) return t('musicPlayer.statusPlaying');
+  if (currentTime.value > 0) return t('musicPlayer.statusPaused');
+  return t('musicPlayer.statusLoaded');
 });
 
 const helperText = computed(() => {
   if (errorMessage.value) return errorMessage.value;
-  if (!isLoaded.value) return 'Load a local song and the avatar will ride the beat.';
-  if (isPlaying.value) return 'Your avatar is syncing to the live spectrum in real time.';
-  return 'Track loaded. Press play to drive the avatar with the beat.';
+  if (!isLoaded.value) return t('musicPlayer.helperNoFile');
+  if (isPlaying.value) return t('musicPlayer.helperPlaying');
+  return t('musicPlayer.helperLoaded');
 });
 
 const bandLevels = computed(() => [
-  { key: 'bass', label: 'Bass', value: Math.round(bass.value * 100) },
-  { key: 'mid', label: 'Mid', value: Math.round(mid.value * 100) },
-  { key: 'high', label: 'High', value: Math.round(high.value * 100) },
+  { key: 'bass', label: t('musicPlayer.bandBass'), value: Math.round(bass.value * 100) },
+  { key: 'mid', label: t('musicPlayer.bandMid'), value: Math.round(mid.value * 100) },
+  { key: 'high', label: t('musicPlayer.bandHigh'), value: Math.round(high.value * 100) },
 ]);
 
 const seekTrackStyle = computed(() => ({
@@ -213,7 +215,7 @@ function handleTimeUpdate() {
 }
 
 function handleAudioError() {
-  errorMessage.value = 'Could not play this file.';
+  errorMessage.value = t('musicPlayer.errCouldNotPlay');
   isPlaying.value = false;
 }
 
@@ -268,7 +270,7 @@ async function onFileSelected(event: Event) {
     await audio.play();
   } catch (error) {
     console.error('Failed to load music file:', error);
-    errorMessage.value = 'This audio file could not be loaded.';
+    errorMessage.value = t('musicPlayer.errFileNotLoaded');
   } finally {
     input.value = '';
   }
@@ -282,7 +284,7 @@ async function togglePlayback() {
     await audio.togglePlayPause();
   } catch (error) {
     console.error('Failed to toggle music playback:', error);
-    errorMessage.value = 'Playback was blocked by the browser.';
+    errorMessage.value = t('musicPlayer.errPlaybackBlocked');
   }
 }
 
@@ -428,15 +430,15 @@ onUnmounted(() => {
             <span class="status-dot"></span>
             <span>{{ playbackLabel }}</span>
           </div>
-          <span class="player-kicker">Avatar Audio Drive</span>
-          <strong class="player-title">{{ trackName }}</strong>
+          <span class="player-kicker">{{ t('musicPlayer.kicker') }}</span>
+          <strong class="player-title">{{ trackName || t('musicPlayer.dropInTrack') }}</strong>
           <span class="player-subtitle">
-            {{ isLoaded ? 'Theme-aware audio controls for live avatar motion.' : 'Choose a local file to animate the avatar with your music.' }}
+            {{ isLoaded ? t('musicPlayer.subtitleLoaded') : t('musicPlayer.subtitleEmpty') }}
           </span>
         </div>
 
         <div class="header-actions">
-          <button class="icon-btn" title="Load music" @click="openFilePicker">
+          <button class="icon-btn" :title="t('musicPlayer.loadMusic')" @click="openFilePicker">
             <iconify-icon icon="ph:upload-simple-bold"></iconify-icon>
           </button>
         </div>
@@ -470,20 +472,20 @@ onUnmounted(() => {
         <button
           class="transport-btn primary"
           :disabled="!isLoaded"
-          :title="isPlaying ? 'Pause track' : 'Play track'"
+          :title="isPlaying ? t('musicPlayer.pauseTrack') : t('musicPlayer.playTrack')"
           @click="togglePlayback"
         >
           <iconify-icon :icon="isPlaying ? 'ph:pause-fill' : 'ph:play-fill'"></iconify-icon>
         </button>
 
-        <button class="transport-btn" title="Load music" @click="openFilePicker">
+        <button class="transport-btn" :title="t('musicPlayer.loadMusic')" @click="openFilePicker">
           <iconify-icon icon="ph:plus-bold"></iconify-icon>
         </button>
 
         <button
           class="transport-btn"
           :disabled="!isLoaded"
-          title="Stop track"
+          :title="t('musicPlayer.stopTrack')"
           @click="stopPlayback"
         >
           <iconify-icon icon="ph:stop-fill"></iconify-icon>
@@ -492,7 +494,7 @@ onUnmounted(() => {
 
       <div class="slider-block">
         <div class="slider-label">
-          <span>Progress</span>
+          <span>{{ t('musicPlayer.progress') }}</span>
           <span>{{ Math.round(progress) }}%</span>
         </div>
         <input
@@ -512,7 +514,7 @@ onUnmounted(() => {
 
       <div class="slider-block volume-block">
         <div class="slider-label">
-          <span>Volume</span>
+          <span>{{ t('musicPlayer.volume') }}</span>
           <span>{{ volumePercent }}%</span>
         </div>
         <input

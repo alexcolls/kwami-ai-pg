@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n';
 import PanelSection from '@/components/ui/PanelSection.vue';
 import BaseSlider from '@/components/ui/BaseSlider.vue';
 import BaseToggle from '@/components/ui/BaseToggle.vue';
@@ -18,6 +19,7 @@ export interface SceneEffectsConfig {
 }
 
 const effects = defineModel<SceneEffectsConfig>('effects', { required: true });
+const { t } = useI18n();
 
 interface StarPreset {
   id: string;
@@ -120,10 +122,10 @@ function applyPreset(preset: StarPreset) {
 </script>
 
 <template>
-  <PanelSection title="Star Fields" icon="ph:star-duotone" collapsible>
+  <PanelSection :title="t('scene.starFields')" icon="ph:star-duotone" collapsible>
     <div class="effect-header">
       <BaseToggle
-        label="Enable Stars"
+        :label="t('scene.enableStars')"
         :modelValue="effects.starField.enabled"
         @update:modelValue="effects.starField.enabled = $event"
       />
@@ -145,7 +147,7 @@ function applyPreset(preset: StarPreset) {
 
       <div class="settings-group">
         <BaseSlider
-          label="Star Count"
+          :label="t('scene.starCount')"
           :modelValue="effects.starField.count"
           @update:modelValue="effects.starField.count = $event"
           :min="1000"
@@ -153,7 +155,7 @@ function applyPreset(preset: StarPreset) {
           :step="1000"
         />
         <BaseSlider
-          label="Field Radius"
+          :label="t('scene.fieldRadius')"
           :modelValue="effects.starField.fieldRadius"
           @update:modelValue="effects.starField.fieldRadius = $event"
           :min="200"
@@ -162,7 +164,7 @@ function applyPreset(preset: StarPreset) {
         />
         <div class="size-row">
           <BaseSlider
-            label="Min Size"
+            :label="t('scene.minSize')"
             :modelValue="effects.starField.minSize"
             @update:modelValue="effects.starField.minSize = $event"
             :min="0.1"
@@ -170,7 +172,7 @@ function applyPreset(preset: StarPreset) {
             :step="0.1"
           />
           <BaseSlider
-            label="Max Size"
+            :label="t('scene.maxSize')"
             :modelValue="effects.starField.maxSize"
             @update:modelValue="effects.starField.maxSize = $event"
             :min="1.0"
@@ -179,7 +181,7 @@ function applyPreset(preset: StarPreset) {
           />
         </div>
         <BaseSlider
-          label="Twinkle Speed"
+          :label="t('scene.twinkleSpeed')"
           :modelValue="effects.starField.twinkleSpeed"
           @update:modelValue="effects.starField.twinkleSpeed = $event"
           :min="0"
@@ -187,7 +189,7 @@ function applyPreset(preset: StarPreset) {
           :step="0.1"
         />
         <BaseSlider
-          label="Rotation Speed"
+          :label="t('scene.rotationSpeed')"
           :modelValue="effects.starField.rotationSpeed * 10000"
           @update:modelValue="effects.starField.rotationSpeed = $event / 10000"
           :min="0"
@@ -199,7 +201,7 @@ function applyPreset(preset: StarPreset) {
 
     <p class="effect-hint">
       <iconify-icon icon="ph:info-duotone"></iconify-icon>
-      3D stars render in the scene space, creating depth and parallax
+      {{ t('scene.starsHint') }}
     </p>
   </PanelSection>
 </template>

@@ -2,7 +2,8 @@
  * Shared utilities for Memory Graph components
  */
 
-import type { MemoryNode, MemoryEdge, Position2D, LayoutResult } from './types'
+import { getCurrentLocale, intlLocaleTag } from '@/i18n';
+import type { MemoryNode, MemoryEdge, Position2D, LayoutResult } from './types';
 
 // Entity type colors (matching Zep's schema + inferred types)
 export const typeColors: Record<string, number> = {
@@ -114,17 +115,18 @@ export function getNodeColorHex(type: string): string {
 
 export function formatDate(dateStr: string): string {
   try {
-    const date = new Date(dateStr)
-    return date.toLocaleDateString('en-US', {
+    const date = new Date(dateStr);
+    const tag = intlLocaleTag(getCurrentLocale());
+    return date.toLocaleDateString(tag, {
       month: 'short',
-      day: 'numeric', 
+      day: 'numeric',
       year: 'numeric',
       hour: 'numeric',
       minute: '2-digit',
-      hour12: true
-    })
+      hour12: tag.startsWith('en'),
+    });
   } catch {
-    return dateStr
+    return dateStr;
   }
 }
 

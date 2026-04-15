@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, watch, computed, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { storeToRefs } from 'pinia';
 import { useKwami } from '@/composables/useKwami';
 import { useAvatarStore, type AvatarState } from '@/stores/avatar';
@@ -20,6 +21,7 @@ import { useKwamiConfigSync } from '@/composables/useKwamiConfigSync';
 import type { KwamiConfig } from '@/composables/useKwamiConfigSync';
 
 const { kwami, rendererType: kwamiRendererType, switchRenderer } = useKwami();
+const { t } = useI18n();
 const workspaceStore = useWorkspaceStore();
 const { getConfig } = useKwamiConfigSync();
 const panelIcon = panelIcons.avatar ?? 'ph:ghost-duotone';
@@ -386,10 +388,10 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <BasePanel :icon="panelIcon" title="3D Avatar">
+  <BasePanel :icon="panelIcon" :title="t('avatar.title')">
     <!-- Avatar Type Selector -->
-    <PanelSection title="Avatar Type" icon="ph:swap-duotone" collapsible>
-      <p class="section-desc">Choose the visual style for your avatar</p>
+    <PanelSection :title="t('avatar.avatarType')" icon="ph:swap-duotone" collapsible>
+      <p class="section-desc">{{ t('avatar.avatarTypeDesc') }}</p>
       <div class="renderer-selector">
         <label class="renderer-option" :class="{ active: rendererType === 'blob-xyz' }">
           <input
@@ -401,8 +403,8 @@ onUnmounted(() => {
           />
           <iconify-icon icon="ph:circle-wavy-duotone" class="renderer-icon"></iconify-icon>
           <div class="renderer-content">
-            <span class="renderer-label">Blob XYZ</span>
-            <span class="renderer-desc">Organic morphing shape</span>
+            <span class="renderer-label">{{ t('avatar.rendererBlob') }}</span>
+            <span class="renderer-desc">{{ t('avatar.rendererBlobDesc') }}</span>
           </div>
         </label>
         <label class="renderer-option" :class="{ active: rendererType === 'black-hole' }">
@@ -415,16 +417,16 @@ onUnmounted(() => {
           />
           <iconify-icon icon="ph:circle-dashed-duotone" class="renderer-icon"></iconify-icon>
           <div class="renderer-content">
-            <span class="renderer-label">Black Hole</span>
-            <span class="renderer-desc">Gravitational void effect</span>
+            <span class="renderer-label">{{ t('avatar.rendererBlackHole') }}</span>
+            <span class="renderer-desc">{{ t('avatar.rendererBlackHoleDesc') }}</span>
           </div>
         </label>
       </div>
     </PanelSection>
 
     <!-- Presets -->
-    <PanelSection title="Quick Presets" icon="ph:magic-wand-duotone" collapsible>
-      <p class="section-desc">Apply pre-configured looks or randomize</p>
+    <PanelSection :title="t('avatar.quickPresets')" icon="ph:magic-wand-duotone" collapsible>
+      <p class="section-desc">{{ t('avatar.quickPresetsDesc') }}</p>
       <div class="presets-grid">
         <button
           v-for="preset in currentPresets"
@@ -441,14 +443,14 @@ onUnmounted(() => {
         <button
           class="action-btn randomize"
           @click="handleRandomize"
-          title="Randomize all settings"
+          :title="t('avatar.randomizeAllTitle')"
         >
           <iconify-icon icon="ph:dice-five-duotone"></iconify-icon>
-          <span>Randomize</span>
+          <span>{{ t('avatar.randomize') }}</span>
         </button>
-        <button class="action-btn reset" @click="handleReset" title="Reset to defaults">
+        <button class="action-btn reset" @click="handleReset" :title="t('avatar.resetDefaultsTitle')">
           <iconify-icon icon="ph:arrow-counter-clockwise-duotone"></iconify-icon>
-          <span>Reset</span>
+          <span>{{ t('avatar.reset') }}</span>
         </button>
       </div>
     </PanelSection>

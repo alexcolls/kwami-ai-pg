@@ -1,19 +1,36 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { panelIcons } from '@/constants/panel-icons';
 import { useAuthStore } from '@/stores/auth';
+import { getCurrentLocale, setLocale, type SupportedLocale } from '@/i18n';
+import { saveUserLocaleToDb } from '@/lib/userAppSettings';
 import PanelSection from '@/components/ui/PanelSection.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
+import BaseSelect from '@/components/ui/BaseSelect.vue';
 import PanelHeaderControls from '@/components/ui/PanelHeaderControls.vue';
 
 const authStore = useAuthStore();
+const { t } = useI18n();
 
 // Computed properties
-const userEmail = computed(() => authStore.userEmail || 'Unknown');
-const userId = computed(() => authStore.userId || 'Unknown');
+const selectedLanguage = computed<SupportedLocale>({
+  get: () => getCurrentLocale(),
+  set: (locale) => {
+    setLocale(locale);
+    const uid = authStore.userId;
+    if (uid) void saveUserLocaleToDb(uid, locale);
+  },
+});
+const languageOptions = computed(() => [
+  { label: t('account.languageEnglish'), value: 'en', icon: 'ph:translate' },
+  { label: t('account.languageSpanish'), value: 'es', icon: 'ph:translate' },
+]);
+const userEmail = computed(() => authStore.userEmail || t('account.unknownUser'));
+const userId = computed(() => authStore.userId || t('account.unknownUser'));
 const userInitials = computed(() => {
   const email = authStore.userEmail;
-  if (!email) return '??';
+  if (!email) return t('account.unknownInitials');
   return email.slice(0, 2).toUpperCase();
 });
 
@@ -27,13 +44,13 @@ async function handleLogout() {
   <div class="panel-inner">
     <div class="panel-header">
       <iconify-icon :icon="panelIcons.account" class="panel-icon"></iconify-icon>
-      <h2>Account</h2>
+      <h2>{{ t('account.title') }}</h2>
       <PanelHeaderControls />
     </div>
 
     <div class="panel-body">
       <!-- User Profile Card -->
-      <PanelSection title="Profile">
+      <PanelSection :title="t('account.profile')">
         <div class="profile-card">
           <div class="avatar">
             <span class="avatar-initials">{{ userInitials }}</span>
@@ -42,18 +59,30 @@ async function handleLogout() {
             <span class="profile-email">{{ userEmail }}</span>
             <span class="profile-status">
               <span class="status-dot"></span>
-              Signed in
+              {{ t('account.statusSignedIn') }}
             </span>
           </div>
         </div>
         <div class="user-id">
-          <span class="user-id-label">ID</span>
+          <span class="user-id-label">{{ t('account.userIdLabel') }}</span>
           <span class="user-id-value" :title="userId">{{ userId }}</span>
         </div>
       </PanelSection>
 
+      <PanelSection :title="t('account.language')">
+        <div class="language-selector">
+          <BaseSelect
+            v-model="selectedLanguage"
+            :label="t('account.languageHint')"
+            :options="languageOptions"
+            icon="ph:translate"
+            block
+          />
+        </div>
+      </PanelSection>
+
       <!-- Sign Out -->
-      <PanelSection title="Actions">
+      <PanelSection :title="t('account.actions')">
         <div class="action-buttons">
           <BaseButton
             variant="danger"
@@ -61,7 +90,7 @@ async function handleLogout() {
             block
             @click="handleLogout"
           >
-            Sign Out
+            {{ t('account.signOut') }}
           </BaseButton>
         </div>
       </PanelSection>
@@ -177,5 +206,10 @@ async function handleLogout() {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.language-selector {
+  display: flex;
+  flex-direction: column;
 }
 </style>

@@ -1,6 +1,9 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import type { MemoryNode, ViewMode } from './types'
 import { getNodeColorHex } from './utils'
+
+const { t } = useI18n()
 
 defineProps<{
   nodes: MemoryNode[]
@@ -14,7 +17,7 @@ const uniqueTypes = (nodes: MemoryNode[]) => {
 
 <template>
   <div class="type-legend" v-if="nodes.length > 0">
-    <span class="legend-label">Entity Types</span>
+    <span class="legend-label">{{ t('memoryGraph.legendEntityTypes') }}</span>
     <div class="legend-items">
       <span 
         v-for="type in uniqueTypes(nodes)" 

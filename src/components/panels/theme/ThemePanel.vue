@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
+import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import {
   useThemeStore,
   accentPresets,
@@ -19,28 +21,29 @@ import BaseColorPicker from '@/components/ui/BaseColorPicker.vue';
 
 const themeStore = useThemeStore();
 const uiStore = useUIStore();
+const { t } = useI18n();
 const panelIcon = panelIcons.theme ?? 'ph:palette-duotone';
 
 // Theme mode options
-const themeModes: { value: ThemeMode; label: string; icon: string }[] = [
-  { value: 'dark', label: 'Dark', icon: 'ph:moon-duotone' },
-  { value: 'light', label: 'Light', icon: 'ph:sun-duotone' },
-  { value: 'system', label: 'System', icon: 'ph:desktop-duotone' },
-  { value: 'auto', label: 'Auto', icon: 'ph:clock-duotone' },
-];
+const themeModes = computed<{ value: ThemeMode; label: string; icon: string }[]>(() => [
+  { value: 'dark', label: t('theme.modeDark'), icon: 'ph:moon-duotone' },
+  { value: 'light', label: t('theme.modeLight'), icon: 'ph:sun-duotone' },
+  { value: 'system', label: t('theme.modeSystem'), icon: 'ph:desktop-duotone' },
+  { value: 'auto', label: t('theme.modeAuto'), icon: 'ph:clock-duotone' },
+]);
 
 // Sidebar position options
-const sidebarPositions: { value: SidebarPosition; label: string; icon: string }[] = [
-  { value: 'left', label: 'Left', icon: 'ph:sidebar-duotone' },
-  { value: 'right', label: 'Right', icon: 'ph:sidebar-simple-duotone' },
-];
+const sidebarPositions = computed<{ value: SidebarPosition; label: string; icon: string }[]>(() => [
+  { value: 'left', label: t('theme.positionLeft'), icon: 'ph:sidebar-duotone' },
+  { value: 'right', label: t('theme.positionRight'), icon: 'ph:sidebar-simple-duotone' },
+]);
 
 // Panel size tabs
-const sizeTabs: { value: PanelSizePreset; label: string; icon: string }[] = [
-  { value: 'small', label: 'Small', icon: 'ph:rectangle-duotone' },
-  { value: 'medium', label: 'Medium', icon: 'ph:square-duotone' },
-  { value: 'large', label: 'Large', icon: 'ph:selection-duotone' },
-];
+const sizeTabs = computed<{ value: PanelSizePreset; label: string; icon: string }[]>(() => [
+  { value: 'small', label: t('theme.sizeSmall'), icon: 'ph:rectangle-duotone' },
+  { value: 'medium', label: t('theme.sizeMedium'), icon: 'ph:square-duotone' },
+  { value: 'large', label: t('theme.sizeLarge'), icon: 'ph:selection-duotone' },
+]);
 
 // Current time for Auto mode display
 const currentTime = ref('');
@@ -87,7 +90,7 @@ function handleImport() {
     showImportDialog.value = false;
     importJson.value = '';
   } else {
-    importError.value = 'Invalid theme format';
+    importError.value = t('theme.invalidThemeFormat');
   }
 }
 
@@ -105,9 +108,9 @@ function handleFileImport(event: Event) {
 </script>
 
 <template>
-  <BasePanel :icon="panelIcon" title="Theme">
+  <BasePanel :icon="panelIcon" :title="t('theme.title')">
     <template #actions>
-      <BaseTooltip text="Undo (Ctrl+Z)" position="bottom">
+      <BaseTooltip :text="t('theme.undo')" position="bottom">
         <button
           class="icon-btn"
           :disabled="!themeStore.canUndo"
@@ -116,7 +119,7 @@ function handleFileImport(event: Event) {
           <iconify-icon icon="ph:arrow-counter-clockwise-duotone"></iconify-icon>
         </button>
       </BaseTooltip>
-      <BaseTooltip text="Redo (Ctrl+Y)" position="bottom">
+      <BaseTooltip :text="t('theme.redo')" position="bottom">
         <button
           class="icon-btn"
           :disabled="!themeStore.canRedo"
@@ -127,7 +130,7 @@ function handleFileImport(event: Event) {
       </BaseTooltip>
     </template>
       <!-- Theme Presets -->
-      <PanelSection title="Presets" icon="ph:stack-duotone" collapsible>
+      <PanelSection :title="t('theme.presets')" icon="ph:stack-duotone" collapsible>
         <div class="preset-grid">
           <BaseTooltip
             v-for="preset in themePresets"
@@ -147,7 +150,7 @@ function handleFileImport(event: Event) {
       </PanelSection>
 
       <!-- Theme Mode -->
-      <PanelSection title="Mode" icon="ph:circles-four-duotone" collapsible>
+      <PanelSection :title="t('theme.mode')" icon="ph:circles-four-duotone" collapsible>
         <div class="theme-modes">
           <button
             v-for="mode in themeModes"
@@ -163,12 +166,12 @@ function handleFileImport(event: Event) {
       </PanelSection>
 
       <!-- Auto Mode Schedule -->
-      <PanelSection v-if="themeStore.mode === 'auto'" title="Auto Schedule" icon="ph:timer-duotone" collapsible>
+      <PanelSection v-if="themeStore.mode === 'auto'" :title="t('theme.autoSchedule')" icon="ph:timer-duotone" collapsible>
         <div class="time-row">
           <div class="time-input">
             <label class="time-label">
               <iconify-icon icon="ph:sun-duotone"></iconify-icon>
-              Light
+              {{ t('theme.light') }}
             </label>
             <input
               type="time"
@@ -179,7 +182,7 @@ function handleFileImport(event: Event) {
           <div class="time-input">
             <label class="time-label">
               <iconify-icon icon="ph:moon-duotone"></iconify-icon>
-              Dark
+              {{ t('theme.dark') }}
             </label>
             <input
               type="time"
@@ -190,13 +193,13 @@ function handleFileImport(event: Event) {
         </div>
         <div class="current-time">
           <iconify-icon icon="ph:clock-duotone"></iconify-icon>
-          <span class="current-time-label">Current time:</span>
+          <span class="current-time-label">{{ t('theme.currentTime') }}</span>
           <span class="current-time-value">{{ currentTime }}</span>
         </div>
       </PanelSection>
 
       <!-- Accent Color Presets -->
-      <PanelSection title="Accent Presets" icon="ph:paint-brush-duotone" collapsible>
+      <PanelSection :title="t('theme.accentPresets')" icon="ph:paint-brush-duotone" collapsible>
         <div class="accent-grid">
           <BaseTooltip
             v-for="preset in accentPresets"
@@ -219,23 +222,23 @@ function handleFileImport(event: Event) {
       </PanelSection>
 
       <!-- Custom Accent Color -->
-      <PanelSection title="Custom Colors" icon="ph:eyedropper-duotone" collapsible>
+      <PanelSection :title="t('theme.customColors')" icon="ph:eyedropper-duotone" collapsible>
         <div class="color-pickers">
           <BaseColorPicker
             variant="inline"
-            label="Primary"
+            :label="t('theme.primary')"
             :modelValue="themeStore.accentPrimary"
             @update:modelValue="themeStore.setAccentPrimary($event)"
           />
           <BaseColorPicker
             variant="inline"
-            label="Secondary"
+            :label="t('theme.secondary')"
             :modelValue="themeStore.accentSecondary"
             @update:modelValue="themeStore.setAccentSecondary($event)"
           />
         </div>
         <BaseSlider
-          label="Gradient Angle"
+          :label="t('theme.gradientAngle')"
           :modelValue="themeStore.gradientDirection"
           @update:modelValue="themeStore.setGradientDirection($event)"
           :min="0"
@@ -244,7 +247,7 @@ function handleFileImport(event: Event) {
           unit="°"
         />
         <BaseSlider
-          label="Saturation"
+          :label="t('theme.saturation')"
           :modelValue="themeStore.saturation"
           @update:modelValue="themeStore.setSaturation($event)"
           :min="0"
@@ -255,10 +258,10 @@ function handleFileImport(event: Event) {
       </PanelSection>
 
       <!-- Glass Settings -->
-      <PanelSection title="Glass Effect" icon="ph:drop-duotone" collapsible>
+      <PanelSection :title="t('theme.glassEffect')" icon="ph:drop-duotone" collapsible>
         <div class="settings-group">
           <BaseSlider
-            label="Blur"
+            :label="t('theme.blur')"
             :modelValue="themeStore.glassBlur"
             @update:modelValue="themeStore.setGlassBlur($event)"
             :min="0"
@@ -267,7 +270,7 @@ function handleFileImport(event: Event) {
             unit="px"
           />
           <BaseSlider
-            label="Opacity"
+            :label="t('theme.opacity')"
             :modelValue="themeStore.glassOpacity"
             @update:modelValue="themeStore.setGlassOpacity($event)"
             :min="50"
@@ -276,7 +279,7 @@ function handleFileImport(event: Event) {
             unit="%"
           />
           <BaseSlider
-            label="Tint"
+            :label="t('theme.tint')"
             :modelValue="themeStore.glassTint"
             @update:modelValue="themeStore.setGlassTint($event)"
             :min="0"
@@ -285,7 +288,7 @@ function handleFileImport(event: Event) {
             unit="%"
           />
           <BaseSlider
-            label="Noise"
+            :label="t('theme.noise')"
             :modelValue="themeStore.noiseTexture"
             @update:modelValue="themeStore.setNoiseTexture($event)"
             :min="0"
@@ -294,7 +297,7 @@ function handleFileImport(event: Event) {
             unit="%"
           />
           <BaseSlider
-            label="Shadow"
+            :label="t('theme.shadow')"
             :modelValue="themeStore.shadowIntensity"
             @update:modelValue="themeStore.setShadowIntensity($event)"
             :min="0"
@@ -306,7 +309,7 @@ function handleFileImport(event: Event) {
       </PanelSection>
 
       <!-- Layout -->
-      <PanelSection title="Layout" icon="ph:layout-duotone" collapsible>
+      <PanelSection :title="t('theme.layout')" icon="ph:layout-duotone" collapsible>
         <div class="layout-preview">
           <div class="layout-preview-screen">
             <div 
@@ -320,7 +323,7 @@ function handleFileImport(event: Event) {
           </div>
         </div>
         <div class="option-group">
-          <span class="option-label">Sidebar Position</span>
+          <span class="option-label">{{ t('theme.sidebarPosition') }}</span>
           <div class="option-buttons">
             <button
               v-for="pos in sidebarPositions"
@@ -337,7 +340,7 @@ function handleFileImport(event: Event) {
 
         <!-- Panel Size Presets -->
         <div class="option-group" style="margin-top: 14px;">
-          <span class="option-label">Panel Size</span>
+          <span class="option-label">{{ t('theme.panelSize') }}</span>
           <div class="size-tabs">
             <button
               v-for="tab in sizeTabs"
@@ -385,10 +388,10 @@ function handleFileImport(event: Event) {
         <div 
           class="toggle-group" 
           style="margin-top: 14px;"
-          :title="themeStore.compactMode ? 'Disable Compact Mode to enable custom resize' : ''"
+          :title="themeStore.compactMode ? t('theme.disableCompactForResize') : ''"
         >
           <BaseToggle
-            label="Allow Custom Resize"
+            :label="t('theme.allowCustomResize')"
             :modelValue="uiStore.allowCustomResize"
             :disabled="themeStore.compactMode"
             @update:modelValue="uiStore.setAllowCustomResize($event)"
@@ -398,22 +401,22 @@ function handleFileImport(event: Event) {
         <p class="layout-hint">
           <iconify-icon icon="ph:info-duotone"></iconify-icon>
           <template v-if="themeStore.compactMode">
-            Disable Compact Mode to allow custom resize
+            {{ t('theme.disableCompactForResize') }}
           </template>
           <template v-else-if="uiStore.allowCustomResize">
-            Drag the panel edge to resize
+            {{ t('theme.dragEdgeToResize') }}
           </template>
           <template v-else>
-            Custom resize disabled, use size presets
+            {{ t('theme.customResizeDisabled') }}
           </template>
         </p>
       </PanelSection>
 
       <!-- UI Settings -->
-      <PanelSection title="Interface" icon="ph:sliders-horizontal-duotone" collapsible>
+      <PanelSection :title="t('theme.interface')" icon="ph:sliders-horizontal-duotone" collapsible>
         <div class="settings-group">
           <BaseSlider
-            label="Roundness"
+            :label="t('theme.roundness')"
             :modelValue="themeStore.borderRadius"
             @update:modelValue="themeStore.setBorderRadius($event)"
             :min="0"
@@ -422,7 +425,7 @@ function handleFileImport(event: Event) {
             unit="px"
           />
           <BaseSlider
-            label="Contrast"
+            :label="t('theme.contrast')"
             :modelValue="themeStore.surfaceContrast"
             @update:modelValue="themeStore.setSurfaceContrast($event)"
             :min="0"
@@ -431,7 +434,7 @@ function handleFileImport(event: Event) {
             unit="%"
           />
           <BaseSlider
-            label="Animation"
+            :label="t('theme.animation')"
             :modelValue="themeStore.animationSpeed"
             @update:modelValue="themeStore.setAnimationSpeed($event)"
             :min="0.5"
@@ -443,20 +446,20 @@ function handleFileImport(event: Event) {
       </PanelSection>
 
       <!-- Toggles -->
-      <PanelSection title="Effects" icon="ph:sparkle-duotone" collapsible>
+      <PanelSection :title="t('theme.effects')" icon="ph:sparkle-duotone" collapsible>
         <div class="toggle-group">
           <BaseToggle
-            label="Panel Borders"
+            :label="t('theme.panelBorders')"
             :modelValue="themeStore.panelBorder"
             @update:modelValue="themeStore.setPanelBorder($event)"
           />
           <BaseToggle
-            label="Glow Effects"
+            :label="t('theme.glowEffects')"
             :modelValue="themeStore.glowEffects"
             @update:modelValue="themeStore.setGlowEffects($event)"
           />
           <BaseToggle
-            label="Compact Mode"
+            :label="t('theme.compactMode')"
             :modelValue="themeStore.compactMode"
             @update:modelValue="themeStore.setCompactMode($event)"
           />
@@ -464,15 +467,15 @@ function handleFileImport(event: Event) {
       </PanelSection>
 
       <!-- Accessibility -->
-      <PanelSection title="Accessibility" icon="ph:eye-duotone" collapsible>
+      <PanelSection :title="t('theme.accessibility')" icon="ph:eye-duotone" collapsible>
         <div class="toggle-group">
           <BaseToggle
-            label="High Contrast"
+            :label="t('theme.highContrast')"
             :modelValue="themeStore.highContrast"
             @update:modelValue="themeStore.setHighContrast($event)"
           />
           <BaseToggle
-            label="Focus Indicators"
+            :label="t('theme.focusIndicators')"
             :modelValue="themeStore.focusIndicators"
             @update:modelValue="themeStore.setFocusIndicators($event)"
           />
@@ -480,10 +483,10 @@ function handleFileImport(event: Event) {
       </PanelSection>
 
       <!-- Cursor Flashlight -->
-      <PanelSection title="Cursor Flashlight" icon="ph:flashlight-duotone" collapsible>
+      <PanelSection :title="t('theme.cursorFlashlight')" icon="ph:flashlight-duotone" collapsible>
         <div class="toggle-group">
           <BaseToggle
-            label="Enable Flashlight"
+            :label="t('theme.enableFlashlight')"
             :modelValue="themeStore.cursorFlashlight"
             @update:modelValue="themeStore.setCursorFlashlight($event)"
           />
@@ -491,7 +494,7 @@ function handleFileImport(event: Event) {
         <template v-if="themeStore.cursorFlashlight">
           <div class="settings-group" style="margin-top: 12px;">
             <BaseSlider
-              label="Size"
+              :label="t('theme.size')"
               :modelValue="themeStore.flashlightSize"
               @update:modelValue="themeStore.setFlashlightSize($event)"
               :min="100"
@@ -500,7 +503,7 @@ function handleFileImport(event: Event) {
               unit="px"
             />
             <BaseSlider
-              label="Intensity"
+              :label="t('theme.intensity')"
               :modelValue="themeStore.flashlightIntensity"
               @update:modelValue="themeStore.setFlashlightIntensity($event)"
               :min="10"
@@ -510,7 +513,7 @@ function handleFileImport(event: Event) {
             />
             <BaseColorPicker
               variant="inline"
-              label="Color"
+              :label="t('theme.color')"
               :modelValue="themeStore.flashlightColor"
               @update:modelValue="themeStore.setFlashlightColor($event)"
             />
@@ -519,21 +522,21 @@ function handleFileImport(event: Event) {
       </PanelSection>
 
       <!-- Actions -->
-      <PanelSection title="Actions" icon="ph:gear-six-duotone" collapsible>
+      <PanelSection :title="t('theme.actions')" icon="ph:gear-six-duotone" collapsible>
         <div class="action-buttons">
           <BaseButton
             variant="secondary"
             icon="ph:download-duotone"
             @click="handleExport"
           >
-            Export
+            {{ t('theme.export') }}
           </BaseButton>
           <BaseButton
             variant="secondary"
             icon="ph:upload-duotone"
             @click="showImportDialog = true"
           >
-            Import
+            {{ t('theme.import') }}
           </BaseButton>
         </div>
         <BaseButton
@@ -543,7 +546,7 @@ function handleFileImport(event: Event) {
           style="margin-top: 10px;"
           @click="themeStore.resetToDefaults"
         >
-          Reset to Default
+          {{ t('theme.resetToDefault') }}
         </BaseButton>
       </PanelSection>
 
@@ -553,7 +556,7 @@ function handleFileImport(event: Event) {
         <div v-if="showImportDialog" class="modal-overlay" @click.self="showImportDialog = false">
           <div class="modal-container">
             <div class="modal-header">
-              <h3>Import Theme</h3>
+              <h3>{{ t('theme.importTheme') }}</h3>
               <button class="close-btn" @click="showImportDialog = false">
                 <iconify-icon icon="ph:x-bold"></iconify-icon>
               </button>
@@ -562,7 +565,7 @@ function handleFileImport(event: Event) {
               <div class="import-option">
                 <label class="file-input-label">
                   <iconify-icon icon="ph:file-duotone"></iconify-icon>
-                  Choose File
+                  {{ t('theme.chooseFile') }}
                   <input
                     type="file"
                     accept=".json"
@@ -570,17 +573,17 @@ function handleFileImport(event: Event) {
                   />
                 </label>
               </div>
-              <div class="or-divider">or paste JSON</div>
+              <div class="or-divider">{{ t('theme.orPasteJson') }}</div>
               <textarea
                 v-model="importJson"
-                placeholder='{"mode": "dark", ...}'
+                :placeholder="t('theme.importJsonPlaceholder')"
                 class="import-textarea"
               ></textarea>
               <p v-if="importError" class="import-error">{{ importError }}</p>
             </div>
             <div class="modal-footer">
-              <BaseButton variant="ghost" @click="showImportDialog = false">Cancel</BaseButton>
-              <BaseButton variant="primary" @click="handleImport">Import</BaseButton>
+              <BaseButton variant="ghost" @click="showImportDialog = false">{{ t('theme.cancel') }}</BaseButton>
+              <BaseButton variant="primary" @click="handleImport">{{ t('theme.import') }}</BaseButton>
             </div>
           </div>
         </div>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useUIStore } from '@/stores/ui';
 import { useThemeStore } from '@/stores/theme';
 
@@ -15,6 +16,7 @@ withDefaults(defineProps<{
 
 const uiStore = useUIStore();
 const themeStore = useThemeStore();
+const { t } = useI18n();
 
 type PanelRatio = 0.25 | 0.5 | 1;
 
@@ -25,16 +27,16 @@ interface SizeButtonConfig {
   icon: string;
 }
 
-const baseSizeButtons: SizeButtonConfig[] = [
-  { id: 'small', ratio: 0.25, label: 'Resize panel to 25%', icon: 'ph:arrows-in-simple-duotone' },
-  { id: 'medium', ratio: 0.5, label: 'Resize panel to 50%', icon: 'ph:arrows-horizontal-duotone' },
-  { id: 'large', ratio: 1, label: 'Resize panel to 100%', icon: 'ph:arrows-out-simple-duotone' },
-];
+const baseSizeButtons = computed<SizeButtonConfig[]>(() => [
+  { id: 'small', ratio: 0.25, label: t('ui.resizePanel25'), icon: 'ph:arrows-in-simple-duotone' },
+  { id: 'medium', ratio: 0.5, label: t('ui.resizePanel50'), icon: 'ph:arrows-horizontal-duotone' },
+  { id: 'large', ratio: 1, label: t('ui.resizePanel100'), icon: 'ph:arrows-out-simple-duotone' },
+]);
 
 const isRightSidebar = computed(() => themeStore.sidebarPosition === 'right');
 
 const orderedSizeButtons = computed(() =>
-  isRightSidebar.value ? [...baseSizeButtons].reverse() : baseSizeButtons,
+  isRightSidebar.value ? [...baseSizeButtons.value].reverse() : baseSizeButtons.value,
 );
 
 const currentRatio = computed(() => {
@@ -68,7 +70,7 @@ function closePanel() {
     >
       <button
         class="close-btn"
-        title="Close panel"
+        :title="t('ui.closePanel')"
         @click="closePanel"
       >
         <iconify-icon icon="ph:x"></iconify-icon>
@@ -94,7 +96,7 @@ function closePanel() {
     >
       <button
         class="close-btn"
-        title="Close panel"
+        :title="t('ui.closePanel')"
         @click="closePanel"
       >
         <iconify-icon icon="ph:x"></iconify-icon>

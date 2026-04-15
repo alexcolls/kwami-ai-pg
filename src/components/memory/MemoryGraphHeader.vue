@@ -1,5 +1,8 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import type { ViewMode } from './types'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   searchQuery: string
@@ -27,7 +30,7 @@ const emit = defineEmits<{
         :value="searchQuery"
         @input="emit('update:searchQuery', ($event.target as HTMLInputElement).value)"
         type="text" 
-        placeholder="Search graph.."
+        :placeholder="t('memoryGraph.searchPlaceholder')"
         class="search-input"
       />
     </div>
@@ -37,8 +40,8 @@ const emit = defineEmits<{
       @change="emit('update:filterType', ($event.target as HTMLSelectElement).value)"
       class="type-filter"
     >
-      <option v-for="t in entityTypes" :key="t" :value="t">
-        {{ t === 'all' ? 'All' : t.charAt(0).toUpperCase() + t.slice(1) }}
+      <option v-for="etype in entityTypes" :key="etype" :value="etype">
+        {{ etype === 'all' ? t('memoryGraph.filterAll') : etype.charAt(0).toUpperCase() + etype.slice(1) }}
       </option>
     </select>
     
@@ -48,7 +51,7 @@ const emit = defineEmits<{
         class="view-btn"
         :class="{ active: viewMode === '3d' }"
         @click="emit('update:viewMode', '3d')"
-        title="3D View"
+        :title="t('memoryGraph.view3d')"
       >
         <iconify-icon icon="ph:cube"></iconify-icon>
         3D
@@ -57,7 +60,7 @@ const emit = defineEmits<{
         class="view-btn"
         :class="{ active: viewMode === '2d' }"
         @click="emit('update:viewMode', '2d')"
-        title="2D View"
+        :title="t('memoryGraph.view2d')"
       >
         <iconify-icon icon="ph:graph"></iconify-icon>
         2D
@@ -68,7 +71,7 @@ const emit = defineEmits<{
       class="toggle-btn" 
       :class="{ active: showEdgeLabels }"
       @click="emit('update:showEdgeLabels', !showEdgeLabels)"
-      title="Toggle edge labels"
+      :title="t('memoryGraph.toggleEdgeLabels')"
     >
       <iconify-icon icon="ph:text-aa"></iconify-icon>
     </button>

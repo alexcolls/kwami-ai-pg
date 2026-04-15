@@ -1,5 +1,8 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n';
 import { useSearchResults } from '@/composables/useSearchResults';
+
+const { t } = useI18n();
 
 const {
   query,
@@ -18,21 +21,21 @@ const {
         v-if="hasSearchData || error"
         class="search-card"
         role="region"
-        aria-label="Web search results"
+        :aria-label="t('searchUi.ariaRegion')"
       >
       <div class="search-card-glow" aria-hidden="true" />
       <div class="search-card-inner">
         <header class="search-card-header">
           <span class="search-card-badge">
             <iconify-icon icon="ph:magnifying-glass-duotone" />
-            <span>Web search</span>
+            <span>{{ t('searchUi.webSearch') }}</span>
           </span>
           <button
             type="button"
             class="search-card-close"
             @click="clear"
-            title="Close"
-            aria-label="Close search results"
+            :title="t('searchUi.close')"
+            :aria-label="t('searchUi.closeAria')"
           >
             <iconify-icon icon="ph:x" />
           </button>

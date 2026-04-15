@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useAuthStore } from '@/stores/auth';
 import BaseInput from '@/components/ui/BaseInput.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
 
 const authStore = useAuthStore();
+const { t } = useI18n();
 
 // Form state
 const email = ref('');
@@ -34,10 +36,10 @@ const isNewUser = computed(() => {
 const showPasswordFields = computed(() => emailChecked.value);
 
 const buttonText = computed(() => {
-  if (isCheckingEmail.value) return 'Checking...';
-  if (!emailChecked.value) return 'Continue';
-  if (isNewUser.value) return 'Sign Up';
-  return 'Sign In';
+  if (isCheckingEmail.value) return t('auth.checking');
+  if (!emailChecked.value) return t('auth.continue');
+  if (isNewUser.value) return t('auth.signUp');
+  return t('auth.signIn');
 });
 
 const canSubmit = computed(() => {
@@ -107,11 +109,11 @@ async function handleSubmit() {
   // Validate for signup
   if (isNewUser.value) {
     if (password.value !== confirmPassword.value) {
-      formError.value = 'Passwords do not match';
+      formError.value = t('auth.passwordsDoNotMatch');
       return;
     }
     if (password.value.length < 6) {
-      formError.value = 'Password must be at least 6 characters';
+      formError.value = t('auth.passwordTooShort');
       return;
     }
   }
@@ -122,9 +124,9 @@ async function handleSubmit() {
     // Sign up
     const result = await authStore.signUpWithEmail(email.value, password.value);
     if (!result.success) {
-      formError.value = result.error?.message || 'Failed to sign up';
+      formError.value = result.error?.message || t('auth.failedSignUp');
     } else if (result.data?.user && !result.data?.session) {
-      successMessage.value = 'Check your email to confirm your account';
+      successMessage.value = t('auth.confirmByEmail');
     }
   } else {
     // Sign in
@@ -132,9 +134,9 @@ async function handleSubmit() {
     if (!result.success) {
       // If user not found, suggest switching to sign up
       if (result.error?.message?.toLowerCase().includes('invalid login credentials')) {
-        formError.value = 'Invalid credentials. New user? Click below to sign up.';
+        formError.value = t('auth.invalidCredentialsSuggestSignup');
       } else {
-        formError.value = result.error?.message || 'Failed to sign in';
+        formError.value = result.error?.message || t('auth.failedSignIn');
       }
     }
   }
@@ -160,9 +162,9 @@ function changeEmail() {
     <div class="email-row">
       <BaseInput
         v-model="email"
-        label="Email"
+        :label="t('auth.email')"
         type="email"
-        placeholder="you@example.com"
+        :placeholder="t('auth.emailPlaceholder')"
         icon="ph:envelope"
         :disabled="isSubmitting || isCheckingEmail || emailChecked"
         block
@@ -172,7 +174,7 @@ function changeEmail() {
         type="button"
         class="change-email-btn"
         @click="changeEmail"
-        title="Change email"
+        :title="t('auth.changeEmail')"
       >
         <iconify-icon icon="ph:pencil-simple"></iconify-icon>
       </button>
@@ -183,9 +185,9 @@ function changeEmail() {
       <div v-if="showPasswordFields" class="password-fields">
         <BaseInput
           v-model="password"
-          label="Password"
+          :label="t('auth.password')"
           type="password"
-          :placeholder="isNewUser ? 'At least 6 characters' : 'Your password'"
+          :placeholder="isNewUser ? t('auth.passwordMinPlaceholder') : t('auth.passwordPlaceholder')"
           icon="ph:lock"
           :disabled="isSubmitting"
           block
@@ -196,9 +198,9 @@ function changeEmail() {
           <BaseInput
             v-if="isNewUser"
             v-model="confirmPassword"
-            label="Confirm Password"
+            :label="t('auth.confirmPassword')"
             type="password"
-            placeholder="Confirm your password"
+            :placeholder="t('auth.confirmPasswordPlaceholder')"
             icon="ph:lock-key"
             :disabled="isSubmitting"
             block
@@ -227,10 +229,10 @@ function changeEmail() {
     <Transition name="fade">
       <div v-if="emailChecked" class="mode-toggle">
         <span class="mode-text">
-          {{ isNewUser ? 'Already have an account?' : "Don't have an account?" }}
+          {{ isNewUser ? t('auth.alreadyHaveAccount') : t('auth.noAccount') }}
         </span>
         <button type="button" class="mode-link" @click="toggleMode">
-          {{ isNewUser ? 'Sign in' : 'Sign up' }}
+          {{ isNewUser ? t('auth.signIn') : t('auth.signUp') }}
         </button>
       </div>
     </Transition>

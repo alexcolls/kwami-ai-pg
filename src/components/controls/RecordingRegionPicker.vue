@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { useI18n } from 'vue-i18n';
 import type { ViewportRegion } from '@/composables/useRecording';
 
 interface Props {
@@ -8,6 +9,7 @@ interface Props {
 }
 const props = defineProps<Props>();
 const emit = defineEmits<{ confirm: [ViewportRegion]; cancel: [] }>();
+const { t } = useI18n();
 
 // Selection in viewport CSS pixels (same coordinate space as getBoundingClientRect)
 const sel = ref({ x: 0, y: 0, w: 0, h: 0 });
@@ -193,13 +195,13 @@ onUnmounted(() => {
     <div class="picker-bar">
       <span class="picker-hint">
         <iconify-icon icon="ph:arrows-out-bold"></iconify-icon>
-        Drag corners to resize · Drag inside to move
+        {{ t('recording.dragResizeMove') }}
       </span>
       <div class="picker-actions">
-        <button class="btn-cancel" @click="$emit('cancel')">Cancel</button>
+        <button class="btn-cancel" @click="$emit('cancel')">{{ t('recording.cancel') }}</button>
         <button class="btn-record" @click="confirm">
           <iconify-icon icon="ph:record-fill"></iconify-icon>
-          <span>Start Recording</span>
+          <span>{{ t('recording.startRecording') }}</span>
         </button>
       </div>
     </div>

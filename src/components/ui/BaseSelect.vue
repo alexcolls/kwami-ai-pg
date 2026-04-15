@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 const props = defineProps<{
   modelValue: string | number;
@@ -12,6 +13,7 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits(['update:modelValue']);
+const { t } = useI18n();
 
 const isOpen = ref(false);
 const selectRef = ref<HTMLElement | null>(null);
@@ -167,7 +169,7 @@ onUnmounted(() => {
     >
       <span class="select-value" :class="{ placeholder: !selectedOption }">
         <iconify-icon v-if="selectedOption?.icon" :icon="selectedOption.icon" class="option-icon"></iconify-icon>
-        {{ selectedOption?.label || placeholder || 'Select...' }}
+        {{ selectedOption?.label || placeholder || t('ui.selectPlaceholder') }}
       </span>
       <iconify-icon icon="ph:caret-up-down-bold" class="caret"></iconify-icon>
     </button>

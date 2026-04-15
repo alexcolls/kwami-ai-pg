@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n';
 import { storeToRefs } from 'pinia';
 import { useBlackHoleStore } from '@/stores/avatar.black-hole';
 import { randomInRange } from '@/utils/color';
@@ -10,6 +11,7 @@ import MicrophoneControl from './MicrophoneControl.vue';
 
 const blackHoleStore = useBlackHoleStore();
 const { audio } = storeToRefs(blackHoleStore);
+const { t } = useI18n();
 
 function randomizeAudio() {
   audio.value.reactivity = randomInRange(0.5, 2, 0.1);
@@ -26,43 +28,43 @@ function randomizeFrequencyEffects() {
 </script>
 
 <template>
-  <PanelSection title="Black Hole Audio" icon="ph:waveform-duotone" collapsible>
-    <p class="section-desc">Configure how the black hole reacts to sound input.</p>
+  <PanelSection :title="t('audioPanel.blackHoleTitle')" icon="ph:waveform-duotone" collapsible>
+    <p class="section-desc">{{ t('audioPanel.blackHoleDesc') }}</p>
   </PanelSection>
 
-  <PanelSection title="Audio Reactivity" icon="ph:microphone-duotone" collapsible>
+  <PanelSection :title="t('audioPanel.audioReactivity')" icon="ph:microphone-duotone" collapsible>
     <template #actions>
-      <button class="dice-btn" @click="randomizeAudio" title="Randomize audio settings">
+      <button class="dice-btn" @click="randomizeAudio" :title="t('audioPanel.randomizeAudioSettings')">
         <iconify-icon icon="ph:dice-three-duotone"></iconify-icon>
       </button>
     </template>
-    <p class="section-desc">How the black hole responds to sound</p>
+    <p class="section-desc">{{ t('audioPanel.blackHoleReactsToSound') }}</p>
 
     <div class="toggle-row">
-      <BaseToggle label="Enable Audio Effects" v-model="audio.enabled" />
+      <BaseToggle :label="t('audioPanel.enableAudioEffects')" v-model="audio.enabled" />
     </div>
 
     <MicrophoneControl />
     <AudioVisualizer />
 
     <div v-if="audio.enabled" class="slider-group" style="margin-top: 12px">
-      <BaseSlider label="Reactivity" :min="0" :max="2" :step="0.1" v-model="audio.reactivity" />
-      <BaseSlider label="Smoothing" :min="0.5" :max="0.99" :step="0.01" v-model="audio.smoothing" />
+      <BaseSlider :label="t('audioPanel.reactivity')" :min="0" :max="2" :step="0.1" v-model="audio.reactivity" />
+      <BaseSlider :label="t('audioPanel.smoothing')" :min="0.5" :max="0.99" :step="0.01" v-model="audio.smoothing" />
     </div>
   </PanelSection>
 
-  <PanelSection v-if="audio.enabled" title="Frequency Response" icon="ph:equalizer-duotone" collapsible>
+  <PanelSection v-if="audio.enabled" :title="t('audioPanel.frequencyResponse')" icon="ph:equalizer-duotone" collapsible>
     <template #actions>
-      <button class="dice-btn" @click="randomizeFrequencyEffects" title="Randomize frequency response">
+      <button class="dice-btn" @click="randomizeFrequencyEffects" :title="t('audioPanel.randomizeFrequencyResponse')">
         <iconify-icon icon="ph:dice-three-duotone"></iconify-icon>
       </button>
     </template>
-    <p class="section-desc">How different frequencies affect the visualization</p>
+    <p class="section-desc">{{ t('audioPanel.frequencyResponseDesc') }}</p>
 
     <div class="slider-group">
-      <BaseSlider label="Bass (Disk Glow)" :min="0" :max="1" :step="0.05" v-model="audio.frequencyEffects.bassDiskGlow" />
-      <BaseSlider label="Mid (Disk Speed)" :min="0" :max="1" :step="0.05" v-model="audio.frequencyEffects.midDiskSpeed" />
-      <BaseSlider label="High (Star Twinkle)" :min="0" :max="1" :step="0.05" v-model="audio.frequencyEffects.highStarTwinkle" />
+      <BaseSlider :label="t('audioPanel.bassDiskGlow')" :min="0" :max="1" :step="0.05" v-model="audio.frequencyEffects.bassDiskGlow" />
+      <BaseSlider :label="t('audioPanel.midDiskSpeed')" :min="0" :max="1" :step="0.05" v-model="audio.frequencyEffects.midDiskSpeed" />
+      <BaseSlider :label="t('audioPanel.highStarTwinkle')" :min="0" :max="1" :step="0.05" v-model="audio.frequencyEffects.highStarTwinkle" />
     </div>
   </PanelSection>
 </template>

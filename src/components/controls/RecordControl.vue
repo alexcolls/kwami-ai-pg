@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, onUnmounted } from 'vue';
+import { useI18n } from 'vue-i18n';
 import RecordingRegionPicker from './RecordingRegionPicker.vue';
 import { useRecording } from '@/composables/useRecording';
 import type { ViewportRegion, RecordingReadyDetail } from '@/composables/useRecording';
@@ -17,6 +18,7 @@ interface FormatOption {
 }
 
 const { startCanvasRecording } = useRecording();
+const { t } = useI18n();
 
 const isOpen = ref(false);
 const selectedFormat = ref<VideoFormat>('fullscreen');
@@ -139,7 +141,7 @@ onUnmounted(() => {
         class="record-btn"
         :class="{ active: isOpen, recording: isRecording, saving: isSaving }"
         :disabled="isSaving"
-        :title="isRecording ? 'Stop Recording' : isSaving ? 'Saving…' : 'Record'"
+        :title="isRecording ? t('recording.stopRecording') : isSaving ? t('recording.saving') : t('recording.record')"
         @click="isRecording ? stopRecording() : !isSaving && togglePopover()"
       >
         <iconify-icon
@@ -148,7 +150,7 @@ onUnmounted(() => {
         ></iconify-icon>
       </button>
       <span v-if="isRecording" class="recording-duration">{{ formattedDuration }}</span>
-      <span v-if="isSaving" class="recording-duration saving-label">Saving…</span>
+      <span v-if="isSaving" class="recording-duration saving-label">{{ t('recording.saving') }}</span>
     </div>
 
     <!-- Format popover -->
@@ -158,7 +160,7 @@ onUnmounted(() => {
 
         <div class="popover-header">
           <iconify-icon icon="ph:video-camera-bold"></iconify-icon>
-          <span>Record Video</span>
+          <span>{{ t('recording.recordVideo') }}</span>
         </div>
 
         <div class="format-tabs">
@@ -185,12 +187,12 @@ onUnmounted(() => {
         <div class="mic-row">
           <div class="mic-label">
             <iconify-icon :icon="includeMic ? 'ph:microphone-bold' : 'ph:microphone-slash-bold'"></iconify-icon>
-            <span>Microphone</span>
+            <span>{{ t('recording.microphone') }}</span>
           </div>
           <button
             class="mic-toggle"
             :class="{ on: includeMic }"
-            :title="includeMic ? 'Disable microphone' : 'Enable microphone'"
+            :title="includeMic ? t('recording.disableMic') : t('recording.enableMic')"
             @click="includeMic = !includeMic"
           >
             <span class="mic-toggle-knob"></span>
@@ -199,7 +201,7 @@ onUnmounted(() => {
 
         <button class="start-btn" @click="openPicker">
           <iconify-icon icon="ph:record-fill"></iconify-icon>
-          <span>Start Recording</span>
+          <span>{{ t('recording.startRecording') }}</span>
         </button>
       </div>
     </transition>
@@ -223,7 +225,7 @@ onUnmounted(() => {
             <div class="preview-header">
               <div class="preview-title">
                 <iconify-icon icon="ph:film-strip-bold"></iconify-icon>
-                <span>Recording Preview</span>
+                <span>{{ t('recording.recordingPreview') }}</span>
               </div>
               <button class="preview-close" title="Discard" @click="closePreview">
                 <iconify-icon icon="ph:x-bold"></iconify-icon>
@@ -237,11 +239,11 @@ onUnmounted(() => {
             <div class="preview-actions">
               <button class="preview-discard-btn" @click="closePreview">
                 <iconify-icon icon="ph:trash-bold"></iconify-icon>
-                <span>Discard</span>
+                <span>{{ t('recording.discard') }}</span>
               </button>
               <button class="preview-download-btn" @click="downloadRecording">
                 <iconify-icon icon="ph:download-bold"></iconify-icon>
-                <span>Download</span>
+                <span>{{ t('recording.download') }}</span>
               </button>
             </div>
           </div>

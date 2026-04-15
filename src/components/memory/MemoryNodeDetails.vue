@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { MemoryNode, MemoryEdge, MemoryGraph, UpdateNodePayload, UpdateEdgePayload } from './types'
 import { getNodeColorHex, formatDate } from './utils'
 import BaseSelect from '@/components/ui/BaseSelect.vue'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   node: MemoryNode | null
@@ -31,26 +34,31 @@ const editData = ref({
 const editingEdgeIndex = ref<number | null>(null)
 const editEdgeRelation = ref('')
 
-// Available entity types
-const entityTypeNames = [
+const entityTypeKeys = [
   'user', 'assistant', 'person', 'pet', 'location', 'place',
   'preference', 'topic', 'skill', 'project', 'organization',
   'product', 'event', 'activity', 'goal', 'procedure',
   'attribute', 'genre', 'artist', 'fact', 'tool', 'venue', 'entity',
-]
+] as const
 
-const entityTypeOptions = entityTypeNames.map(t => ({
-  label: t.charAt(0).toUpperCase() + t.slice(1),
-  value: t,
-}))
+function titleCaseEntityKey(key: string): string {
+  return key.charAt(0).toUpperCase() + key.slice(1)
+}
+
+const entityTypeOptions = computed(() =>
+  entityTypeKeys.map((key) => ({
+    label: t(`memoryNode.entityTypes.${key}`),
+    value: key,
+  })),
+)
 
 const labelAddOptions = computed(() =>
-  entityTypeNames
-    .filter(t => !editData.value.labels.includes(t.charAt(0).toUpperCase() + t.slice(1)))
-    .map(t => ({
-      label: t.charAt(0).toUpperCase() + t.slice(1),
-      value: t.charAt(0).toUpperCase() + t.slice(1),
-    }))
+  entityTypeKeys
+    .filter((key) => !editData.value.labels.includes(titleCaseEntityKey(key)))
+    .map((key) => ({
+      label: t(`memoryNode.entityTypes.${key}`),
+      value: titleCaseEntityKey(key),
+    })),
 )
 
 function getConnectedNodeLabel(nodeId: string): string {
@@ -150,7 +158,7 @@ watch(() => props.node, () => {
   <Transition name="slide">
     <div v-if="node" class="node-details-panel">
       <div class="panel-header">
-        <h3 class="panel-title">Node Details</h3>
+        <h3 class="panel-title">{{ t('memoryNode.title') }}</h3>
         <span 
           v-if="!isEditing"
           class="type-badge-header" 
@@ -163,7 +171,7 @@ watch(() => props.node, () => {
             v-if="!isEditing"
             class="header-btn edit-btn" 
             @click="startEditing" 
-            title="Edit node"
+            :title="t('memoryNode.editNode')"
           >
             <iconify-icon icon="ph:pencil-simple-duotone"></iconify-icon>
           </button>
@@ -178,31 +186,31 @@ watch(() => props.node, () => {
         <template v-if="!isEditing">
           <!-- Name -->
           <div class="detail-section">
-            <span class="detail-label">Name:</span>
+            <span class="detail-label">{{ t('memoryNode.nameColon') }}</span>
             <span class="detail-value name-value">{{ node.label }}</span>
           </div>
           
           <!-- UUID -->
           <div v-if="node.uuid" class="detail-section">
-            <span class="detail-label">UUID:</span>
+            <span class="detail-label">{{ t('memoryNode.uuid') }}</span>
             <span class="detail-value mono uuid-value">{{ node.uuid }}</span>
           </div>
           
           <!-- Created date -->
           <div v-if="node.created_at" class="detail-section">
-            <span class="detail-label">Created:</span>
+            <span class="detail-label">{{ t('memoryNode.created') }}</span>
             <span class="detail-value">{{ formatDate(node.created_at) }}</span>
           </div>
           
           <!-- Summary -->
           <div v-if="node.summary" class="detail-section summary-section">
-            <span class="detail-label">Summary:</span>
+            <span class="detail-label">{{ t('memoryNode.summaryColon') }}</span>
             <p class="summary-text">{{ node.summary }}</p>
           </div>
           
           <!-- Labels -->
           <div v-if="node.labels && node.labels.length > 0" class="detail-section">
-            <span class="detail-label">Labels:</span>
+            <span class="detail-label">{{ t('memoryNode.labelsColon') }}</span>
             <div class="labels-container">
               <span 
                 v-for="label in node.labels" 
@@ -218,7 +226,7 @@ watch(() => props.node, () => {
           <div v-if="edges.length > 0" class="connections-section">
             <span class="section-title">
               <iconify-icon icon="ph:link"></iconify-icon>
-              Connections ({{ edges.length }})
+              {{ t('memoryNode.connections', { count: edges.length }) }}
             </span>
             <div class="connections-list">
               <div 
@@ -247,7 +255,7 @@ watch(() => props.node, () => {
           
           <div v-else class="no-connections">
             <iconify-icon icon="ph:link-break"></iconify-icon>
-            No connections found
+            {{ t('memoryNode.noConnections') }}
           </div>
         </template>
         
@@ -255,11 +263,11 @@ watch(() => props.node, () => {
         <template v-else>
           <!-- Name -->
           <div class="edit-field">
-            <label class="edit-field-label">Name</label>
+            <label class="edit-field-label">{{ t('memoryNode.name') }}</label>
             <input
               v-model="editData.name"
               class="edit-input"
-              placeholder="Entity name..."
+              :placeholder="t('memoryNode.namePlaceholder')"
             />
           </div>
           
@@ -268,25 +276,25 @@ watch(() => props.node, () => {
             <BaseSelect
               v-model="editData.type"
               :options="entityTypeOptions"
-              label="Type"
+              :label="t('memoryNode.type')"
               icon="ph:tag-duotone"
             />
           </div>
           
           <!-- Summary -->
           <div class="edit-field">
-            <label class="edit-field-label">Summary</label>
+            <label class="edit-field-label">{{ t('memoryNode.summary') }}</label>
             <textarea
               v-model="editData.summary"
               class="edit-textarea"
-              placeholder="Summary..."
+              :placeholder="t('memoryNode.summaryPlaceholder')"
               rows="3"
             ></textarea>
           </div>
           
           <!-- Labels -->
           <div class="edit-field">
-            <label class="edit-field-label">Labels</label>
+            <label class="edit-field-label">{{ t('memoryNode.labels') }}</label>
             <div class="edit-labels-wrap">
               <span 
                 v-for="(label, li) in editData.labels" 
@@ -303,7 +311,7 @@ watch(() => props.node, () => {
                   :modelValue="editData.newLabel"
                   @update:modelValue="addLabel"
                   :options="labelAddOptions"
-                  placeholder="+ Add"
+                  :placeholder="t('memoryNode.addLabel')"
                 />
               </div>
             </div>
@@ -313,7 +321,7 @@ watch(() => props.node, () => {
           <div v-if="edges.length > 0" class="connections-section">
             <span class="section-title">
               <iconify-icon icon="ph:link"></iconify-icon>
-              Connections ({{ edges.length }})
+              {{ t('memoryNode.connections', { count: edges.length }) }}
             </span>
             <div class="connections-list">
               <div 
@@ -338,10 +346,10 @@ watch(() => props.node, () => {
                     }}
                   </span>
                   <div class="connection-actions">
-                    <button class="conn-btn" @click="startEditEdge(idx)" title="Edit relation">
+                    <button class="conn-btn" @click="startEditEdge(idx)" :title="t('memoryNode.editRelation')">
                       <iconify-icon icon="ph:pencil-simple"></iconify-icon>
                     </button>
-                    <button class="conn-btn danger" @click="handleDeleteEdge(idx)" title="Delete connection">
+                    <button class="conn-btn danger" @click="handleDeleteEdge(idx)" :title="t('memoryNode.deleteConnection')">
                       <iconify-icon icon="ph:trash-simple"></iconify-icon>
                     </button>
                   </div>
@@ -351,7 +359,7 @@ watch(() => props.node, () => {
                     <input
                       v-model="editEdgeRelation"
                       class="edit-relation-input"
-                      placeholder="Relation..."
+                      :placeholder="t('memoryNode.relationPlaceholder')"
                       @keydown.enter="saveEdge(idx)"
                       @keydown.escape="cancelEditEdge"
                     />
@@ -371,11 +379,11 @@ watch(() => props.node, () => {
           <div class="edit-footer">
             <button class="footer-btn save" @click="saveNode">
               <iconify-icon icon="ph:check-bold"></iconify-icon>
-              Save Changes
+              {{ t('memoryNode.saveChanges') }}
             </button>
             <button class="footer-btn cancel" @click="cancelEditing">
               <iconify-icon icon="ph:x-bold"></iconify-icon>
-              Cancel
+              {{ t('memoryNode.cancel') }}
             </button>
           </div>
         </template>

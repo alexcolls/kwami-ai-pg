@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { storeToRefs } from 'pinia';
 import { useKwami } from '@/composables/useKwami';
 import {
@@ -16,6 +17,7 @@ import BaseColorPicker from '@/components/ui/BaseColorPicker.vue';
 import AudioVisualizer from '../audio/AudioVisualizer.vue';
 import MicrophoneControl from '../audio/MicrophoneControl.vue';
 
+const { t } = useI18n();
 const { kwami } = useKwami();
 const blackHoleStore = useBlackHoleStore();
 const {
@@ -55,13 +57,20 @@ function testAction(action: any) {
 // OPTIONS
 // =====================================================
 
-const schemeOptions = [
-  { label: 'Classic', value: 'classic' },
-  { label: 'Fire', value: 'fire' },
-  { label: 'Ice', value: 'ice' },
-  { label: 'Nebula', value: 'nebula' },
-  { label: 'Void', value: 'void' },
-];
+const schemeOptions = computed(() => [
+  { label: t('blackHoleAvatar.schemeClassic'), value: 'classic' },
+  { label: t('blackHoleAvatar.schemeFire'), value: 'fire' },
+  { label: t('blackHoleAvatar.schemeIce'), value: 'ice' },
+  { label: t('blackHoleAvatar.schemeNebula'), value: 'nebula' },
+  { label: t('blackHoleAvatar.schemeVoid'), value: 'void' },
+]);
+
+const localizedActionOptions = computed(() =>
+  actionOptions.map((o) => ({ ...o, label: t(`avatarActions.${o.value}`) })),
+);
+const localizedCursorOptions = computed(() =>
+  cursorOptions.map((o) => ({ ...o, label: t(`avatarCursors.${o.value}`) })),
+);
 
 // =====================================================
 // HELPERS (Removed or replaced)
@@ -181,13 +190,13 @@ watch(
 
 <template>
   <!-- ==================== COLOR SCHEME ==================== -->
-  <PanelSection title="Color Scheme" icon="ph:palette-duotone" collapsible>
+  <PanelSection :title="t('blackHoleAvatar.colorScheme')" icon="ph:palette-duotone" collapsible>
     <template #actions>
-      <button class="dice-btn" @click="randomizeColorScheme" title="Randomize scheme">
+      <button class="dice-btn" @click="randomizeColorScheme" :title="t('blackHoleAvatar.randomizeScheme')">
         <iconify-icon icon="ph:dice-three-duotone"></iconify-icon>
       </button>
     </template>
-    <p class="section-desc">Visual color preset for the black hole</p>
+    <p class="section-desc">{{ t('blackHoleAvatar.colorSchemeDesc') }}</p>
     <div class="style-selector">
       <label
         v-for="option in schemeOptions"
@@ -221,42 +230,42 @@ watch(
   </PanelSection>
 
   <!-- ==================== DISK COLORS ==================== -->
-  <PanelSection title="Disk Colors" icon="ph:paint-brush-duotone" collapsible>
+  <PanelSection :title="t('blackHoleAvatar.diskColors')" icon="ph:paint-brush-duotone" collapsible>
     <template #actions>
-      <button class="dice-btn" @click="randomizeColors" title="Randomize colors">
+      <button class="dice-btn" @click="randomizeColors" :title="t('blobAvatar.randomizeColors')">
         <iconify-icon icon="ph:dice-three-duotone"></iconify-icon>
       </button>
     </template>
-    <p class="section-desc">Accretion disk gradient colors (inner to outer)</p>
+    <p class="section-desc">{{ t('blackHoleAvatar.diskColorsDesc') }}</p>
     <div class="color-grid">
-      <BaseColorPicker label="Hot (Inner)" v-model="colors.hot" />
-      <BaseColorPicker label="Mid 1" v-model="colors.mid1" />
-      <BaseColorPicker label="Mid 2" v-model="colors.mid2" />
-      <BaseColorPicker label="Mid 3" v-model="colors.mid3" />
-      <BaseColorPicker label="Outer" v-model="colors.outer" />
+      <BaseColorPicker :label="t('blackHoleAvatar.hotInner')" v-model="colors.hot" />
+      <BaseColorPicker :label="t('blackHoleAvatar.mid1')" v-model="colors.mid1" />
+      <BaseColorPicker :label="t('blackHoleAvatar.mid2')" v-model="colors.mid2" />
+      <BaseColorPicker :label="t('blackHoleAvatar.mid3')" v-model="colors.mid3" />
+      <BaseColorPicker :label="t('blackHoleAvatar.outer')" v-model="colors.outer" />
     </div>
   </PanelSection>
 
   <!-- ==================== SCALE & ZOOM ==================== -->
-  <PanelSection title="Scale & Zoom" icon="ph:arrows-out-duotone" collapsible>
-    <p class="section-desc">Control visualization size and camera zoom</p>
+  <PanelSection :title="t('blackHoleAvatar.scaleZoom')" icon="ph:arrows-out-duotone" collapsible>
+    <p class="section-desc">{{ t('blackHoleAvatar.scaleZoomDesc') }}</p>
     <div class="slider-group">
-      <BaseSlider label="Scale" :min="0.5" :max="2" :step="0.1" v-model="scale.value" />
-      <BaseSlider label="Camera Zoom" :min="0.5" :max="3" :step="0.1" v-model="cameraZoom.value" />
+      <BaseSlider :label="t('blobAvatar.scale')" :min="0.5" :max="2" :step="0.1" v-model="scale.value" />
+      <BaseSlider :label="t('blackHoleAvatar.cameraZoom')" :min="0.5" :max="3" :step="0.1" v-model="cameraZoom.value" />
     </div>
   </PanelSection>
 
   <!-- ==================== BLACK HOLE CENTER ==================== -->
-  <PanelSection title="Black Hole Center" icon="ph:circle-fill" collapsible>
+  <PanelSection :title="t('blackHoleAvatar.blackHoleCenter')" icon="ph:circle-fill" collapsible>
     <template #actions>
-      <button class="dice-btn" @click="randomizeCore" title="Randomize core">
+      <button class="dice-btn" @click="randomizeCore" :title="t('blackHoleAvatar.randomizeCore')">
         <iconify-icon icon="ph:dice-three-duotone"></iconify-icon>
       </button>
     </template>
-    <p class="section-desc">Size and appearance of the dark center sphere</p>
+    <p class="section-desc">{{ t('blackHoleAvatar.centerDesc') }}</p>
     <div class="slider-group">
       <BaseSlider
-        label="Black Hole Radius"
+        :label="t('blackHoleAvatar.blackHoleRadius')"
         :min="0.5"
         :max="3"
         :step="0.1"
@@ -266,91 +275,91 @@ watch(
   </PanelSection>
 
   <!-- ==================== EVENT HORIZON ==================== -->
-  <PanelSection title="Event Horizon" icon="ph:circle-duotone" collapsible>
-    <p class="section-desc">The glowing shell around the black hole</p>
+  <PanelSection :title="t('blackHoleAvatar.eventHorizon')" icon="ph:circle-duotone" collapsible>
+    <p class="section-desc">{{ t('blackHoleAvatar.eventHorizonDesc') }}</p>
     <div class="slider-group">
       <BaseSlider
-        label="Event Horizon Radius"
+        :label="t('blackHoleAvatar.eventHorizonRadius')"
         :min="0.5"
         :max="4"
         :step="0.1"
         v-model="core.eventHorizonRadius"
       />
       <BaseSlider
-        label="Glow Intensity"
+        :label="t('blackHoleAvatar.glowIntensity')"
         :min="0.2"
         :max="2"
         :step="0.1"
         v-model="core.glowIntensity"
       />
-      <BaseSlider label="Pulse Speed" :min="0.5" :max="5" :step="0.5" v-model="core.pulseSpeed" />
+      <BaseSlider :label="t('blackHoleAvatar.pulseSpeed')" :min="0.5" :max="5" :step="0.5" v-model="core.pulseSpeed" />
     </div>
   </PanelSection>
 
   <!-- ==================== ACCRETION DISK ==================== -->
-  <PanelSection title="Accretion Disk" icon="ph:spiral-duotone" collapsible>
+  <PanelSection :title="t('blackHoleAvatar.accretionDisk')" icon="ph:spiral-duotone" collapsible>
     <template #actions>
-      <button class="dice-btn" @click="randomizeDisk" title="Randomize disk">
+      <button class="dice-btn" @click="randomizeDisk" :title="t('blackHoleAvatar.randomizeDisk')">
         <iconify-icon icon="ph:dice-three-duotone"></iconify-icon>
       </button>
     </template>
-    <p class="section-desc">Swirling matter disk configuration</p>
+    <p class="section-desc">{{ t('blackHoleAvatar.accretionDesc') }}</p>
     <div class="slider-group">
-      <BaseSlider label="Inner Gap" :min="0" :max="1" :step="0.05" v-model="disk.innerRadius" />
-      <BaseSlider label="Outer Radius" :min="4" :max="15" :step="0.5" v-model="disk.outerRadius" />
-      <BaseSlider label="Flow Speed" :min="0.05" :max="0.5" :step="0.01" v-model="disk.flowSpeed" />
-      <BaseSlider label="Noise Scale" :min="1" :max="5" :step="0.5" v-model="disk.noiseScale" />
-      <BaseSlider label="Density" :min="0.5" :max="2" :step="0.1" v-model="disk.density" />
-      <BaseSlider label="Tilt Angle" :min="0.5" :max="1.57" :step="0.1" v-model="disk.tiltAngle" />
+      <BaseSlider :label="t('blackHoleAvatar.innerGap')" :min="0" :max="1" :step="0.05" v-model="disk.innerRadius" />
+      <BaseSlider :label="t('blackHoleAvatar.outerRadius')" :min="4" :max="15" :step="0.5" v-model="disk.outerRadius" />
+      <BaseSlider :label="t('blackHoleAvatar.flowSpeed')" :min="0.05" :max="0.5" :step="0.01" v-model="disk.flowSpeed" />
+      <BaseSlider :label="t('blackHoleAvatar.noiseScale')" :min="1" :max="5" :step="0.5" v-model="disk.noiseScale" />
+      <BaseSlider :label="t('blackHoleAvatar.density')" :min="0.5" :max="2" :step="0.1" v-model="disk.density" />
+      <BaseSlider :label="t('blackHoleAvatar.tiltAngle')" :min="0.5" :max="1.57" :step="0.1" v-model="disk.tiltAngle" />
     </div>
   </PanelSection>
 
   <!-- ==================== POST-PROCESSING EFFECTS ==================== -->
-  <PanelSection title="Effects" icon="ph:sparkle-duotone" collapsible>
+  <PanelSection :title="t('blackHoleAvatar.effects')" icon="ph:sparkle-duotone" collapsible>
     <template #actions>
-      <button class="dice-btn" @click="randomizeEffects" title="Randomize effects">
+      <button class="dice-btn" @click="randomizeEffects" :title="t('blackHoleAvatar.randomizeEffects')">
         <iconify-icon icon="ph:dice-three-duotone"></iconify-icon>
       </button>
     </template>
-    <p class="section-desc">Bloom and gravitational lensing</p>
+    <p class="section-desc">{{ t('blackHoleAvatar.effectsDesc') }}</p>
     <div class="slider-group">
       <BaseSlider
-        label="Bloom Intensity"
+        :label="t('blackHoleAvatar.bloomIntensity')"
         :min="0"
         :max="2"
         :step="0.1"
         v-model="effects.bloomIntensity"
       />
       <BaseSlider
-        label="Bloom Threshold"
+        :label="t('blackHoleAvatar.bloomThreshold')"
         :min="0.5"
         :max="1"
         :step="0.05"
         v-model="effects.bloomThreshold"
       />
       <BaseSlider
-        label="Bloom Radius"
+        :label="t('blackHoleAvatar.bloomRadius')"
         :min="0"
         :max="1.5"
         :step="0.1"
         v-model="effects.bloomRadius"
       />
       <BaseSlider
-        label="Lensing Strength"
+        :label="t('blackHoleAvatar.lensingStrength')"
         :min="0"
         :max="0.3"
         :step="0.01"
         v-model="effects.lensingStrength"
       />
       <BaseSlider
-        label="Lensing Radius"
+        :label="t('blackHoleAvatar.lensingRadius')"
         :min="0.1"
         :max="0.5"
         :step="0.02"
         v-model="effects.lensingRadius"
       />
       <BaseSlider
-        label="Chromatic Aberration"
+        :label="t('blackHoleAvatar.chromaticAberration')"
         :min="0"
         :max="0.02"
         :step="0.001"
@@ -360,34 +369,34 @@ watch(
   </PanelSection>
 
   <!-- ==================== ANIMATION ==================== -->
-  <PanelSection title="Animation" icon="ph:arrows-clockwise-duotone" collapsible>
+  <PanelSection :title="t('blackHoleAvatar.animation')" icon="ph:arrows-clockwise-duotone" collapsible>
     <template #actions>
-      <button class="dice-btn" @click="randomizeAnimation" title="Randomize animation">
+      <button class="dice-btn" @click="randomizeAnimation" :title="t('blackHoleAvatar.randomizeAnimation')">
         <iconify-icon icon="ph:dice-three-duotone"></iconify-icon>
       </button>
     </template>
-    <p class="section-desc">Rotation speeds for disk and star field</p>
+    <p class="section-desc">{{ t('blackHoleAvatar.animationDesc') }}</p>
     <div class="toggle-row">
-      <BaseToggle label="Auto Rotate Camera" v-model="animation.autoRotate" />
+      <BaseToggle :label="t('blackHoleAvatar.autoRotateCamera')" v-model="animation.autoRotate" />
     </div>
     <div class="slider-group" style="margin-top: 12px">
       <BaseSlider
         v-if="animation.autoRotate"
-        label="Camera Rotation Speed"
+        :label="t('blackHoleAvatar.cameraRotationSpeed')"
         :min="0.01"
         :max="0.3"
         :step="0.01"
         v-model="animation.autoRotateSpeed"
       />
       <BaseSlider
-        label="Disk Rotation Speed"
+        :label="t('blackHoleAvatar.diskRotationSpeed')"
         :min="0"
         :max="0.02"
         :step="0.001"
         v-model="animation.diskRotationSpeed"
       />
       <BaseSlider
-        label="Stars Rotation Speed"
+        :label="t('blackHoleAvatar.starsRotationSpeed')"
         :min="0"
         :max="0.01"
         :step="0.0005"
@@ -397,41 +406,41 @@ watch(
   </PanelSection>
 
   <!-- ==================== ORIENTATION ==================== -->
-  <PanelSection title="Orientation" icon="ph:compass-duotone" collapsible>
+  <PanelSection :title="t('blackHoleAvatar.orientation')" icon="ph:compass-duotone" collapsible>
     <template #actions>
       <button 
         class="link-btn" 
         :class="{ active: linkOrientation }" 
         @click="linkOrientation = !linkOrientation"
-        title="Link XYZ values"
+        :title="t('blobAvatar.linkXyz')"
       >
         <iconify-icon :icon="linkOrientation ? 'ph:link-duotone' : 'ph:link-break-duotone'"></iconify-icon>
       </button>
-      <button class="dice-btn" @click="randomizeOrientation" title="Randomize orientation">
+      <button class="dice-btn" @click="randomizeOrientation" :title="t('blobAvatar.randomizeOrientation')">
         <iconify-icon icon="ph:dice-three-duotone"></iconify-icon>
       </button>
     </template>
-    <p class="section-desc">Starting rotation angle in degrees</p>
+    <p class="section-desc">{{ t('blobAvatar.orientationDesc') }}</p>
     <div class="slider-group" :class="{ linked: linkOrientation }">
-      <BaseSlider label="X (°)" :min="0" :max="360" :step="1" v-model="orientation.x" />
-      <BaseSlider v-if="!linkOrientation" label="Y (°)" :min="0" :max="360" :step="1" v-model="orientation.y" />
-      <BaseSlider v-if="!linkOrientation" label="Z (°)" :min="0" :max="360" :step="1" v-model="orientation.z" />
+      <BaseSlider :label="t('blobAvatar.xDeg')" :min="0" :max="360" :step="1" v-model="orientation.x" />
+      <BaseSlider v-if="!linkOrientation" :label="t('blobAvatar.yDeg')" :min="0" :max="360" :step="1" v-model="orientation.y" />
+      <BaseSlider v-if="!linkOrientation" :label="t('blobAvatar.zDeg')" :min="0" :max="360" :step="1" v-model="orientation.z" />
     </div>
   </PanelSection>
 
   <!-- ==================== CLICK EVENTS ==================== -->
-  <PanelSection title="Click Events" icon="ph:cursor-click-duotone" collapsible>
-    <p class="section-desc">Actions triggered by mouse clicks</p>
+  <PanelSection :title="t('blackHoleAvatar.clickEvents')" icon="ph:cursor-click-duotone" collapsible>
+    <p class="section-desc">{{ t('blackHoleAvatar.clickEventsDesc') }}</p>
 
     <div class="interaction-row">
       <div class="interaction-header">
         <iconify-icon icon="ph:hand-tap-duotone"></iconify-icon>
-        <span>Single Click</span>
+        <span>{{ t('blobAvatar.singleClick') }}</span>
         <BaseToggle v-model="clickEvents.click.enabled" size="sm" />
       </div>
       <div class="interaction-config" v-if="clickEvents.click.enabled">
-        <BaseSelect label="Action" v-model="clickEvents.click.action" :options="actionOptions" />
-        <button class="test-btn" @click="testAction(clickEvents.click.action)" title="Test Action">
+        <BaseSelect :label="t('blobAvatar.action')" v-model="clickEvents.click.action" :options="localizedActionOptions" />
+        <button class="test-btn" @click="testAction(clickEvents.click.action)" :title="t('blackHoleAvatar.testAction')">
           <iconify-icon icon="ph:play-fill"></iconify-icon>
         </button>
       </div>
@@ -440,19 +449,19 @@ watch(
     <div class="interaction-row">
       <div class="interaction-header">
         <iconify-icon icon="ph:hand-duotone"></iconify-icon>
-        <span>Double Click</span>
+        <span>{{ t('blobAvatar.doubleClick') }}</span>
         <BaseToggle v-model="clickEvents.doubleClick.enabled" size="sm" />
       </div>
       <div class="interaction-config" v-if="clickEvents.doubleClick.enabled">
         <BaseSelect
-          label="Action"
+          :label="t('blobAvatar.action')"
           v-model="clickEvents.doubleClick.action"
-          :options="actionOptions"
+          :options="localizedActionOptions"
         />
         <button
           class="test-btn"
           @click="testAction(clickEvents.doubleClick.action)"
-          title="Test Action"
+          :title="t('blackHoleAvatar.testAction')"
         >
           <iconify-icon icon="ph:play-fill"></iconify-icon>
         </button>
@@ -462,19 +471,19 @@ watch(
     <div class="interaction-row">
       <div class="interaction-header">
         <iconify-icon icon="ph:mouse-right-click-duotone"></iconify-icon>
-        <span>Right Click</span>
+        <span>{{ t('blobAvatar.rightClick') }}</span>
         <BaseToggle v-model="clickEvents.rightClick.enabled" size="sm" />
       </div>
       <div class="interaction-config" v-if="clickEvents.rightClick.enabled">
         <BaseSelect
-          label="Action"
+          :label="t('blobAvatar.action')"
           v-model="clickEvents.rightClick.action"
-          :options="actionOptions"
+          :options="localizedActionOptions"
         />
         <button
           class="test-btn"
           @click="testAction(clickEvents.rightClick.action)"
-          title="Test Action"
+          :title="t('blackHoleAvatar.testAction')"
         >
           <iconify-icon icon="ph:play-fill"></iconify-icon>
         </button>
@@ -484,19 +493,19 @@ watch(
     <div class="interaction-row">
       <div class="interaction-header">
         <iconify-icon icon="ph:mouse-right-click-duotone"></iconify-icon>
-        <span>Double Right Click</span>
+        <span>{{ t('blobAvatar.doubleRightClick') }}</span>
         <BaseToggle v-model="clickEvents.doubleRightClick.enabled" size="sm" />
       </div>
       <div class="interaction-config" v-if="clickEvents.doubleRightClick.enabled">
         <BaseSelect
-          label="Action"
+          :label="t('blobAvatar.action')"
           v-model="clickEvents.doubleRightClick.action"
-          :options="actionOptions"
+          :options="localizedActionOptions"
         />
         <button
           class="test-btn"
           @click="testAction(clickEvents.doubleRightClick.action)"
-          title="Test Action"
+          :title="t('blackHoleAvatar.testAction')"
         >
           <iconify-icon icon="ph:play-fill"></iconify-icon>
         </button>
@@ -505,27 +514,27 @@ watch(
   </PanelSection>
 
   <!-- ==================== HOVER & DRAG ==================== -->
-  <PanelSection title="Hover & Drag" icon="ph:hand-duotone" collapsible>
-    <p class="section-desc">Cursor behavior when interacting</p>
+  <PanelSection :title="t('blackHoleAvatar.hoverDrag')" icon="ph:hand-duotone" collapsible>
+    <p class="section-desc">{{ t('blackHoleAvatar.hoverDragDesc') }}</p>
 
     <div class="toggle-row">
-      <BaseToggle label="Enable Hover" v-model="cursorTouch.hover.enabled" />
+      <BaseToggle :label="t('blackHoleAvatar.enableHover')" v-model="cursorTouch.hover.enabled" />
     </div>
     <div v-if="cursorTouch.hover.enabled" class="hover-config">
-      <BaseToggle label="Highlight on Hover" v-model="cursorTouch.hover.highlightOnHover" />
+      <BaseToggle :label="t('blackHoleAvatar.highlightOnHover')" v-model="cursorTouch.hover.highlightOnHover" />
       <BaseSelect
-        label="Cursor Style"
+        :label="t('blackHoleAvatar.cursorStyle')"
         v-model="cursorTouch.hover.cursorStyle"
-        :options="cursorOptions"
+        :options="localizedCursorOptions"
       />
     </div>
 
     <div class="toggle-row" style="margin-top: 12px">
-      <BaseToggle label="Enable Drag" v-model="cursorTouch.drag.enabled" />
+      <BaseToggle :label="t('blackHoleAvatar.enableDrag')" v-model="cursorTouch.drag.enabled" />
     </div>
     <div v-if="cursorTouch.drag.enabled" class="slider-group">
       <BaseSlider
-        label="Sensitivity"
+        :label="t('blobAvatar.sensitivity')"
         :min="0.1"
         :max="3"
         :step="0.1"
@@ -535,53 +544,53 @@ watch(
   </PanelSection>
 
   <!-- ==================== AUDIO REACTIVITY ==================== -->
-  <PanelSection title="Audio Reactivity" icon="ph:waveform-duotone" collapsible>
+  <PanelSection :title="t('audioPanel.audioReactivity')" icon="ph:waveform-duotone" collapsible>
     <template #actions>
-      <button class="dice-btn" @click="randomizeAudio" title="Randomize audio settings">
+      <button class="dice-btn" @click="randomizeAudio" :title="t('audioPanel.randomizeAudioSettings')">
         <iconify-icon icon="ph:dice-three-duotone"></iconify-icon>
       </button>
     </template>
-    <p class="section-desc">How the black hole responds to sound</p>
+    <p class="section-desc">{{ t('blackHoleAvatar.audioReactivityDesc') }}</p>
 
     <div class="toggle-row">
-      <BaseToggle label="Enable Audio Effects" v-model="audio.enabled" />
+      <BaseToggle :label="t('audioPanel.enableAudioEffects')" v-model="audio.enabled" />
     </div>
 
     <MicrophoneControl />
     <AudioVisualizer />
 
     <div v-if="audio.enabled" class="slider-group" style="margin-top: 12px">
-      <BaseSlider label="Reactivity" :min="0" :max="2" :step="0.1" v-model="audio.reactivity" />
-      <BaseSlider label="Smoothing" :min="0.5" :max="0.99" :step="0.01" v-model="audio.smoothing" />
+      <BaseSlider :label="t('audioPanel.reactivity')" :min="0" :max="2" :step="0.1" v-model="audio.reactivity" />
+      <BaseSlider :label="t('audioPanel.smoothing')" :min="0.5" :max="0.99" :step="0.01" v-model="audio.smoothing" />
     </div>
   </PanelSection>
 
   <!-- ==================== FREQUENCY RESPONSE ==================== -->
-  <PanelSection title="Frequency Response" icon="ph:equalizer-duotone" collapsible>
+  <PanelSection :title="t('audioPanel.frequencyResponse')" icon="ph:equalizer-duotone" collapsible>
     <template #actions>
-      <button class="dice-btn" @click="randomizeFrequencyEffects" title="Randomize frequency">
+      <button class="dice-btn" @click="randomizeFrequencyEffects" :title="t('blackHoleAvatar.randomizeFrequency')">
         <iconify-icon icon="ph:dice-three-duotone"></iconify-icon>
       </button>
     </template>
-    <p class="section-desc">How different frequencies affect the visualization</p>
+    <p class="section-desc">{{ t('blackHoleAvatar.frequencyResponseDesc') }}</p>
 
     <div class="slider-group">
       <BaseSlider
-        label="Bass (Disk Glow)"
+        :label="t('audioPanel.bassDiskGlow')"
         :min="0"
         :max="1"
         :step="0.05"
         v-model="audio.frequencyEffects.bassDiskGlow"
       />
       <BaseSlider
-        label="Mid (Disk Speed)"
+        :label="t('audioPanel.midDiskSpeed')"
         :min="0"
         :max="1"
         :step="0.05"
         v-model="audio.frequencyEffects.midDiskSpeed"
       />
       <BaseSlider
-        label="High (Star Twinkle)"
+        :label="t('audioPanel.highStarTwinkle')"
         :min="0"
         :max="1"
         :step="0.05"

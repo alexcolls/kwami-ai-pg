@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { panelIcons } from '@/constants/panel-icons';
 import { useCreditsStore } from '@/stores/credits';
+import { translateApiUserMessage } from '@/utils/translateApiMessage';
 import PanelSection from '@/components/ui/PanelSection.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
 import PanelHeaderControls from '@/components/ui/PanelHeaderControls.vue';
 
 const creditsStore = useCreditsStore();
+const { t, locale } = useI18n();
 
 const activeTab = ref<'buy' | 'history' | 'usage'>('buy');
 
@@ -27,7 +30,7 @@ async function switchTab(tab: 'buy' | 'history' | 'usage') {
 
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr);
-  return d.toLocaleDateString('en-US', {
+  return d.toLocaleDateString(locale.value === 'es' ? 'es-ES' : 'en-US', {
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
@@ -38,6 +41,12 @@ function formatDate(dateStr: string): string {
 function formatEnergy(micro: number): string {
   const val = Math.floor(Math.abs(micro) / 1000);
   return val.toLocaleString();
+}
+
+function usageUnit(modelType: string): string {
+  if (modelType === 'llm') return t('energyPanel.tokens');
+  if (modelType === 'stt' || modelType === 'realtime') return t('energyPanel.min');
+  return t('energyPanel.chars');
 }
 
 function transactionIcon(type: string): string {
@@ -85,6 +94,11 @@ const energyLevel = computed(() => {
   return 'high';
 });
 
+const creditErrorMessage = computed(() => {
+  if (!creditsStore.error) return '';
+  return translateApiUserMessage(creditsStore.error, t);
+});
+
 function packIcon(packId: string): string {
   switch (packId) {
     case 'starter': return 'ph:battery-medium-duotone';
@@ -99,7 +113,7 @@ function packIcon(packId: string): string {
   <div class="panel-inner">
     <div class="panel-header">
       <iconify-icon :icon="panelIcons.credits" class="panel-icon"></iconify-icon>
-      <h2>Energy</h2>
+      <h2>{{ t('energyPanel.title') }}</h2>
       <PanelHeaderControls />
     </div>
 
@@ -113,7 +127,7 @@ function packIcon(packId: string): string {
           <div class="meter-content">
             <div class="meter-value">
               <span class="meter-amount">{{ creditsStore.displayBalance.toLocaleString() }}</span>
-              <span class="meter-unit">energy</span>
+              <span class="meter-unit">{{ t('energyPanel.energyUnit') }}</span>
             </div>
             <div class="meter-bar">
               <div class="meter-bar-fill" :style="{ width: balancePercentage + '%' }"></div>
@@ -122,11 +136,11 @@ function packIcon(packId: string): string {
             <div class="meter-stats">
               <span class="meter-stat">
                 <iconify-icon icon="ph:arrow-down-bold" class="stat-icon charged"></iconify-icon>
-                {{ creditsStore.lifetimePurchased.toLocaleString() }} charged
+                {{ creditsStore.lifetimePurchased.toLocaleString() }} {{ t('energyPanel.charged') }}
               </span>
               <span class="meter-stat">
                 <iconify-icon icon="ph:flame-bold" class="stat-icon used"></iconify-icon>
-                {{ creditsStore.lifetimeUsed.toLocaleString() }} used
+                {{ creditsStore.lifetimeUsed.toLocaleString() }} {{ t('energyPanel.used') }}
               </span>
             </div>
           </div>
@@ -134,13 +148,18 @@ function packIcon(packId: string): string {
 
         <div v-if="energyLevel === 'depleted'" class="depleted-warning">
           <iconify-icon icon="ph:warning-duotone"></iconify-icon>
-          <span>Your Kwami has no energy. Recharge to continue conversations.</span>
+          <span>{{ t('energyPanel.depletedWarning') }}</span>
         </div>
         <div v-else-if="energyLevel === 'low'" class="low-warning">
           <iconify-icon icon="ph:battery-warning-duotone"></iconify-icon>
-          <span>Energy is running low. Recharge soon.</span>
+          <span>{{ t('energyPanel.lowWarning') }}</span>
         </div>
       </PanelSection>
+
+      <div v-if="creditErrorMessage" class="credit-error-banner" role="alert">
+        <iconify-icon icon="ph:warning-circle-duotone"></iconify-icon>
+        <span>{{ creditErrorMessage }}</span>
+      </div>
 
       <!-- Tabs -->
       <div class="tabs">
@@ -150,7 +169,7 @@ function packIcon(packId: string): string {
           @click="switchTab('buy')"
         >
           <iconify-icon icon="ph:lightning-fill" class="tab-icon"></iconify-icon>
-          Recharge
+          {{ t('energyPanel.recharge') }}
         </button>
         <button
           class="tab"
@@ -158,7 +177,7 @@ function packIcon(packId: string): string {
           @click="switchTab('history')"
         >
           <iconify-icon icon="ph:clock-duotone" class="tab-icon"></iconify-icon>
-          History
+          {{ t('energyPanel.history') }}
         </button>
         <button
           class="tab"
@@ -166,12 +185,12 @@ function packIcon(packId: string): string {
           @click="switchTab('usage')"
         >
           <iconify-icon icon="ph:chart-bar-duotone" class="tab-icon"></iconify-icon>
-          Usage
+          {{ t('energyPanel.usage') }}
         </button>
       </div>
 
       <!-- Recharge Tab -->
-      <PanelSection v-if="activeTab === 'buy'" title="Energy Packs">
+      <PanelSection v-if="activeTab === 'buy'" :title="t('energyPanel.energyPacks')">
         <div class="packs-list">
           <button
             v-for="pack in creditsStore.packs"
@@ -181,7 +200,7 @@ function packIcon(packId: string): string {
             @click="creditsStore.purchaseCredits(pack.id)"
             :disabled="creditsStore.loading"
           >
-            <div v-if="pack.popular" class="popular-badge">Best Value</div>
+            <div v-if="pack.popular" class="popular-badge">{{ t('energyPanel.bestValue') }}</div>
             <div class="pack-icon-wrap">
               <iconify-icon :icon="packIcon(pack.id)" class="pack-icon"></iconify-icon>
             </div>
@@ -189,7 +208,7 @@ function packIcon(packId: string): string {
               <div class="pack-name">{{ pack.name }}</div>
               <div class="pack-energy">
                 {{ pack.credits.toLocaleString() }}
-                <span class="pack-energy-label">energy</span>
+                <span class="pack-energy-label">{{ t('energyPanel.energyUnit') }}</span>
               </div>
             </div>
             <div class="pack-pricing">
@@ -198,19 +217,19 @@ function packIcon(packId: string): string {
           </button>
         </div>
         <p class="energy-info">
-          Energy powers your Kwami's voice conversations. Different AI models consume energy at different rates.
+          {{ t('energyPanel.energyInfo') }}
         </p>
       </PanelSection>
 
       <!-- History Tab -->
-      <PanelSection v-if="activeTab === 'history'" title="Transaction History">
+      <PanelSection v-if="activeTab === 'history'" :title="t('energyPanel.transactionHistory')">
         <div v-if="creditsStore.loading" class="loading-state">
           <iconify-icon icon="ph:spinner-gap-bold" class="spin"></iconify-icon>
-          Loading...
+          {{ t('energyPanel.loading') }}
         </div>
         <div v-else-if="creditsStore.transactions.length === 0" class="empty-state">
           <iconify-icon icon="ph:clock-duotone" class="empty-icon"></iconify-icon>
-          <span>No transactions yet</span>
+          <span>{{ t('energyPanel.noTransactions') }}</span>
         </div>
         <div v-else class="transactions-list">
           <div
@@ -237,19 +256,19 @@ function packIcon(packId: string): string {
           block
           @click="creditsStore.loadTransactions(50, creditsStore.transactions.length)"
         >
-          Load More
+          {{ t('energyPanel.loadMore') }}
         </BaseButton>
       </PanelSection>
 
       <!-- Usage Tab -->
-      <PanelSection v-if="activeTab === 'usage'" title="Energy Consumption">
+      <PanelSection v-if="activeTab === 'usage'" :title="t('energyPanel.energyConsumption')">
         <div v-if="creditsStore.loading" class="loading-state">
           <iconify-icon icon="ph:spinner-gap-bold" class="spin"></iconify-icon>
-          Loading...
+          {{ t('energyPanel.loading') }}
         </div>
         <div v-else-if="creditsStore.usageLogs.length === 0" class="empty-state">
           <iconify-icon icon="ph:chart-bar-duotone" class="empty-icon"></iconify-icon>
-          <span>No usage recorded yet</span>
+          <span>{{ t('energyPanel.noUsage') }}</span>
         </div>
         <div v-else class="usage-list">
           <div
@@ -265,7 +284,7 @@ function packIcon(packId: string): string {
               <span class="usage-meta">
                 {{ log.model_type.toUpperCase() }} &middot;
                 {{ log.units_used.toFixed(2) }}
-                {{ log.model_type === 'llm' ? 'tokens' : log.model_type === 'stt' || log.model_type === 'realtime' ? 'min' : 'chars' }}
+                {{ usageUnit(log.model_type) }}
               </span>
             </div>
             <div class="usage-cost">
@@ -415,6 +434,26 @@ function packIcon(packId: string): string {
 .low-warning iconify-icon {
   font-size: 16px;
   flex-shrink: 0;
+}
+
+.credit-error-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 20px;
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--error);
+  background: var(--error-glow);
+  border-bottom: 1px solid var(--error-glow);
+}
+
+.credit-error-banner iconify-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+  margin-top: 1px;
 }
 
 /* ========================================================================= */

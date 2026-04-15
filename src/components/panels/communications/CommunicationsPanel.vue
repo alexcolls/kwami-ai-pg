@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 import PanelSection from '@/components/ui/PanelSection.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
 import BaseInput from '@/components/ui/BaseInput.vue';
@@ -24,6 +25,7 @@ import {
 
 const workspaceStore = useWorkspaceStore();
 const communicationsStore = useCommunicationsStore();
+const { t } = useI18n();
 
 const loading = ref(false);
 const searching = ref(false);
@@ -301,47 +303,47 @@ const anyCallInProgress = computed(() => callingTwilioDirect.value || callingWit
   <div class="panel-inner">
     <div class="panel-header">
       <iconify-icon :icon="panelIcons.communications" class="panel-icon"></iconify-icon>
-      <h2>Communications</h2>
+      <h2>{{ t('communications.title') }}</h2>
       <PanelHeaderControls />
     </div>
 
     <div class="panel-body">
-      <PanelSection title="Overview" icon="ph:phone-call-duotone">
+      <PanelSection :title="t('communications.overview')" icon="ph:phone-call-duotone">
         <div class="summary-grid">
           <div class="summary-card">
-            <span class="summary-label">Voice numbers</span>
+            <span class="summary-label">{{ t('communications.voiceNumbers') }}</span>
             <strong>{{ voiceChannels.length }}</strong>
           </div>
           <div class="summary-card">
-            <span class="summary-label">WhatsApp senders</span>
+            <span class="summary-label">{{ t('communications.whatsappSenders') }}</span>
             <strong>{{ whatsappChannels.length }}</strong>
           </div>
           <div class="summary-card">
-            <span class="summary-label">Latest runtime</span>
+            <span class="summary-label">{{ t('communications.latestRuntime') }}</span>
             <strong>{{ snapshot?.kwami.name || activeKwamiName }}</strong>
           </div>
         </div>
         <p class="muted-text infra-text">
-          Shared trunks power the platform. Each kwami still owns its own mapped number and sender.
+          {{ t('communications.sharedInfraSummary') }}
         </p>
         <p v-if="statusMessage" class="status-text">{{ statusMessage }}</p>
         <p v-if="error" class="error-text">{{ error }}</p>
       </PanelSection>
 
-      <PanelSection title="Create Number" icon="ph:sim-card-duotone" collapsible>
+      <PanelSection :title="t('communications.createNumber')" icon="ph:sim-card-duotone" collapsible>
         <p class="muted-text infra-text">
-          Create a phone number for this kwami in 3 steps: choose country, find an available number, then purchase it.
+          {{ t('communications.createNumberHelp') }}
         </p>
         <div class="country-grid">
           <BaseInput
             v-model="communicationsStore.numberSearch.countryCode"
-            label="Country"
+            :label="t('communications.country')"
             placeholder="US"
             mono
           />
         </div>
         <p class="muted-text infra-text">
-          Buying a number here provisions it for the active kwami and syncs it to the shared phone infrastructure automatically.
+          {{ t('communications.provisionNote') }}
         </p>
         <div class="section-actions-row">
           <BaseButton
@@ -351,7 +353,7 @@ const anyCallInProgress = computed(() => callingTwilioDirect.value || callingWit
             :disabled="!activeKwamiId"
             @click="searchNumbers"
           >
-            Find Available Number
+            {{ t('communications.findAvailableNumber') }}
           </BaseButton>
           <BaseButton
             variant="secondary"
@@ -360,21 +362,21 @@ const anyCallInProgress = computed(() => callingTwilioDirect.value || callingWit
             :loading="searching"
             @click="refreshSuggestedNumber"
           >
-            Refresh Suggestion
+            {{ t('communications.refreshSuggestion') }}
           </BaseButton>
           <BaseButton
             variant="secondary"
             icon="ph:arrows-clockwise-duotone"
             @click="refreshCurrentKwami"
           >
-            Refresh
+            {{ t('communications.refresh') }}
           </BaseButton>
         </div>
         <div v-if="suggestedNumber" class="result-list">
           <div class="result-card">
             <div>
               <strong>{{ suggestedNumber.phoneNumber }}</strong>
-              <p>{{ suggestedNumber.locality || suggestedNumber.region || 'Available number' }}</p>
+              <p>{{ suggestedNumber.locality || suggestedNumber.region || t('communications.availableNumber') }}</p>
             </div>
           </div>
         </div>
@@ -386,39 +388,48 @@ const anyCallInProgress = computed(() => callingTwilioDirect.value || callingWit
           :disabled="!activeKwamiId || !suggestedNumber"
           @click="buyNumber()"
         >
-          Purchase Suggested Number
+          {{ t('communications.purchaseSuggested') }}
         </BaseButton>
       </PanelSection>
 
-      <PanelSection title="Phone Channel" icon="ph:phone-duotone" collapsible>
+      <PanelSection :title="t('communications.phoneChannel')" icon="ph:phone-duotone" collapsible>
         <div v-if="selectedVoiceChannel" class="channel-card">
           <div class="channel-row">
-            <span>Assigned number</span>
+            <span>{{ t('communications.assignedNumber') }}</span>
             <strong>{{ selectedVoiceChannel.phone_number }}</strong>
           </div>
           <div class="channel-row">
-            <span>Status</span>
+            <span>{{ t('communications.status') }}</span>
             <strong>{{ selectedVoiceChannel.status }}</strong>
           </div>
           <div class="channel-row">
-            <span>Last sync: outbound</span>
-            <strong>{{ voiceOutboundCapabilityStale ? 'Not recorded' : 'OK' }}</strong>
+            <span>{{ t('communications.lastSyncOutbound') }}</span>
+            <strong>{{ voiceOutboundCapabilityStale ? t('communications.notRecorded') : t('communications.ok') }}</strong>
           </div>
         </div>
-        <p v-if="selectedVoiceChannel && voiceOutboundCapabilityStale" class="warning-text">
-          This channel was saved before outbound SIP was fully synced. You can still try Call with agent — if it fails,
-          confirm <code>LIVEKIT_SIP_OUTBOUND_TRUNK_ID</code> on the API and that your Twilio number is on the LiveKit outbound trunk.
-        </p>
+        <i18n-t
+          v-if="selectedVoiceChannel && voiceOutboundCapabilityStale"
+          keypath="communications.voiceOutboundStaleWarning"
+          tag="p"
+          class="warning-text"
+        >
+          <template #callWithAgent>
+            <strong>{{ t('communications.callWithAgent') }}</strong>
+          </template>
+          <template #code>
+            <code>LIVEKIT_SIP_OUTBOUND_TRUNK_ID</code>
+          </template>
+        </i18n-t>
         <p v-if="selectedVoiceChannel" class="muted-text infra-text">{{ voiceInfrastructureNote }}</p>
-        <p v-else class="muted-text">Provision a number to enable calling for this kwami.</p>
+        <p v-else class="muted-text">{{ t('communications.noVoiceChannel') }}</p>
         <BaseInput
           v-model="communicationsStore.compose.callTarget"
-          label="Call recipient"
+          :label="t('communications.callRecipient')"
           placeholder="+14155550123"
           mono
         />
         <p class="muted-text infra-text">
-          Test Twilio alone isolates your number, account, and geo rules. Call with agent uses LiveKit SIP and the worker.
+          {{ t('communications.callModesHelp') }}
         </p>
         <div class="section-actions-row">
           <BaseButton
@@ -428,7 +439,7 @@ const anyCallInProgress = computed(() => callingTwilioDirect.value || callingWit
             :disabled="!canPlaceOutboundCall || anyCallInProgress"
             @click="placeTwilioDirectCall"
           >
-            Test call (Twilio only)
+            {{ t('communications.testCallTwilio') }}
           </BaseButton>
           <BaseButton
             variant="primary"
@@ -437,7 +448,7 @@ const anyCallInProgress = computed(() => callingTwilioDirect.value || callingWit
             :disabled="!canPlaceOutboundCall || anyCallInProgress"
             @click="placeCallWithAgent"
           >
-            Call with agent
+            {{ t('communications.callWithAgent') }}
           </BaseButton>
         </div>
         <BaseButton
@@ -447,25 +458,25 @@ const anyCallInProgress = computed(() => callingTwilioDirect.value || callingWit
           :disabled="!activeKwamiId || !selectedVoiceChannel || releasing"
           @click="openReleaseConfirm"
         >
-          Remove number from kwami
+          {{ t('communications.removeNumberFromKwami') }}
         </BaseButton>
       </PanelSection>
 
-      <PanelSection title="WhatsApp" icon="ph:chat-teardrop-text-duotone" collapsible>
+      <PanelSection :title="t('communications.whatsapp')" icon="ph:chat-teardrop-text-duotone" collapsible>
         <div v-if="selectedWhatsappChannel" class="channel-card">
           <div class="channel-row">
-            <span>Sender</span>
+            <span>{{ t('communications.sender') }}</span>
             <strong>{{ selectedWhatsappChannel.provider_sender || selectedWhatsappChannel.phone_number }}</strong>
           </div>
           <div class="channel-row">
-            <span>Status</span>
+            <span>{{ t('communications.status') }}</span>
             <strong>{{ selectedWhatsappChannel.status }}</strong>
           </div>
         </div>
-        <p v-else class="muted-text">A WhatsApp sender will appear after the first number is provisioned.</p>
+        <p v-else class="muted-text">{{ t('communications.noWhatsappSender') }}</p>
         <BaseInput
           v-model="whatsappSender"
-          label="Approved sender"
+          :label="t('communications.approvedSender')"
           placeholder="whatsapp:+14155550123"
           mono
         />
@@ -476,19 +487,19 @@ const anyCallInProgress = computed(() => callingTwilioDirect.value || callingWit
           :disabled="!selectedWhatsappChannel"
           @click="enableWhatsappSender"
         >
-          Mark WhatsApp Ready
+          {{ t('communications.markWhatsappReady') }}
         </BaseButton>
         <BaseInput
           v-model="communicationsStore.compose.messageTarget"
-          label="Recipient"
+          :label="t('communications.recipient')"
           placeholder="+14155550123"
           mono
         />
         <div class="message-field">
-          <label>Message</label>
+          <label>{{ t('communications.message') }}</label>
           <textarea
             v-model="communicationsStore.compose.messageBody"
-            placeholder="Hello from my kwami..."
+            :placeholder="t('communications.messagePlaceholder')"
           ></textarea>
         </div>
         <BaseButton
@@ -499,50 +510,49 @@ const anyCallInProgress = computed(() => callingTwilioDirect.value || callingWit
           :disabled="!selectedWhatsappChannel || !communicationsStore.compose.messageBody.trim()"
           @click="sendMessage"
         >
-          Send WhatsApp
+          {{ t('communications.sendWhatsapp') }}
         </BaseButton>
       </PanelSection>
 
-      <PanelSection title="Recent Calls" icon="ph:phone-incoming-duotone" collapsible default-collapsed>
-        <div v-if="recentCalls.length === 0" class="muted-text">No call events yet.</div>
+      <PanelSection :title="t('communications.recentCalls')" icon="ph:phone-incoming-duotone" collapsible default-collapsed>
+        <div v-if="recentCalls.length === 0" class="muted-text">{{ t('communications.noCallEvents') }}</div>
         <div v-for="call in recentCalls" :key="call.id" class="event-card">
-          <strong>{{ call.to_number || call.from_number || 'Call' }}</strong>
+          <strong>{{ call.to_number || call.from_number || t('communications.callFallback') }}</strong>
           <span>{{ call.status }}</span>
           <small>{{ new Date(call.created_at).toLocaleString() }}</small>
         </div>
       </PanelSection>
 
-      <PanelSection title="Recent Messages" icon="ph:chats-circle-duotone" collapsible default-collapsed>
-        <div v-if="recentMessages.length === 0" class="muted-text">No message events yet.</div>
+      <PanelSection :title="t('communications.recentMessages')" icon="ph:chats-circle-duotone" collapsible default-collapsed>
+        <div v-if="recentMessages.length === 0" class="muted-text">{{ t('communications.noMessageEvents') }}</div>
         <div v-for="message in recentMessages" :key="message.id" class="event-card">
-          <strong>{{ message.to_address || message.from_address || 'Message' }}</strong>
-          <span>{{ message.provider_status || 'queued' }}</span>
-          <small>{{ message.body || 'No content' }}</small>
+          <strong>{{ message.to_address || message.from_address || t('communications.messageFallback') }}</strong>
+          <span>{{ message.provider_status || t('communications.queued') }}</span>
+          <small>{{ message.body || t('communications.noContent') }}</small>
         </div>
       </PanelSection>
 
-      <div v-if="loading" class="muted-text loading-text">Loading communications...</div>
+      <div v-if="loading" class="muted-text loading-text">{{ t('communications.loadingCommunications') }}</div>
     </div>
 
     <ConfirmDialog
       :open="showReleaseConfirm"
-      title="Remove phone number?"
+      :title="t('communications.removePhoneTitle')"
       icon="ph:phone-slash-duotone"
-      confirm-label="Remove and release"
+      :confirm-label="t('communications.confirmRemoveRelease')"
       confirm-icon="ph:trash-duotone"
       confirm-variant="danger"
-      cancel-label="Cancel"
+      :cancel-label="t('communications.cancel')"
       :loading="releasing"
       @confirm="confirmReleasePhone"
       @cancel="showReleaseConfirm = false"
     >
       <p>
-        This removes the voice and WhatsApp channels for this kwami, updates shared LiveKit SIP trunks,
-        detaches the number from your Twilio SIP trunk when configured, and releases the number in Twilio.
+        {{ t('communications.removePhoneDetails') }}
       </p>
-      <p class="warning-text">You cannot undo this. You can provision a new number afterward.</p>
+      <p class="warning-text">{{ t('communications.removePhoneWarning') }}</p>
       <p v-if="selectedVoiceChannel">
-        Number:
+        {{ t('communications.numberLabel') }}
         <strong>{{ selectedVoiceChannel.phone_number }}</strong>
       </p>
     </ConfirmDialog>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 const props = defineProps<{
   label?: string;
@@ -12,6 +13,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'update:modelValue', value: string[]): void;
 }>();
+const { t } = useI18n();
 
 const newValue = ref('');
 const isFocused = ref(false);
@@ -72,7 +74,7 @@ function handleKeydown(e: KeyboardEvent) {
       <input
         type="text"
         v-model="newValue"
-        :placeholder="modelValue.length === 0 ? (placeholder || 'Add item...') : ''"
+        :placeholder="modelValue.length === 0 ? (placeholder || t('ui.addItemPlaceholder')) : ''"
         :disabled="disabled"
         @keydown="handleKeydown"
         @focus="isFocused = true"

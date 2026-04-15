@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, reactive } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { storeToRefs } from 'pinia';
 import PanelSection from '@/components/ui/PanelSection.vue';
 import BaseColorPicker from '@/components/ui/BaseColorPicker.vue';
@@ -25,6 +26,7 @@ import {
 
 // Use store for state persistence
 const sceneStore = useSceneStore();
+const { t } = useI18n();
 const { background } = storeToRefs(sceneStore);
 const avatarStore = useAvatarStore();
 const blobStore = useBlobXyzStore();
@@ -445,19 +447,19 @@ function randomizeAll() {
   }
 }
 
-const fitOptions = [
-  { label: 'Cover', value: 'cover' },
-  { label: 'Contain', value: 'contain' },
-  { label: 'Stretch', value: 'stretch' },
-];
+const fitOptions = computed(() => [
+  { label: t('scene.cover'), value: 'cover' },
+  { label: t('scene.contain'), value: 'contain' },
+  { label: t('scene.stretch'), value: 'stretch' },
+]);
 
-const blendModeOptions = [
-  { label: 'Normal', value: 'normal' },
-  { label: 'Multiply', value: 'multiply' },
-  { label: 'Screen', value: 'screen' },
-  { label: 'Overlay', value: 'overlay' },
-  { label: 'Soft Light', value: 'soft-light' },
-];
+const blendModeOptions = computed(() => [
+  { label: t('scene.normal'), value: 'normal' },
+  { label: t('scene.multiply'), value: 'multiply' },
+  { label: t('scene.screen'), value: 'screen' },
+  { label: t('scene.overlay'), value: 'overlay' },
+  { label: t('scene.softLight'), value: 'soft-light' },
+]);
 
 function orbCssGradient(orb: GradientOrb): string {
   const a = orb.opacity;
@@ -515,27 +517,27 @@ const gradientPreviewStyle = computed(() => {
 
 <template>
   <!-- MEDIA LAYER (BACK) -->
-  <PanelSection title="Media Background" icon="ph:image-duotone" collapsible>
+  <PanelSection :title="t('scene.mediaBackground')" icon="ph:image-duotone" collapsible>
     <div class="bg-type-selector">
       <label class="bg-option" :class="{ active: background.media.type === 'none' }">
         <input type="radio" value="none" v-model="background.media.type" />
         <iconify-icon icon="ph:x-circle-duotone"></iconify-icon>
-        <span>None</span>
+        <span>{{ t('scene.none') }}</span>
       </label>
       <label class="bg-option" :class="{ active: background.media.type === 'image' }">
         <input type="radio" value="image" v-model="background.media.type" />
         <iconify-icon icon="ph:image-duotone"></iconify-icon>
-        <span>Image</span>
+        <span>{{ t('scene.image') }}</span>
       </label>
       <label class="bg-option" :class="{ active: background.media.type === 'video' }">
         <input type="radio" value="video" v-model="background.media.type" />
         <iconify-icon icon="ph:video-duotone"></iconify-icon>
-        <span>Video</span>
+        <span>{{ t('scene.video') }}</span>
       </label>
       <label class="bg-option" :class="{ active: background.media.type === 'hdri' }">
         <input type="radio" value="hdri" v-model="background.media.type" />
         <iconify-icon icon="ph:globe-duotone"></iconify-icon>
-        <span>HDRI</span>
+        <span>{{ t('scene.hdri') }}</span>
       </label>
     </div>
 
@@ -550,14 +552,14 @@ const gradientPreviewStyle = computed(() => {
       />
 
       <div class="media-gallery-header">
-        <span class="gallery-label">{{ customMediaPanels.image ? 'Upload custom image' : 'Select an image' }}</span>
+        <span class="gallery-label">{{ customMediaPanels.image ? t('scene.uploadCustomImage') : t('scene.selectImage') }}</span>
         <button 
           class="toggle-view-btn"
           @click="customMediaPanels.image = !customMediaPanels.image"
-          :title="customMediaPanels.image ? 'Back to gallery' : 'Upload custom'"
+          :title="customMediaPanels.image ? t('scene.backToGallery') : t('scene.uploadCustom')"
         >
           <iconify-icon :icon="customMediaPanels.image ? 'ph:images-duotone' : 'ph:upload-duotone'"></iconify-icon>
-          <span>{{ customMediaPanels.image ? 'Gallery' : 'Upload' }}</span>
+          <span>{{ customMediaPanels.image ? t('scene.gallery') : t('scene.upload') }}</span>
         </button>
       </div>
 
@@ -565,14 +567,14 @@ const gradientPreviewStyle = computed(() => {
       <div v-if="customMediaPanels.image" class="upload-settings">
         <button class="upload-btn" @click="triggerImageUpload">
           <iconify-icon icon="ph:upload-duotone"></iconify-icon>
-          <span>Choose File</span>
+          <span>{{ t('scene.chooseFile') }}</span>
         </button>
         <BaseInput
-          label="Or paste URL"
+          :label="t('scene.orPasteUrl')"
           v-model="background.media.image.url"
-          placeholder="https://..."
+          :placeholder="t('scene.urlPlaceholder')"
         />
-        <p class="cors-hint">External URLs require CORS headers.</p>
+        <p class="cors-hint">{{ t('scene.corsRequired') }}</p>
       </div>
 
       <!-- Image Gallery -->
@@ -593,12 +595,12 @@ const gradientPreviewStyle = computed(() => {
       <!-- Image Options (always visible) -->
       <div class="media-options">
         <BaseSelect
-          label="Fit"
+          :label="t('scene.fit')"
           v-model="background.media.image.fit"
           :options="fitOptions"
         />
         <BaseSlider
-          label="Opacity"
+          :label="t('scene.opacity')"
           v-model="background.media.image.opacity"
           :min="0"
           :max="1"
@@ -618,14 +620,14 @@ const gradientPreviewStyle = computed(() => {
       />
 
       <div class="media-gallery-header">
-        <span class="gallery-label">{{ customMediaPanels.video ? 'Upload custom video' : 'Select a video' }}</span>
+        <span class="gallery-label">{{ customMediaPanels.video ? t('scene.uploadCustomVideo') : t('scene.selectVideo') }}</span>
         <button 
           class="toggle-view-btn"
           @click="customMediaPanels.video = !customMediaPanels.video"
-          :title="customMediaPanels.video ? 'Back to gallery' : 'Upload custom'"
+          :title="customMediaPanels.video ? t('scene.backToGallery') : t('scene.uploadCustom')"
         >
           <iconify-icon :icon="customMediaPanels.video ? 'ph:video-duotone' : 'ph:upload-duotone'"></iconify-icon>
-          <span>{{ customMediaPanels.video ? 'Gallery' : 'Upload' }}</span>
+          <span>{{ customMediaPanels.video ? t('scene.gallery') : t('scene.upload') }}</span>
         </button>
       </div>
 
@@ -633,14 +635,14 @@ const gradientPreviewStyle = computed(() => {
       <div v-if="customMediaPanels.video" class="upload-settings">
         <button class="upload-btn" @click="triggerVideoUpload">
           <iconify-icon icon="ph:upload-duotone"></iconify-icon>
-          <span>Choose File</span>
+          <span>{{ t('scene.chooseFile') }}</span>
         </button>
         <BaseInput
-          label="Or paste URL"
+          :label="t('scene.orPasteUrl')"
           v-model="background.media.video.url"
-          placeholder="https://..."
+          :placeholder="t('scene.urlPlaceholder')"
         />
-        <p class="cors-hint">External URLs require CORS headers.</p>
+        <p class="cors-hint">{{ t('scene.corsRequired') }}</p>
       </div>
 
       <!-- Video Gallery -->
@@ -661,12 +663,12 @@ const gradientPreviewStyle = computed(() => {
       <!-- Video Options (always visible) -->
       <div class="media-options">
         <BaseSelect
-          label="Fit"
+          :label="t('scene.fit')"
           v-model="background.media.video.fit"
           :options="fitOptions"
         />
         <BaseSlider
-          label="Opacity"
+          :label="t('scene.opacity')"
           v-model="background.media.video.opacity"
           :min="0"
           :max="1"
@@ -675,11 +677,11 @@ const gradientPreviewStyle = computed(() => {
         <div class="video-toggles">
           <label class="toggle-option">
             <input type="checkbox" v-model="background.media.video.loop" />
-            <span>Loop</span>
+            <span>{{ t('scene.loop') }}</span>
           </label>
           <label class="toggle-option">
             <input type="checkbox" v-model="background.media.video.muted" />
-            <span>Muted</span>
+            <span>{{ t('scene.muted') }}</span>
           </label>
         </div>
       </div>
@@ -688,25 +690,25 @@ const gradientPreviewStyle = computed(() => {
     <!-- HDRI Gallery & Settings -->
     <template v-if="background.media.type === 'hdri'">
       <div class="media-gallery-header">
-        <span class="gallery-label">{{ customMediaPanels.hdri ? 'Enter HDRI URL' : 'Select a 3D environment' }}</span>
+        <span class="gallery-label">{{ customMediaPanels.hdri ? t('scene.enterHdriUrl') : t('scene.select3dEnvironment') }}</span>
         <button 
           class="toggle-view-btn"
           @click="customMediaPanels.hdri = !customMediaPanels.hdri"
-          :title="customMediaPanels.hdri ? 'Back to gallery' : 'Custom URL'"
+          :title="customMediaPanels.hdri ? t('scene.backToGallery') : t('scene.customUrl')"
         >
           <iconify-icon :icon="customMediaPanels.hdri ? 'ph:globe-duotone' : 'ph:link-duotone'"></iconify-icon>
-          <span>{{ customMediaPanels.hdri ? 'Gallery' : 'Custom' }}</span>
+          <span>{{ customMediaPanels.hdri ? t('scene.gallery') : t('scene.custom') }}</span>
         </button>
       </div>
 
       <!-- Custom URL Settings (hides gallery) -->
       <div v-if="customMediaPanels.hdri" class="upload-settings">
         <BaseInput
-          label="HDRI URL (.hdr file)"
+          :label="t('scene.hdriUrl')"
           v-model="background.media.hdri.url"
-          placeholder="https://.../.hdr"
+          :placeholder="t('scene.hdriPlaceholder')"
         />
-        <p class="cors-hint">Use Poly Haven or similar CORS-enabled sources.</p>
+        <p class="cors-hint">{{ t('scene.hdriHint') }}</p>
       </div>
 
       <!-- HDRI Gallery -->
@@ -728,21 +730,21 @@ const gradientPreviewStyle = computed(() => {
       <!-- HDRI Options (always visible) -->
       <div class="media-options">
         <BaseSlider
-          label="Background opacity"
+          :label="t('scene.backgroundOpacity')"
           v-model="background.media.hdri.opacity"
           :min="0"
           :max="1"
           :step="0.05"
         />
         <BaseSlider
-          label="Environment light"
+          :label="t('scene.environmentLight')"
           v-model="background.media.hdri.intensity"
           :min="0"
           :max="2"
           :step="0.1"
         />
         <BaseSlider
-          label="Blur"
+          :label="t('scene.blur')"
           v-model="background.media.hdri.blur"
           :min="0"
           :max="1"
@@ -753,17 +755,17 @@ const gradientPreviewStyle = computed(() => {
   </PanelSection>
 
     <!-- OVERLAY BACKGROUND (single section: type, preview, stops, orbs, blend) -->
-    <PanelSection title="Overlay Background" icon="ph:gradient-duotone" collapsible>
+    <PanelSection :title="t('scene.overlayBackground')" icon="ph:gradient-duotone" collapsible>
       <div class="overlay-header-bar">
         <div class="gradient-toggle">
           <label class="toggle-switch">
             <input type="checkbox" v-model="background.gradient.enabled" />
             <span class="slider"></span>
           </label>
-          <span class="toggle-label">{{ background.gradient.enabled ? 'Enabled' : 'Disabled' }}</span>
+          <span class="toggle-label">{{ background.gradient.enabled ? t('scene.enabled') : t('scene.disabled') }}</span>
         </div>
         <div v-if="background.gradient.enabled" class="overlay-dice-group">
-          <button type="button" class="dice-btn" @click="randomizeAll" title="Randomize all">
+          <button type="button" class="dice-btn" @click="randomizeAll" :title="t('scene.randomizeAll')">
             <iconify-icon icon="ph:dice-five-duotone"></iconify-icon>
           </button>
         </div>
@@ -775,15 +777,15 @@ const gradientPreviewStyle = computed(() => {
         </div>
 
         <div class="randomize-toolbar">
-          <p class="palette-toolbar-label">Brightness</p>
-          <div class="overlay-palette-grid" role="radiogroup" aria-label="Palette brightness">
+          <p class="palette-toolbar-label">{{ t('scene.brightness') }}</p>
+          <div class="overlay-palette-grid" role="radiogroup" :aria-label="t('scene.paletteBrightnessAria')">
             <label
               class="gradient-type-option"
               :class="{ active: background.gradient.paletteBrightness === 'dark' }"
             >
               <input type="radio" value="dark" v-model="background.gradient.paletteBrightness" />
               <iconify-icon icon="ph:moon-stars-duotone"></iconify-icon>
-              <span>Dark</span>
+              <span>{{ t('scene.dark') }}</span>
             </label>
             <label
               class="gradient-type-option"
@@ -791,11 +793,11 @@ const gradientPreviewStyle = computed(() => {
             >
               <input type="radio" value="light" v-model="background.gradient.paletteBrightness" />
               <iconify-icon icon="ph:sun-duotone"></iconify-icon>
-              <span>Light</span>
+              <span>{{ t('scene.light') }}</span>
             </label>
           </div>
           <div class="scene-color-palettes">
-            <span class="scene-palette-label">Quick palettes (same as blob XYZ)</span>
+            <span class="scene-palette-label">{{ t('scene.quickPalettes') }}</span>
             <div class="scene-palette-grid">
               <button
                 v-for="(palette, key) in palettes"
@@ -812,36 +814,34 @@ const gradientPreviewStyle = computed(() => {
           </div>
           <button type="button" class="overlay-action-btn" @click="syncColorsFromAvatar">
             <iconify-icon icon="ph:palette-duotone"></iconify-icon>
-            <span>Sync colors from avatar</span>
+            <span>{{ t('scene.syncAvatarColors') }}</span>
           </button>
           <p class="randomize-hint">
-            Tap a palette to apply it, or use dice to roll a new set with the selected palette.
-            Brightness remaps colors for dark or light overlays. Scene settings save locally and with
-            the kwami Save button.
+            {{ t('scene.randomizeHint') }}
           </p>
         </div>
 
-        <p class="overlay-sublabel">Type</p>
-        <div class="overlay-type-grid" role="tablist" aria-label="Overlay type">
+        <p class="overlay-sublabel">{{ t('scene.type') }}</p>
+        <div class="overlay-type-grid" role="tablist" :aria-label="t('scene.overlayTypeAria')">
           <label class="gradient-type-option" :class="{ active: background.gradient.type === 'solid' }">
             <input type="radio" value="solid" v-model="background.gradient.type" />
             <iconify-icon icon="ph:square-duotone"></iconify-icon>
-            <span>Solid</span>
+            <span>{{ t('scene.solid') }}</span>
           </label>
           <label class="gradient-type-option" :class="{ active: background.gradient.type === 'linear' }">
             <input type="radio" value="linear" v-model="background.gradient.type" />
             <iconify-icon icon="ph:arrows-out-line-horizontal-duotone"></iconify-icon>
-            <span>Linear</span>
+            <span>{{ t('scene.linear') }}</span>
           </label>
           <label class="gradient-type-option" :class="{ active: background.gradient.type === 'radial' }">
             <input type="radio" value="radial" v-model="background.gradient.type" />
             <iconify-icon icon="ph:circle-duotone"></iconify-icon>
-            <span>Radial</span>
+            <span>{{ t('scene.radial') }}</span>
           </label>
           <label class="gradient-type-option" :class="{ active: background.gradient.type === 'orbs' }">
             <input type="radio" value="orbs" v-model="background.gradient.type" />
             <iconify-icon icon="ph:circles-three-duotone"></iconify-icon>
-            <span>Orbs</span>
+            <span>{{ t('scene.orbs') }}</span>
           </label>
         </div>
 
@@ -853,7 +853,7 @@ const gradientPreviewStyle = computed(() => {
             @click="randomizeOrbs"
           >
             <iconify-icon icon="ph:dice-four-duotone"></iconify-icon>
-            <span>Randomize orbs</span>
+            <span>{{ t('scene.randomizeOrbs') }}</span>
           </button>
           <button
             v-else
@@ -862,17 +862,17 @@ const gradientPreviewStyle = computed(() => {
             @click="randomizePositions"
           >
             <iconify-icon icon="ph:dice-three-duotone"></iconify-icon>
-            <span>Randomize positions</span>
+            <span>{{ t('scene.randomizePositions') }}</span>
           </button>
         </div>
 
         <div v-if="background.gradient.type === 'solid'" class="gradient-position-controls">
-          <BaseColorPicker label="Color" v-model="background.gradient.solidColor" />
+          <BaseColorPicker :label="t('scene.color')" v-model="background.gradient.solidColor" />
         </div>
 
         <div v-if="background.gradient.type === 'linear'" class="gradient-position-controls">
           <BaseSlider
-            label="Angle"
+            :label="t('scene.angle')"
             v-model="background.gradient.angle"
             :min="0"
             :max="360"
@@ -884,7 +884,7 @@ const gradientPreviewStyle = computed(() => {
         <div v-if="background.gradient.type === 'radial'" class="gradient-position-controls">
           <div class="position-grid">
             <BaseSlider
-              label="Center X"
+              :label="t('scene.centerX')"
               v-model="background.gradient.radialCenter.x"
               :min="0"
               :max="100"
@@ -892,7 +892,7 @@ const gradientPreviewStyle = computed(() => {
               unit="%"
             />
             <BaseSlider
-              label="Center Y"
+              :label="t('scene.centerY')"
               v-model="background.gradient.radialCenter.y"
               :min="0"
               :max="100"
@@ -901,7 +901,7 @@ const gradientPreviewStyle = computed(() => {
             />
           </div>
           <BaseSlider
-            label="Size"
+            :label="t('scene.size')"
             v-model="background.gradient.radialSize"
             :min="10"
             :max="200"
@@ -911,7 +911,7 @@ const gradientPreviewStyle = computed(() => {
         </div>
 
         <template v-if="background.gradient.type === 'orbs'">
-          <p class="overlay-sublabel">Orbs</p>
+          <p class="overlay-sublabel">{{ t('scene.orbs') }}</p>
           <div class="orbs-list">
             <div
               v-for="(orb, index) in background.gradient.orbs"
@@ -919,42 +919,42 @@ const gradientPreviewStyle = computed(() => {
               class="orb-row"
             >
               <div class="orb-header">
-                <span class="orb-label">Orb {{ index + 1 }}</span>
+                <span class="orb-label">{{ t('scene.orbs') }} {{ index + 1 }}</span>
                 <div class="orb-preview" :style="getOrbPreviewStyle(orb)"></div>
                 <button
                   v-if="background.gradient.orbs.length > 1"
                   type="button"
                   class="remove-orb-btn"
                   @click="removeOrb(index)"
-                  title="Remove orb"
+                  :title="t('scene.removeOrb')"
                 >
                   <iconify-icon icon="ph:x"></iconify-icon>
                 </button>
               </div>
               <div class="orb-controls">
-                <BaseColorPicker label="Color" v-model="orb.color" />
+                <BaseColorPicker :label="t('scene.color')" v-model="orb.color" />
                 <div class="orb-position-grid">
-                  <BaseSlider label="X" v-model="orb.x" :min="0" :max="100" :step="1" unit="%" />
-                  <BaseSlider label="Y" v-model="orb.y" :min="0" :max="100" :step="1" unit="%" />
+                  <BaseSlider :label="t('scene.x')" v-model="orb.x" :min="0" :max="100" :step="1" unit="%" />
+                  <BaseSlider :label="t('scene.y')" v-model="orb.y" :min="0" :max="100" :step="1" unit="%" />
                 </div>
                 <div class="orb-size-grid">
-                  <BaseSlider label="Size" v-model="orb.size" :min="10" :max="100" :step="5" unit="%" />
-                  <BaseSlider label="Softness" v-model="orb.softness" :min="0" :max="100" :step="5" unit="%" />
+                  <BaseSlider :label="t('scene.size')" v-model="orb.size" :min="10" :max="100" :step="5" unit="%" />
+                  <BaseSlider :label="t('scene.softness')" v-model="orb.softness" :min="0" :max="100" :step="5" unit="%" />
                 </div>
-                <BaseSlider label="Opacity" v-model="orb.opacity" :min="0" :max="1" :step="0.05" />
+                <BaseSlider :label="t('scene.opacity')" v-model="orb.opacity" :min="0" :max="1" :step="0.05" />
               </div>
             </div>
           </div>
           <button type="button" class="add-orb-btn" @click="addOrb">
             <iconify-icon icon="ph:plus"></iconify-icon>
-            <span>Add orb</span>
+            <span>{{ t('scene.addOrb') }}</span>
           </button>
         </template>
 
         <template v-if="background.gradient.type === 'radial' || background.gradient.type === 'linear'">
           <div class="overlay-stops-header">
-            <p class="overlay-sublabel">Color stops</p>
-            <button type="button" class="dice-btn" @click="randomizeColors" title="Randomize colors">
+            <p class="overlay-sublabel">{{ t('scene.colorStops') }}</p>
+            <button type="button" class="dice-btn" @click="randomizeColors" :title="t('scene.randomizeColors')">
               <iconify-icon icon="ph:dice-four-duotone"></iconify-icon>
             </button>
           </div>
@@ -964,15 +964,15 @@ const gradientPreviewStyle = computed(() => {
               :key="index"
               class="color-stop-row"
             >
-              <BaseColorPicker :label="`Stop ${index + 1}`" v-model="stop.color" />
-              <BaseSlider label="Pos" v-model="stop.position" :min="0" :max="100" :step="1" unit="%" />
-              <BaseSlider label="Alpha" v-model="stop.opacity" :min="0" :max="1" :step="0.05" />
+              <BaseColorPicker :label="`${t('scene.stop')} ${index + 1}`" v-model="stop.color" />
+              <BaseSlider :label="t('scene.pos')" v-model="stop.position" :min="0" :max="100" :step="1" unit="%" />
+              <BaseSlider :label="t('scene.alpha')" v-model="stop.opacity" :min="0" :max="1" :step="0.05" />
               <button
                 v-if="background.gradient.stops.length > 2"
                 type="button"
                 class="remove-stop-btn"
                 @click="removeGradientStop(index)"
-                title="Remove stop"
+                :title="t('scene.removeStop')"
               >
                 <iconify-icon icon="ph:x"></iconify-icon>
               </button>
@@ -980,21 +980,21 @@ const gradientPreviewStyle = computed(() => {
           </div>
           <button type="button" class="add-stop-btn" @click="addGradientStop">
             <iconify-icon icon="ph:plus"></iconify-icon>
-            <span>Add color stop</span>
+            <span>{{ t('scene.addColorStop') }}</span>
           </button>
         </template>
 
-        <p class="overlay-sublabel">Blend</p>
+        <p class="overlay-sublabel">{{ t('scene.blend') }}</p>
         <div class="overlay-blend-block">
           <BaseSlider
-            label="Overall opacity"
+            :label="t('scene.overallOpacity')"
             v-model="background.gradient.opacity"
             :min="0"
             :max="1"
             :step="0.05"
           />
           <BaseSelect
-            label="Blend mode"
+            :label="t('scene.blendMode')"
             v-model="background.gradient.blendMode"
             :options="blendModeOptions"
           />

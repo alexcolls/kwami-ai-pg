@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useKwami } from '@/composables/useKwami';
 import BaseToggle from '@/components/ui/BaseToggle.vue';
 import PanelSection from '@/components/ui/PanelSection.vue';
 
 const { kwami } = useKwami();
+const { t } = useI18n();
 const visualizerCanvas = ref<HTMLCanvasElement | null>(null);
 const enabled = ref(true);
 let animationFrameId: number | null = null;
@@ -70,7 +72,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <PanelSection title="Visualizer">
+  <PanelSection :title="t('audioPanel.visualizer')">
     <div class="visualizer-container">
       <canvas
         ref="visualizerCanvas"
@@ -80,7 +82,7 @@ onUnmounted(() => {
       ></canvas>
     </div>
     <div style="margin-top: 8px">
-      <BaseToggle label="Enable Visualizer" v-model="enabled" />
+      <BaseToggle :label="t('audioPanel.enableVisualizer')" v-model="enabled" />
     </div>
   </PanelSection>
 </template>

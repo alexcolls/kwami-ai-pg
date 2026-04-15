@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
+import { useToast } from 'vue-toastification';
 import { useKwami } from '@/composables/useKwami';
 import { useSceneBackground } from '@/composables/useSceneBackground';
 import { useUIStore } from '@/stores/ui';
@@ -41,6 +43,7 @@ const { kwami, init, switchRenderer, rendererType: kwamiRendererType, isConnecte
 const { initialize: initSceneBackground } = useSceneBackground();
 import { useVoiceStore } from '@/stores/voice';
 import { useCreditsStore } from '@/stores/credits';
+import { loadUserLocaleFromDb } from '@/lib/userAppSettings';
 
 const uiStore = useUIStore();
 const authStore = useAuthStore();
@@ -58,6 +61,12 @@ useWorkspaceAgentTools();
 useKwamiConfigWatchers();
 const voiceStore = useVoiceStore();
 const creditsStore = useCreditsStore();
+const toast = useToast();
+const { t } = useI18n();
+
+function onInsufficientCredits() {
+  toast.error(t('apiErrors.insufficientCredits'));
+}
 
 // Avatar sync composables (used to apply saved state on init)
 const { applyToKwami: applyBlobToKwami } = useBlobXyzSync({
@@ -82,7 +91,10 @@ watch(
     if (isAuth) {
       creditsStore.init();
       const uid = authStore.userId;
-      if (uid) void workspaceStore.loadFromDb(uid);
+      if (uid) {
+        void workspaceStore.loadFromDb(uid);
+        void loadUserLocaleFromDb(uid);
+      }
     }
   },
   { immediate: true },
@@ -112,11 +124,13 @@ onMounted(() => {
   window.addEventListener('kwami:disconnected', onKwamiDisconnected);
   window.addEventListener('kwami:configApplied', onKwamiConfigApplied);
   window.addEventListener('kwami:randomize-avatar-panel', onRandomizeAvatarPanel);
+  window.addEventListener('kwami:insufficient-credits', onInsufficientCredits);
 });
 onUnmounted(() => {
   window.removeEventListener('kwami:disconnected', onKwamiDisconnected);
   window.removeEventListener('kwami:configApplied', onKwamiConfigApplied);
   window.removeEventListener('kwami:randomize-avatar-panel', onRandomizeAvatarPanel);
+  window.removeEventListener('kwami:insufficient-credits', onInsufficientCredits);
 });
 
 

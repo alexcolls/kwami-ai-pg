@@ -1,8 +1,11 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n';
 import AuthForm from './AuthForm.vue';
 import GoogleButton from './GoogleButton.vue';
 import KwamiLogo from '@/components/ui/KwamiLogo.vue';
 import BackgroundRings from '@/components/ui/BackgroundRings.vue';
+
+const { t } = useI18n();
 </script>
 
 <template>
@@ -22,15 +25,15 @@ import BackgroundRings from '@/components/ui/BackgroundRings.vue';
         <div class="logo">
           <KwamiLogo width="160" :stroke-width="3" />
         </div>
-        <h1 class="title">Welcome</h1>
-        <p class="subtitle">Sign in to continue to Kwami App</p>
+        <h1 class="title">{{ t('auth.welcome') }}</h1>
+        <p class="subtitle">{{ t('auth.signInContinue') }}</p>
       </div>
 
       <div class="auth-content">
         <GoogleButton />
 
         <div class="divider">
-          <span>or continue with email</span>
+          <span>{{ t('auth.orContinueWithEmail') }}</span>
         </div>
 
         <AuthForm />
@@ -38,7 +41,7 @@ import BackgroundRings from '@/components/ui/BackgroundRings.vue';
     </div>
 
     <div class="auth-footer">
-      <p>Powered by Supabase Auth</p>
+      <p>{{ t('auth.poweredBySupabase') }}</p>
     </div>
   </div>
 </template>

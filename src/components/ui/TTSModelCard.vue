@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import type { InferenceTTSModel, PluginTTSModel } from '@/composables/useModelsApi';
 import RangeBar from './RangeBar.vue';
+
+const { t } = useI18n();
 
 // Language name mapping
 const LANGUAGE_NAMES: Record<string, string> = {
@@ -82,12 +85,12 @@ const speedPercent = computed(() => {
 });
 
 const speedDisplay = computed(() => {
-  const labels: Record<string, string> = {
-    fast: 'Fast',
-    standard: 'Medium',
-    slow: 'Slow',
+  const keys: Record<string, string> = {
+    fast: 'sttModelCard.speedFast',
+    standard: 'sttModelCard.speedMedium',
+    slow: 'sttModelCard.speedSlow',
   };
-  return labels[props.model.speed] || 'Medium';
+  return t(keys[props.model.speed] ?? 'sttModelCard.speedMedium');
 });
 
 // Features count and display
@@ -107,8 +110,8 @@ const featuresPercent = computed(() => {
 
 const featuresDisplay = computed(() => {
   const count = advancedFeatures.value.length;
-  if (count === 0) return 'Basic';
-  return `${count} feat`;
+  if (count === 0) return t('ttsModelCard.featuresBasic');
+  return t('ttsModelCard.featuresCount', count, { n: count });
 });
 
 // Is multilingual
@@ -152,8 +155,8 @@ function handleClick() {
         <RangeBar 
           :value="pricePercent" 
           icon="ph:currency-dollar-duotone"
-          label="Price"
-          :title="`Price: ${priceDisplay}/1M chars`"
+          :label="t('sttModelCard.price')"
+          :title="t('ttsModelCard.priceTitle', { price: priceDisplay })"
         />
         <span class="range-value">{{ priceDisplay }}</span>
       </div>
@@ -161,8 +164,8 @@ function handleClick() {
         <RangeBar 
           :value="featuresPercent" 
           icon="ph:sparkle-duotone"
-          label="Features"
-          :title="`Features: ${featuresDisplay}`"
+          :label="t('ttsModelCard.features')"
+          :title="t('ttsModelCard.featuresTitle', { summary: featuresDisplay })"
         />
         <span class="range-value">{{ featuresDisplay }}</span>
       </div>
@@ -170,38 +173,52 @@ function handleClick() {
         <RangeBar 
           :value="speedPercent" 
           icon="ph:lightning-duotone"
-          label="Speed"
-          :title="`Speed: ${speedDisplay}`"
+          :label="t('sttModelCard.speed')"
+          :title="t('sttModelCard.speedTitle', { speed: speedDisplay })"
         />
         <span class="range-value">{{ speedDisplay }}</span>
       </div>
     </div>
     
     <div v-if="advancedFeatures.length || model.languages.length > 0" class="card-features">
-      <span v-if="advancedFeatures.includes('voice_cloning')" class="feature-badge clone" title="Voice Cloning">
+      <span
+        v-if="advancedFeatures.includes('voice_cloning')"
+        class="feature-badge clone"
+        :title="t('ttsModelCard.titleVoiceCloning')"
+      >
         <iconify-icon icon="ph:user-sound-duotone"></iconify-icon>
-        <span class="feature-label">Clone</span>
+        <span class="feature-label">{{ t('ttsModelCard.featureClone') }}</span>
       </span>
-      <span v-if="advancedFeatures.includes('emotion_control')" class="feature-badge emotion" title="Emotion Control">
+      <span
+        v-if="advancedFeatures.includes('emotion_control')"
+        class="feature-badge emotion"
+        :title="t('ttsModelCard.titleEmotionControl')"
+      >
         <iconify-icon icon="ph:smiley-duotone"></iconify-icon>
-        <span class="feature-label">Emotion</span>
+        <span class="feature-label">{{ t('ttsModelCard.featureEmotion') }}</span>
       </span>
       <span 
         v-if="model.languages.length > 0" 
         class="feature-badge multilingual lang-trigger"
-        :title="`${model.languages.length} languages`"
+        :title="
+          t('sttModelCard.languagesHeading', model.languages.length, { n: model.languages.length })
+        "
         @mouseenter="showLanguages = true"
         @mouseleave="showLanguages = false"
       >
         <iconify-icon icon="ph:globe-duotone"></iconify-icon>
-        <span class="feature-label">{{ isMultilingual ? 'Multi' : model.languages.length }}</span>
+        <span class="feature-label">{{
+          isMultilingual ? t('sttModelCard.multiShort') : model.languages.length
+        }}</span>
         
         <!-- Languages Popover -->
         <Transition name="fade">
           <div v-if="showLanguages && model.languages.length > 1" class="languages-popover" @click.stop>
             <div class="popover-header">
               <iconify-icon icon="ph:globe-duotone"></iconify-icon>
-              <span>{{ model.languages.length }} Languages</span>
+              <span>{{
+                t('sttModelCard.languagesHeading', model.languages.length, { n: model.languages.length })
+              }}</span>
             </div>
             <div class="languages-grid">
               <span 

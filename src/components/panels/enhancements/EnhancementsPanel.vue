@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { panelIcons } from '@/constants/panel-icons';
 import { useKwami } from '@/composables/useKwami';
 import { useVoiceStore } from '@/stores/voice';
@@ -12,6 +13,7 @@ import BaseSelect from '@/components/ui/BaseSelect.vue';
 import PanelHeaderControls from '@/components/ui/PanelHeaderControls.vue';
 
 const { kwami, isConnected } = useKwami();
+const { t } = useI18n();
 const voiceStore = useVoiceStore();
 const { enhancementsState } = storeToRefs(voiceStore);
 
@@ -156,52 +158,52 @@ watch(() => performance.preemptiveGeneration, debouncedApply);
   <div class="panel-inner">
     <div class="panel-header">
       <iconify-icon :icon="panelIcons.enhancements" class="panel-icon"></iconify-icon>
-      <h2>Enhancements</h2>
+      <h2>{{ t('enhancements.title') }}</h2>
       <PanelHeaderControls />
     </div>
 
     <div class="panel-body">
       <!-- Turn Detection -->
-      <PanelSection title="Turn Detection" icon="ph:chat-circle-dots-duotone">
+      <PanelSection :title="t('enhancements.turnDetection')" icon="ph:chat-circle-dots-duotone">
         <div class="row">
           <div class="info">
-            <span class="label">Enable Turn Detection</span>
-            <span class="desc">Automatically detect when user finishes speaking</span>
+            <span class="label">{{ t('enhancements.enableTurnDetection') }}</span>
+            <span class="desc">{{ t('enhancements.enableTurnDetectionDesc') }}</span>
           </div>
           <BaseToggle v-model="turnDetection.enabled" />
         </div>
 
         <div class="config-form" v-if="turnDetection.enabled">
           <BaseSelect
-            label="Detection Mode"
+            :label="t('enhancements.detectionMode')"
             v-model="turnDetection.mode"
             :options="[
-              { label: 'Turn Detector Model', value: 'model' },
-              { label: 'VAD Only', value: 'vad' },
-              { label: 'STT Endpointing', value: 'stt' },
-              { label: 'Manual Control', value: 'manual' },
+              { label: t('enhancements.modeModel'), value: 'model' },
+              { label: t('enhancements.modeVad'), value: 'vad' },
+              { label: t('enhancements.modeStt'), value: 'stt' },
+              { label: t('enhancements.modeManual'), value: 'manual' },
             ]"
           />
 
           <BaseSelect
             v-if="turnDetection.mode === 'model'"
-            label="Model Type"
+            :label="t('enhancements.modelType')"
             v-model="turnDetection.model"
             :options="[
-              { label: 'Multilingual', value: 'multilingual' },
-              { label: 'English Only', value: 'english' },
+              { label: t('enhancements.multilingual'), value: 'multilingual' },
+              { label: t('enhancements.englishOnly'), value: 'english' },
             ]"
           />
 
           <BaseSlider
-            label="Min Endpointing Delay (s)"
+            :label="t('enhancements.minEndpointDelay')"
             :min="0"
             :max="2"
             :step="0.1"
             v-model="turnDetection.minEndpointingDelay"
           />
           <BaseSlider
-            label="Max Endpointing Delay (s)"
+            :label="t('enhancements.maxEndpointDelay')"
             :min="1"
             :max="5"
             :step="0.5"
@@ -211,24 +213,24 @@ watch(() => performance.preemptiveGeneration, debouncedApply);
       </PanelSection>
 
       <!-- Interruptions -->
-      <PanelSection title="Interruptions" icon="ph:hand-palm-duotone">
+      <PanelSection :title="t('enhancements.interruptions')" icon="ph:hand-palm-duotone">
         <div class="row">
           <div class="info">
-            <span class="label">Allow Interruptions</span>
-            <span class="desc">Let user interrupt agent while speaking</span>
+            <span class="label">{{ t('enhancements.allowInterruptions') }}</span>
+            <span class="desc">{{ t('enhancements.allowInterruptionsDesc') }}</span>
           </div>
           <BaseToggle v-model="interruptions.enabled" />
         </div>
         <div class="config-form" v-if="interruptions.enabled">
           <BaseSlider
-            label="Min Interruption Duration (s)"
+            :label="t('enhancements.minInterruptionDuration')"
             :min="0.1"
             :max="1.5"
             :step="0.1"
             v-model="interruptions.minDuration"
           />
           <BaseSlider
-            label="Min Interruption Words"
+            :label="t('enhancements.minInterruptionWords')"
             :min="0"
             :max="5"
             :step="1"
@@ -238,51 +240,51 @@ watch(() => performance.preemptiveGeneration, debouncedApply);
       </PanelSection>
 
       <!-- Noise Cancellation -->
-      <PanelSection title="Noise Cancellation" icon="ph:speaker-x-duotone">
+      <PanelSection :title="t('enhancements.noiseCancellation')" icon="ph:speaker-x-duotone">
         <div class="row">
           <div class="info">
-            <span class="label">Enable Noise Cancellation</span>
-            <span class="desc">Reduce background noise in audio input</span>
+            <span class="label">{{ t('enhancements.enableNoiseCancellation') }}</span>
+            <span class="desc">{{ t('enhancements.enableNoiseCancellationDesc') }}</span>
           </div>
           <BaseToggle v-model="noiseCancellation.enabled" />
         </div>
         <div class="config-form" v-if="noiseCancellation.enabled">
           <BaseSelect
-            label="Mode"
+            :label="t('enhancements.mode')"
             v-model="noiseCancellation.mode"
             :options="[
-              { label: 'BVC (Background Voice Cancellation)', value: 'bvc' },
-              { label: 'Krisp', value: 'krisp' },
-              { label: 'Default', value: 'default' },
+              { label: t('enhancements.modeBvc'), value: 'bvc' },
+              { label: t('enhancements.modeKrisp'), value: 'krisp' },
+              { label: t('enhancements.modeDefault'), value: 'default' },
             ]"
           />
         </div>
       </PanelSection>
 
       <!-- VAD Settings -->
-      <PanelSection title="Voice Activity Detection (VAD)" icon="ph:waveform-duotone">
+      <PanelSection :title="t('enhancements.vad')" icon="ph:waveform-duotone">
         <div class="config-form">
           <BaseSelect
-            label="Provider"
+            :label="t('enhancements.provider')"
             v-model="vad.provider"
             :options="[{ label: 'Silero', value: 'silero' }]"
           />
           <BaseSlider
-            label="Speech Threshold"
+            :label="t('enhancements.speechThreshold')"
             :min="0"
             :max="1"
             :step="0.05"
             v-model="vad.threshold"
           />
           <BaseSlider
-            label="Min Speech Duration (s)"
+            :label="t('enhancements.minSpeechDuration')"
             :min="0"
             :max="0.5"
             :step="0.05"
             v-model="vad.minSpeech"
           />
           <BaseSlider
-            label="Min Silence Duration (s)"
+            :label="t('enhancements.minSilenceDuration')"
             :min="0.1"
             :max="1"
             :step="0.1"
@@ -292,29 +294,29 @@ watch(() => performance.preemptiveGeneration, debouncedApply);
       </PanelSection>
 
       <!-- Audio Enhancements -->
-      <PanelSection title="Audio Processing" icon="ph:speaker-high-duotone">
+      <PanelSection :title="t('enhancements.audioProcessing')" icon="ph:speaker-high-duotone">
         <div class="row">
           <div class="info">
-            <span class="label">Echo Cancellation</span>
-            <span class="desc">Prevent audio feedback loops</span>
+            <span class="label">{{ t('enhancements.echoCancellation') }}</span>
+            <span class="desc">{{ t('enhancements.echoCancellationDesc') }}</span>
           </div>
           <BaseToggle v-model="audioProcessing.echoCancellation" />
         </div>
         <div class="row">
           <div class="info">
-            <span class="label">Auto Gain Control</span>
-            <span class="desc">Automatically adjust microphone volume</span>
+            <span class="label">{{ t('enhancements.autoGainControl') }}</span>
+            <span class="desc">{{ t('enhancements.autoGainControlDesc') }}</span>
           </div>
           <BaseToggle v-model="audioProcessing.autoGainControl" />
         </div>
       </PanelSection>
 
       <!-- Performance -->
-      <PanelSection title="Performance" icon="ph:lightning-duotone">
+      <PanelSection :title="t('enhancements.performance')" icon="ph:lightning-duotone">
         <div class="row">
           <div class="info">
-            <span class="label">Preemptive Generation</span>
-            <span class="desc">Start generating response before turn ends</span>
+            <span class="label">{{ t('enhancements.preemptiveGeneration') }}</span>
+            <span class="desc">{{ t('enhancements.preemptiveGenerationDesc') }}</span>
           </div>
           <BaseToggle v-model="performance.preemptiveGeneration" />
         </div>

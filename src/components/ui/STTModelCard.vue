@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import type { InferenceSTTModel, PluginSTTModel } from '@/composables/useModelsApi';
 import RangeBar from './RangeBar.vue';
+
+const { t } = useI18n();
 
 // Language name mapping
 const LANGUAGE_NAMES: Record<string, string> = {
@@ -80,12 +83,12 @@ const speedPercent = computed(() => {
 });
 
 const speedDisplay = computed(() => {
-  const labels: Record<string, string> = {
-    fast: 'Fast',
-    standard: 'Medium',
-    slow: 'Slow',
+  const keys: Record<string, string> = {
+    fast: 'sttModelCard.speedFast',
+    standard: 'sttModelCard.speedMedium',
+    slow: 'sttModelCard.speedSlow',
   };
-  return labels[props.model.speed] || 'Medium';
+  return t(keys[props.model.speed] ?? 'sttModelCard.speedMedium');
 });
 
 // Language display and percentage
@@ -94,7 +97,7 @@ const isMultilingual = computed(() => {
 });
 
 const languageDisplay = computed(() => {
-  if (isMultilingual.value) return 'Multi';
+  if (isMultilingual.value) return t('sttModelCard.multiShort');
   if (props.model.languages.length === 1) return props.model.languages[0]!.toUpperCase();
   return `${props.model.languages.length}`;
 });
@@ -146,8 +149,8 @@ function handleClick() {
         <RangeBar 
           :value="pricePercent" 
           icon="ph:currency-dollar-duotone"
-          label="Price"
-          :title="`Price: ${priceDisplay}/1k min`"
+          :label="t('sttModelCard.price')"
+          :title="t('sttModelCard.priceTitle', { price: priceDisplay })"
         />
         <span class="range-value">{{ priceDisplay }}</span>
       </div>
@@ -159,8 +162,8 @@ function handleClick() {
         <RangeBar 
           :value="languagePercent" 
           icon="ph:globe-duotone"
-          label="Lang"
-          :title="`Languages: ${languageDisplay}`"
+          :label="t('sttModelCard.lang')"
+          :title="t('sttModelCard.languagesTitle', { languages: languageDisplay })"
         />
         <span class="range-value">{{ languageDisplay }}</span>
         
@@ -169,7 +172,9 @@ function handleClick() {
           <div v-if="showLanguages && model.languages.length > 1" class="languages-popover">
             <div class="popover-header">
               <iconify-icon icon="ph:globe-duotone"></iconify-icon>
-              <span>{{ model.languages.length }} Languages</span>
+              <span>{{
+                t('sttModelCard.languagesHeading', model.languages.length, { n: model.languages.length })
+              }}</span>
             </div>
             <div class="languages-grid">
               <span 
@@ -188,21 +193,29 @@ function handleClick() {
         <RangeBar 
           :value="speedPercent" 
           icon="ph:lightning-duotone"
-          label="Speed"
-          :title="`Speed: ${speedDisplay}`"
+          :label="t('sttModelCard.speed')"
+          :title="t('sttModelCard.speedTitle', { speed: speedDisplay })"
         />
         <span class="range-value">{{ speedDisplay }}</span>
       </div>
     </div>
     
     <div v-if="hasSpecialFeature" class="card-features">
-      <span v-if="model.features.includes('diarization')" class="feature-badge diarization" title="Speaker Diarization">
+      <span
+        v-if="model.features.includes('diarization')"
+        class="feature-badge diarization"
+        :title="t('sttModelCard.titleDiarization')"
+      >
         <iconify-icon icon="ph:users-duotone"></iconify-icon>
-        <span class="feature-label">Diarization</span>
+        <span class="feature-label">{{ t('sttModelCard.featureDiarization') }}</span>
       </span>
-      <span v-if="model.features.includes('medical_vocabulary')" class="feature-badge medical" title="Medical Vocabulary">
+      <span
+        v-if="model.features.includes('medical_vocabulary')"
+        class="feature-badge medical"
+        :title="t('sttModelCard.titleMedical')"
+      >
         <iconify-icon icon="ph:first-aid-kit-duotone"></iconify-icon>
-        <span class="feature-label">Medical</span>
+        <span class="feature-label">{{ t('sttModelCard.featureMedical') }}</span>
       </span>
     </div>
     

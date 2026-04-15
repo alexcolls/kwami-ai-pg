@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue';
+import { useI18n } from 'vue-i18n';
 import WelcomeRings from '@/components/welcome/WelcomeRings.vue';
 
 import './welcome-layer.css';
@@ -19,6 +20,7 @@ const props = withDefaults(defineProps<WelcomeScreenProps>(), {
 });
 
 const emit = defineEmits<{ (e: 'complete'): void }>();
+const { t } = useI18n();
 
 const isVisible = ref(props.visible);
 let timeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -96,7 +98,7 @@ onUnmounted(() => {
           :running="true"
           z-index="1"
         />
-        <div class="skip-hint">Click anywhere to skip</div>
+        <div class="skip-hint">{{ t('welcomeScreen.clickToSkip') }}</div>
       </div>
     </Transition>
   </Teleport>

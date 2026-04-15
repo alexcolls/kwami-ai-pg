@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useVoiceStore } from '@/stores/voice';
 import { storeToRefs } from 'pinia';
 import BasePanel from '@/components/ui/BasePanel.vue';
@@ -13,6 +14,7 @@ import TTSTab from './tabs/TTSTab.vue';
 import RealtimeTab from './tabs/RealtimeTab.vue';
 
 const voiceStore = useVoiceStore();
+const { t } = useI18n();
 const { llm, stt, tts, realtime, pipelineMode, modelsUI } = storeToRefs(voiceStore);
 const panelIcon = panelIcons.models ?? 'ph:cpu-duotone';
 
@@ -51,7 +53,7 @@ function getProviderIcon(provider: string): string {
 </script>
 
 <template>
-  <BasePanel :icon="panelIcon" title="Models">
+  <BasePanel :icon="panelIcon" :title="t('models.title')">
     <!-- Pipeline Selector -->
     <PanelSection>
       <PipelineSelector v-model="pipelineType" />
@@ -86,7 +88,7 @@ function getProviderIcon(provider: string): string {
           <div class="realtime-model-summary">
             <div class="realtime-header">
               <iconify-icon icon="ph:lightning-duotone" class="realtime-icon"></iconify-icon>
-              <span class="realtime-label">Realtime Model</span>
+              <span class="realtime-label">{{ t('models.realtimeModel') }}</span>
             </div>
             <div class="realtime-model">
               <iconify-icon :icon="getProviderIcon(realtime.provider)" class="realtime-provider-icon"></iconify-icon>

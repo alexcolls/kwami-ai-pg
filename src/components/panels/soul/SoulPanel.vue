@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, watch, computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useToast } from 'vue-toastification';
 import { useKwami } from '@/composables/useKwami';
 import { useVoiceStore } from '@/stores/voice';
@@ -16,8 +17,10 @@ import PanelHeaderControls from '@/components/ui/PanelHeaderControls.vue';
 import { soulPresets, templateCategories, type SoulPreset } from '@/presets/agent/soul-presets';
 import { panelIcons } from '@/constants/panel-icons';
 import { useThemeStore } from '@/stores/theme';
+import { translateApiUserMessage } from '@/utils/translateApiMessage';
 
 const toast = useToast();
+const { t } = useI18n();
 
 const { kwami, isConnected } = useKwami();
 const themeStore = useThemeStore();
@@ -110,14 +113,14 @@ const emotionalTraits = reactive({
   creativity: 0,
 });
 
-const emotionalTraitDefs = [
-  { key: 'happiness', label: 'Happiness', icon: 'ph:smiley-duotone' },
-  { key: 'energy', label: 'Energy', icon: 'ph:lightning-duotone' },
-  { key: 'confidence', label: 'Confidence', icon: 'ph:trophy-duotone' },
-  { key: 'empathy', label: 'Empathy', icon: 'ph:heart-duotone' },
-  { key: 'curiosity', label: 'Curiosity', icon: 'ph:magnifying-glass-duotone' },
-  { key: 'creativity', label: 'Creativity', icon: 'ph:paint-brush-duotone' },
-] as const;
+const emotionalTraitDefs = computed(() => ([
+  { key: 'happiness', label: t('soulPanel.happiness'), icon: 'ph:smiley-duotone' },
+  { key: 'energy', label: t('soulPanel.energy'), icon: 'ph:lightning-duotone' },
+  { key: 'confidence', label: t('soulPanel.confidence'), icon: 'ph:trophy-duotone' },
+  { key: 'empathy', label: t('soulPanel.empathy'), icon: 'ph:heart-duotone' },
+  { key: 'curiosity', label: t('soulPanel.curiosity'), icon: 'ph:magnifying-glass-duotone' },
+  { key: 'creativity', label: t('soulPanel.creativity'), icon: 'ph:paint-brush-duotone' },
+]) as const);
 
 // Sync from Kwami and mirror to persisted store
 function syncFromKwami() {
@@ -269,7 +272,7 @@ function updateTraits(newTraits: string[]) {
 function previewPrompt() {
   if (!kwami.value) return;
   console.log('📝 Full System Prompt:\n', kwami.value.soul.getSystemPrompt());
-  toast.info('Full prompt logged to console');
+  toast.info(t('soulPanel.promptLogged'));
 }
 
 function exportSoul() {
@@ -293,10 +296,12 @@ function importSoul() {
     if (!file) return;
     try {
       kwami.value?.soul.importFromJSON(await file.text());
-      toast.success('Soul imported!');
+      toast.success(t('soulPanel.soulImported'));
       syncFromKwami();
     } catch (error) {
-      toast.error('Failed to import: ' + (error as Error).message);
+      toast.error(
+        t('soulPanel.soulImportFailed', { message: translateApiUserMessage((error as Error).message, t) }),
+      );
     }
   };
   input.click();
@@ -304,7 +309,7 @@ function importSoul() {
 
 function resetSoul() {
   if (!kwami.value) return;
-  if (confirm('Reset soul to defaults?')) {
+  if (confirm(t('soulPanel.resetConfirm'))) {
     selectedTemplateId.value = null;
     kwami.value.soul.updateConfig({
       name: 'Kwami',
@@ -314,7 +319,7 @@ function resetSoul() {
       responseLength: 'medium',
       emotionalTone: 'warm',
     });
-    toast.success('Soul reset!');
+    toast.success(t('soulPanel.soulReset'));
     syncFromKwami();
   }
 }
@@ -339,15 +344,15 @@ onMounted(() => {
   <div class="panel-inner">
     <div class="panel-header">
       <iconify-icon :icon="panelIcons.soul" class="panel-icon"></iconify-icon>
-      <h2>Soul</h2>
+      <h2>{{ t('soulPanel.title') }}</h2>
       <template v-if="isRightSidebar">
         <PanelHeaderControls :show-divider="true" />
-        <button class="refresh-btn" @click="syncFromKwami" title="Refresh from Kwami">
+        <button class="refresh-btn" @click="syncFromKwami" :title="t('soulPanel.refreshFromKwami')">
           <iconify-icon icon="ph:arrows-clockwise-duotone"></iconify-icon>
         </button>
       </template>
       <template v-else>
-        <button class="refresh-btn" @click="syncFromKwami" title="Refresh from Kwami">
+        <button class="refresh-btn" @click="syncFromKwami" :title="t('soulPanel.refreshFromKwami')">
           <iconify-icon icon="ph:arrows-clockwise-duotone"></iconify-icon>
         </button>
         <PanelHeaderControls :show-divider="true" />
@@ -356,7 +361,7 @@ onMounted(() => {
 
     <div class="panel-body">
       <!-- Presets -->
-      <PanelSection title="Presets">
+      <PanelSection :title="t('soulPanel.presets')">
         <div class="template-categories">
           <button
             v-for="cat in templateCategories"
@@ -391,47 +396,47 @@ onMounted(() => {
       </PanelSection>
 
       <!-- Identity -->
-      <PanelSection title="Identity">
+      <PanelSection :title="t('soulPanel.identity')">
         <BaseInput
-           label="Name"
+           :label="t('soulPanel.name')"
            v-model="config.name"
            icon="ph:identification-badge-duotone"
-           placeholder="Kwami"
+           :placeholder="t('soulPanel.namePlaceholder')"
         />
         <!-- TextArea not yet primitive, keep native or make Primitive? Native is fine for now but styled -->
         <div class="form-group" style="margin-top: 8px">
           <label style="font-size: 11px; color: var(--text-tertiary); margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
             <iconify-icon icon="ph:sparkle-duotone" style="font-size: 14px; color: var(--text-tertiary);"></iconify-icon>
-            Personality
+            {{ t('soulPanel.personality') }}
           </label>
           <textarea
             v-model.lazy="config.personality"
             rows="2"
-            placeholder="Describe the personality..."
+            :placeholder="t('soulPanel.personalityPlaceholder')"
           ></textarea>
         </div>
       </PanelSection>
 
       <!-- Traits -->
-      <PanelSection title="Traits">
+      <PanelSection :title="t('soulPanel.traits')">
         <BaseTagInput
           :modelValue="traits"
           @update:modelValue="updateTraits"
-          placeholder="Add trait..."
+          :placeholder="t('soulPanel.addTrait')"
         />
       </PanelSection>
 
       <!-- Conversation Style -->
-      <PanelSection title="Conversation Style">
+      <PanelSection :title="t('soulPanel.conversationStyle')">
         <BaseInput
-          label="Style"
+          :label="t('soulPanel.style')"
           v-model="config.conversationStyle"
           icon="ph:chat-teardrop-duotone"
-          placeholder="friendly, professional..."
+          :placeholder="t('soulPanel.stylePlaceholder')"
         />
         <div style="margin-top: 8px">
           <BaseSelect
-            label="Language"
+            :label="t('soulPanel.language')"
             v-model="config.language"
             icon="ph:translate-duotone"
             :options="[
@@ -447,35 +452,35 @@ onMounted(() => {
       </PanelSection>
 
       <!-- Response Settings -->
-      <PanelSection title="Response Settings">
+      <PanelSection :title="t('soulPanel.responseSettings')">
         <div class="option-group">
-          <span class="option-label">Response Length</span>
+          <span class="option-label">{{ t('soulPanel.responseLength') }}</span>
           <div class="toggle-group">
             <button
               class="toggle-btn"
               :class="{ active: config.responseLength === 'short' }"
               @click="config.responseLength = 'short'"
             >
-              Short
+              {{ t('soulPanel.short') }}
             </button>
             <button
               class="toggle-btn"
               :class="{ active: config.responseLength === 'medium' }"
               @click="config.responseLength = 'medium'"
             >
-              Medium
+              {{ t('soulPanel.medium') }}
             </button>
             <button
               class="toggle-btn"
               :class="{ active: config.responseLength === 'long' }"
               @click="config.responseLength = 'long'"
             >
-              Long
+              {{ t('soulPanel.long') }}
             </button>
           </div>
         </div>
         <div class="option-group">
-          <span class="option-label">Emotional Tone</span>
+          <span class="option-label">{{ t('soulPanel.emotionalTone') }}</span>
           <div class="tone-selector">
             <div
               v-for="tone in ['neutral', 'warm', 'enthusiastic', 'calm']"
@@ -495,48 +500,48 @@ onMounted(() => {
                         : 'ph:moon-stars-duotone'
                 "
               ></iconify-icon>
-              <span>{{ tone.charAt(0).toUpperCase() + tone.slice(1) }}</span>
+              <span>{{ t(`soulPanel.${tone}`) }}</span>
             </div>
           </div>
         </div>
       </PanelSection>
 
       <!-- Emotional Traits -->
-      <PanelSection title="Emotional Traits">
+      <PanelSection :title="t('soulPanel.emotionalTraits')">
         <div class="slider-group">
-          <div v-for="t in emotionalTraitDefs" :key="t.key" class="trait-slider">
+          <div v-for="trait in emotionalTraitDefs" :key="trait.key" class="trait-slider">
             <BaseSlider
-              :label="t.label"
+              :label="trait.label"
               :min="-100"
               :max="100"
               :step="1"
-              v-model="emotionalTraits[t.key]"
+              v-model="emotionalTraits[trait.key]"
             />
           </div>
         </div>
       </PanelSection>
 
       <!-- System Prompt -->
-      <PanelSection title="System Prompt">
+      <PanelSection :title="t('soulPanel.systemPrompt')">
         <textarea
           v-model.lazy="config.systemPrompt"
           rows="4"
-          placeholder="Custom system prompt..."
+          :placeholder="t('soulPanel.systemPromptPlaceholder')"
         ></textarea>
         <BaseButton size="sm" icon="ph:eye-duotone" @click="previewPrompt" style="margin-top: 8px"
-          >Preview Full Prompt</BaseButton
+          >{{ t('soulPanel.previewFullPrompt') }}</BaseButton
         >
       </PanelSection>
 
       <!-- Actions -->
-      <PanelSection title="Actions">
+      <PanelSection :title="t('soulPanel.actions')">
         <div class="action-buttons">
           <div class="row">
             <BaseButton variant="secondary" icon="ph:export-duotone" @click="exportSoul"
-              >Export JSON</BaseButton
+              >{{ t('soulPanel.exportJson') }}</BaseButton
             >
             <BaseButton variant="secondary" icon="ph:download-duotone" @click="importSoul"
-              >Import JSON</BaseButton
+              >{{ t('soulPanel.importJson') }}</BaseButton
             >
           </div>
           <BaseButton
@@ -545,7 +550,7 @@ onMounted(() => {
             @click="resetSoul"
             block
             style="margin-top: 8px"
-            >Reset Default</BaseButton
+            >{{ t('soulPanel.resetDefault') }}</BaseButton
           >
         </div>
       </PanelSection>

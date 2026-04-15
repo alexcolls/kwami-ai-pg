@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useKwami } from '@/composables/useKwami';
 import { useAuthStore } from '@/stores/auth';
 import { useWorkspaceStore } from '@/stores/workspace';
@@ -12,6 +13,7 @@ const authStore = useAuthStore();
 const workspaceStore = useWorkspaceStore();
 const { saveCurrentConfig, revertCurrentConfig } = useKwamiConfigSync();
 const toast = useToast();
+const { t } = useI18n();
 
 // Loading state
 const isLoading = ref(false);
@@ -30,14 +32,14 @@ const buttonIcon = computed(() => {
 });
 
 const buttonTitle = computed(() => {
-  if (isLoading.value) return 'Connecting...';
-  return isConnected.value ? 'End conversation' : 'Start conversation';
+  if (isLoading.value) return t('controlBar.connecting');
+  return isConnected.value ? t('controlBar.endConversation') : t('controlBar.startConversation');
 });
 
 const hasUnsavedChanges = computed(() => workspaceStore.hasActiveUnsavedConfig);
 const saveButtonTitle = computed(() => {
-  if (!authStore.userId) return 'Save changes locally';
-  return 'Review unsaved changes';
+  if (!authStore.userId) return t('controlBar.saveLocally');
+  return t('controlBar.reviewUnsaved');
 });
 
 // Actions
@@ -82,13 +84,13 @@ async function handleSaveConfig() {
     const saved = await saveCurrentConfig();
     if (saved) {
       saveActionsOpen.value = false;
-      toast.success(authStore.userId ? 'Kwami changes saved' : 'Kwami changes saved locally');
+      toast.success(authStore.userId ? t('controlBar.savedRemote') : t('controlBar.savedLocal'));
     } else {
-      toast.error('Could not save kwami changes');
+      toast.error(t('controlBar.saveError'));
     }
   } catch (err) {
     console.error('Failed to save kwami config:', err);
-    toast.error('Could not save kwami changes');
+    toast.error(t('controlBar.saveError'));
   } finally {
     isSavingConfig.value = false;
   }
@@ -97,7 +99,7 @@ async function handleSaveConfig() {
 function handleUndoConfig() {
   revertCurrentConfig();
   saveActionsOpen.value = false;
-  toast.info('Unsaved changes discarded');
+  toast.info(t('controlBar.discarded'));
 }
 
 function handleClickOutside(event: MouseEvent) {
@@ -147,7 +149,7 @@ onUnmounted(() => {
           @click.stop="saveActionsOpen = !saveActionsOpen"
         >
           <iconify-icon icon="ph:floppy-disk-bold"></iconify-icon>
-          <span>Unsaved</span>
+          <span>{{ t('controlBar.unsaved') }}</span>
         </button>
 
         <transition name="save-actions">
@@ -158,7 +160,7 @@ onUnmounted(() => {
               @click.stop="handleSaveConfig"
             >
               <iconify-icon :icon="isSavingConfig ? 'ph:circle-notch-bold' : 'ph:check-bold'" :class="{ spin: isSavingConfig }"></iconify-icon>
-              <span>{{ isSavingConfig ? 'Saving' : 'Save' }}</span>
+              <span>{{ isSavingConfig ? t('controlBar.saving') : t('controlBar.save') }}</span>
             </button>
             <button
               class="save-action secondary"
@@ -166,7 +168,7 @@ onUnmounted(() => {
               @click.stop="handleUndoConfig"
             >
               <iconify-icon icon="ph:arrow-counter-clockwise-bold"></iconify-icon>
-              <span>Undo</span>
+              <span>{{ t('controlBar.undo') }}</span>
             </button>
           </div>
         </transition>
