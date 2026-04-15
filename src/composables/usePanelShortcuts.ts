@@ -1,7 +1,7 @@
 import { onMounted, onUnmounted } from 'vue';
 import { useUIStore } from '@/stores/ui';
 
-const PANEL_KEYS: (string | null)[] = [
+const SETTINGS_PANEL_KEYS: (string | null)[] = [
   'avatar',
   'scene',
   'interaction',
@@ -18,21 +18,28 @@ const PANEL_KEYS: (string | null)[] = [
   'account',
 ];
 
+const APPS_PANEL_KEYS: (string | null)[] = [
+  'contacts',
+  'email',
+  'wallet',
+];
+
 export function usePanelShortcuts() {
   const uiStore = useUIStore();
 
   function handleKeydown(e: KeyboardEvent) {
     if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement).tagName)) return;
+    const panelKeys = uiStore.sidebarMode === 'apps' ? APPS_PANEL_KEYS : SETTINGS_PANEL_KEYS;
     if (e.key >= '1' && e.key <= '9') {
       const idx = parseInt(e.key) - 1;
-      const panel = PANEL_KEYS[idx];
+      const panel = panelKeys[idx];
       if (panel) uiStore.setPanel(panel);
     } else if (e.key === '0') {
-      uiStore.setPanel('memory');
+      if (uiStore.sidebarMode === 'settings') uiStore.setPanel('memory');
     } else if (e.key === '-') {
-      uiStore.setPanel('tools');
+      if (uiStore.sidebarMode === 'settings') uiStore.setPanel('tools');
     } else if (e.key === '=') {
-      uiStore.setPanel('info');
+      if (uiStore.sidebarMode === 'settings') uiStore.setPanel('info');
     } else if (e.key.toLowerCase() === 'p') {
       uiStore.togglePanel();
     }

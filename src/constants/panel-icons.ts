@@ -20,4 +20,7 @@ export const panelIcons: Record<string, string> = {
   theme: 'ph:palette-duotone',
   models: 'ph:cpu-duotone',
   credits: 'ph:lightning-duotone',
+  contacts: 'ph:address-book-duotone',
+  email: 'ph:envelope-duotone',
+  wallet: 'ph:wallet-duotone',
 };

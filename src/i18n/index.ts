@@ -15,6 +15,7 @@ const messages = {
       info: 'Info',
       energy: 'Energy',
       account: 'Account',
+      apps: 'Apps',
       panels: {
         avatar: 'Avatar',
         audio: 'Audio',
@@ -30,7 +31,17 @@ const messages = {
         communications: 'Communications',
         metrics: 'Metrics',
         info: 'Info',
+        contacts: 'Contacts',
+        email: 'Email',
+        wallet: 'Wallet',
       },
+    },
+    sidebarMode: {
+      switchToApps: 'Switch to Apps',
+      switchToSettings: 'Switch to Settings',
+    },
+    apps: {
+      comingSoon: 'Coming soon',
     },
     account: {
       title: 'Account',
@@ -1221,6 +1232,7 @@ const messages = {
       info: 'Info',
       energy: 'Energia',
       account: 'Cuenta',
+      apps: 'Apps',
       panels: {
         avatar: 'Avatar',
         audio: 'Audio',
@@ -1236,7 +1248,17 @@ const messages = {
         communications: 'Comunicaciones',
         metrics: 'Metricas',
         info: 'Info',
+        contacts: 'Contactos',
+        email: 'Correo',
+        wallet: 'Cartera',
       },
+    },
+    sidebarMode: {
+      switchToApps: 'Cambiar a Apps',
+      switchToSettings: 'Cambiar a Configuracion',
+    },
+    apps: {
+      comingSoon: 'Proximamente',
     },
     account: {
       title: 'Cuenta',

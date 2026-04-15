@@ -9,24 +9,28 @@ import { useAuthStore } from '@/stores/auth';
 import AuthGuard from '@/components/auth/AuthGuard.vue';
 import TheSidebar from '@/components/sidebar/TheSidebar.vue';
 import ControlBar from '@/components/controls/ControlBar.vue';
-import AvatarPanel from '@/components/panels/avatar/AvatarPanel.vue';
-import AudioPanel from '@/components/panels/audio/AudioPanel.vue';
-import ScenePanel from '@/components/panels/scene/ScenePanel.vue';
-import VoicePanel from '@/components/panels/voice/VoicePanel.vue';
-import EnhancementsPanel from '@/components/panels/enhancements/EnhancementsPanel.vue';
-import TranscriptionPanel from '@/components/panels/transcription/TranscriptionPanel.vue';
-import CommunicationsPanel from '@/components/panels/communications/CommunicationsPanel.vue';
-import SoulPanel from '@/components/panels/soul/SoulPanel.vue';
-import MemoryPanel from '@/components/panels/memory/MemoryPanel.vue';
-import ToolsPanel from '@/components/panels/tools/ToolsPanel.vue';
-import InfoPanel from '@/components/panels/info/InfoPanel.vue';
-import MetricsPanel from '@/components/panels/metrics/MetricsPanel.vue';
-import AccountPanel from '@/components/panels/account/AccountPanel.vue';
-import ThemePanel from '@/components/panels/theme/ThemePanel.vue';
-import ModelsPanel from '@/components/panels/models/ModelsPanel.vue';
-import EnergyPanel from '@/components/panels/energy/EnergyPanel.vue';
+import AvatarPanel from '@/components/panels/settings/avatar/AvatarPanel.vue';
+import AudioPanel from '@/components/panels/settings/audio/AudioPanel.vue';
+import ScenePanel from '@/components/panels/settings/scene/ScenePanel.vue';
+import VoicePanel from '@/components/panels/settings/voice/VoicePanel.vue';
+import EnhancementsPanel from '@/components/panels/settings/enhancements/EnhancementsPanel.vue';
+import TranscriptionPanel from '@/components/panels/settings/transcription/TranscriptionPanel.vue';
+import CommunicationsPanel from '@/components/panels/settings/communications/CommunicationsPanel.vue';
+import SoulPanel from '@/components/panels/settings/soul/SoulPanel.vue';
+import MemoryPanel from '@/components/panels/settings/memory/MemoryPanel.vue';
+import ToolsPanel from '@/components/panels/settings/tools/ToolsPanel.vue';
+import InfoPanel from '@/components/panels/settings/info/InfoPanel.vue';
+import MetricsPanel from '@/components/panels/settings/metrics/MetricsPanel.vue';
+import AccountPanel from '@/components/panels/settings/account/AccountPanel.vue';
+import ThemePanel from '@/components/panels/settings/theme/ThemePanel.vue';
+import ModelsPanel from '@/components/panels/settings/models/ModelsPanel.vue';
+import EnergyPanel from '@/components/panels/settings/energy/EnergyPanel.vue';
+import ContactsPanel from '@/components/panels/apps/contacts/ContactsPanel.vue';
+import EmailPanel from '@/components/panels/apps/email/EmailPanel.vue';
+import WalletPanel from '@/components/panels/apps/wallet/WalletPanel.vue';
 import EnergyBadge from '@/components/energy/EnergyBadge.vue';
 import SearchOrbitCards from '@/components/search/SearchOrbitCards.vue';
+import SidebarModeSwitch from '@/components/sidebar/SidebarModeSwitch.vue';
 
 import { useWorkspaceStore } from '@/stores/workspace';
 import { useKwamiConfigWatchers } from '@/composables/useKwamiConfigSync';
@@ -333,7 +337,11 @@ onUnmounted(() => {
           <ThemePanel v-if="uiStore.activePanel === 'theme'" />
           <ModelsPanel v-if="uiStore.activePanel === 'models'" />
           <EnergyPanel v-if="uiStore.activePanel === 'credits'" />
+          <ContactsPanel v-if="uiStore.activePanel === 'contacts'" />
+          <EmailPanel v-if="uiStore.activePanel === 'email'" />
+          <WalletPanel v-if="uiStore.activePanel === 'wallet'" />
         </TheSidebar>
+        <SidebarModeSwitch />
       </template>
     </div>
   </AuthGuard>
