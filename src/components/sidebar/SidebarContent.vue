@@ -26,8 +26,9 @@ const panelStyle = computed(() => {
       maxWidth: '0px',
       flexBasis: '0px',
       padding: '0',
-      borderWidth: '0',
       boxShadow: 'none',
+      borderWidth: '0',
+      opacity: '0',
     };
   }
 
@@ -122,8 +123,9 @@ onUnmounted(() => {
     max-width var(--duration-slow) var(--ease-out),
     flex-basis var(--duration-slow) var(--ease-out),
     padding var(--duration-slow) var(--ease-out),
-    border-width var(--duration-slow) var(--ease-out),
-    box-shadow var(--duration-slow) var(--ease-out);
+    box-shadow var(--duration-slow) var(--ease-out),
+    border-width calc(var(--duration-slow) * 0.25) var(--ease-out),
+    opacity calc(var(--duration-slow) * 2) var(--ease-out);
   position: relative;
 }
 
