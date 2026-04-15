@@ -187,6 +187,7 @@ export function useKwami() {
         provider: voiceStore.llm.provider,
         model: voiceStore.llm.model,
         temperature: voiceStore.llm.temperature,
+        maxTokens: voiceStore.llm.maxTokens,
       });
     }
 

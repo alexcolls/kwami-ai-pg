@@ -162,6 +162,7 @@ function selectModel(modelId: string, provider: string) {
       provider,
       model: modelId,
       temperature: llm.value.temperature,
+      maxTokens: llm.value.maxTokens,
     });
   }
 }
@@ -181,12 +182,21 @@ function updateTemperature(value: number) {
       provider: llm.value.provider,
       model: llm.value.model,
       temperature: value,
+      maxTokens: llm.value.maxTokens,
     });
   }
 }
 
 function updateMaxTokens(value: number) {
   voiceStore.updateLLM({ maxTokens: value });
+  if (isConnected.value && kwami.value) {
+    kwami.value.agent.updateLlmLive({
+      provider: llm.value.provider,
+      model: llm.value.model,
+      temperature: llm.value.temperature,
+      maxTokens: value,
+    });
+  }
 }
 </script>
 
