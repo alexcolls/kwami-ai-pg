@@ -19,11 +19,26 @@ const isRightSidebar = computed(() => themeStore.sidebarPosition === 'right');
 
 // Dynamic panel width style with viewport constraint
 const panelStyle = computed(() => {
+  if (!uiStore.isPanelOpen) {
+    return {
+      width: '0px',
+      minWidth: '0px',
+      maxWidth: '0px',
+      flexBasis: '0px',
+      padding: '0',
+      borderWidth: '0',
+      boxShadow: 'none',
+    };
+  }
+
   if (themeStore.compactMode) {
     return {}; // Let CSS handle compact mode width
   }
+
   return {
     width: `${uiStore.panelWidth}px`,
+    minWidth: `${uiStore.panelWidth}px`,
+    flexBasis: `${uiStore.panelWidth}px`,
     maxWidth: `calc(100vw - 120px)`, // CSS fallback: sidebar nav (62px) + gaps (12px) + margins (40px) + buffer
   };
 });
@@ -86,7 +101,7 @@ onUnmounted(() => {
     
     <!-- Resize handle -->
     <div
-      v-if="canResize"
+      v-if="canResize && uiStore.isPanelOpen"
       class="resize-handle"
       :class="{ resizing: isResizing, 'handle-left': isRightSidebar }"
       @mousedown.prevent="startResize"
@@ -101,7 +116,14 @@ onUnmounted(() => {
 .panel-column {
   width: 320px;
   max-height: 100%;
-  transition: all var(--duration-slow) var(--ease-out);
+  transition:
+    width var(--duration-slow) var(--ease-out),
+    min-width var(--duration-slow) var(--ease-out),
+    max-width var(--duration-slow) var(--ease-out),
+    flex-basis var(--duration-slow) var(--ease-out),
+    padding var(--duration-slow) var(--ease-out),
+    border-width var(--duration-slow) var(--ease-out),
+    box-shadow var(--duration-slow) var(--ease-out);
   position: relative;
 }
 
