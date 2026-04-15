@@ -1028,16 +1028,53 @@ export function useWorkspaceAgentTools() {
   }
 
   async function setMemoryUiControl(control: unknown, value: unknown) {
-    if (control !== 'activeTab') {
-      return { success: false, message: `Unknown memory UI control "${String(control)}".` };
+    if (typeof control !== 'string') {
+      return { success: false, message: 'Memory UI control must be a string.' };
     }
-    if (value !== 'facts' && value !== 'entities' && value !== 'messages') {
-      return { success: false, message: 'Memory tab must be facts, entities, or messages.' };
+
+    const normalizedControl = normalizeKey(control);
+    const openGraphControls = new Set([
+      'opengraph',
+      'opengraphview',
+      'showgraph',
+      'showgraphview',
+      'knowledgegraph',
+      'knowledgegraphview',
+      'graph',
+      'graphview',
+    ]);
+
+    if (normalizedControl === 'activetab') {
+      if (value !== 'facts' && value !== 'entities' && value !== 'messages') {
+        return { success: false, message: 'Memory tab must be facts, entities, or messages.' };
+      }
+      voiceStore.memoryUI.activeTab = value;
+      voiceStore.memoryUI.graphModalOpen = false;
+      uiStore.setPanel('memory');
+      actionState.recordAction('Opened memory view', String(value), { announce: true });
+      return { success: true, message: `Opened the memory ${value} view.` };
     }
-    voiceStore.memoryUI.activeTab = value;
-    uiStore.setPanel('memory');
-    actionState.recordAction('Opened memory view', String(value), { announce: true });
-    return { success: true, message: `Opened the memory ${value} view.` };
+
+    if (openGraphControls.has(normalizedControl)) {
+      const shouldOpen = value === undefined
+        ? true
+        : value === true
+          || value === 'true'
+          || value === 'open'
+          || value === 'show'
+          || value === 1;
+      voiceStore.memoryUI.graphModalOpen = shouldOpen;
+      uiStore.setPanel('memory');
+      actionState.recordAction(shouldOpen ? 'Opened memory graph view' : 'Closed memory graph view', 'knowledge-graph', { announce: true });
+      return {
+        success: true,
+        message: shouldOpen
+          ? 'Opened the memory knowledge graph view.'
+          : 'Closed the memory knowledge graph view.',
+      };
+    }
+
+    return { success: false, message: `Unknown memory UI control "${String(control)}".` };
   }
 
   async function resetUiDomain(domain: unknown, confirm: unknown) {
@@ -1178,7 +1215,7 @@ export function useWorkspaceAgentTools() {
         'autoGainControl',
         'preemptiveGeneration',
       ],
-      memoryUiControls: ['activeTab'],
+      memoryUiControls: ['activeTab', 'openGraphView'],
       resettableDomains: [...RESETTABLE_DOMAINS],
       message: 'Structured UI controls are available across panels, theme, avatar, scene, voice, enhancements, memory, and search.',
     };
@@ -1378,10 +1415,10 @@ export function useWorkspaceAgentTools() {
 
     instance.registerTool({
       name: 'set_memory_ui_control',
-      description: 'Control memory UI settings such as the activeTab value.',
+      description: 'Control memory UI settings such as activeTab or opening the knowledge graph modal.',
       parameters: {
-        control: { type: 'string', enum: ['activeTab'] },
-        value: { type: 'string', enum: ['facts', 'entities', 'messages'] },
+        control: { type: 'string', enum: ['activeTab', 'openGraphView', 'knowledgeGraph', 'graphView'] },
+        value: {},
       },
       handler: async ({ control, value }) => setMemoryUiControl(control, value),
     });

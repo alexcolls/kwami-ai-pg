@@ -134,6 +134,7 @@ export const useVoiceStore = defineStore('voice', () => {
   // Memory panel UI state
   const memoryUI = ref({
     activeTab: 'facts' as 'facts' | 'entities' | 'messages',
+    graphModalOpen: false,
   });
 
   // Enhancements panel state (full config, not just UI)
@@ -277,7 +278,7 @@ export const useVoiceStore = defineStore('voice', () => {
 
   // Auto-save when any config changes
   watch(
-    [pipelineMode, stt, llm, tts, realtime, activePreset, soulUI, soulConfig, enhancementsState],
+    [pipelineMode, stt, llm, tts, realtime, activePreset, soulUI, soulConfig, memoryUI, enhancementsState],
     () => { saveSettings(); },
     { deep: true },
   );

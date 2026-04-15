@@ -10,6 +10,7 @@ import PanelSection from '@/components/ui/PanelSection.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
 import BaseSelect from '@/components/ui/BaseSelect.vue';
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue';
+import PanelHeaderControls from '@/components/ui/PanelHeaderControls.vue';
 import ReorganizePreview from '@/components/memory/ReorganizePreview.vue';
 import { MemoryGraph } from '@/components/memory';
 
@@ -79,8 +80,11 @@ const nodesHasMore = ref(false);
 const isLoadingMoreEdges = ref(false);
 const isLoadingMoreNodes = ref(false);
 
-// Graph modal state
-const showGraphModal = ref(false);
+// Graph modal state (shared so agent tools can open it)
+const showGraphModal = computed({
+  get: () => memoryUI.value.graphModalOpen,
+  set: (v) => { memoryUI.value.graphModalOpen = Boolean(v); },
+});
 
 // Delete confirmation state
 const showDeleteConfirm = ref(false);
@@ -753,6 +757,7 @@ onMounted(() => {
     <div class="panel-header">
       <iconify-icon :icon="panelIcons.memory" class="panel-icon"></iconify-icon>
       <h2>Memory</h2>
+      <PanelHeaderControls />
     </div>
 
     <div class="panel-body">
