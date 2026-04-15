@@ -12,6 +12,10 @@ import { sceneVideoPresets, type SceneVideoPreset } from '@/presets/scene/video-
 import { sceneHdriPresets, type SceneHdriPreset } from '@/presets/scene/hdri-presets';
 import { hslToHex, hexToRgb } from '@/utils/color';
 import { useColorPalettes, type PaletteType } from '@/composables/avatar/useColorPalettes';
+import { useAvatarStore } from '@/stores/avatar';
+import { useBlobXyzStore } from '@/stores/avatar.blob-xyz';
+import { useBlackHoleStore } from '@/stores/avatar.black-hole';
+import { useParticlesFaceStore } from '@/stores/avatar.particles-face';
 import {
   useSceneStore,
   type GradientStop,
@@ -22,6 +26,10 @@ import {
 // Use store for state persistence
 const sceneStore = useSceneStore();
 const { background } = storeToRefs(sceneStore);
+const avatarStore = useAvatarStore();
+const blobStore = useBlobXyzStore();
+const blackHoleStore = useBlackHoleStore();
+const particlesFaceStore = useParticlesFaceStore();
 
 // Re-export types for backwards compatibility
 export type { GradientStop, GradientOrb };
@@ -87,6 +95,108 @@ function remappedForBrightness(hex: string, brightness: PaletteBrightness): stri
   const s = Math.min(100, hsl.s * 0.95 + 5);
   const l = randomFloat(72, 90);
   return hslToHex(hsl.h, s, l);
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+function normalizeColorToHex(raw: string): string | null {
+  const value = raw.trim();
+
+  const hex6 = /^#([0-9a-f]{6})$/i.exec(value);
+  if (hex6) return `#${hex6[1].toLowerCase()}`;
+
+  const hex3 = /^#([0-9a-f]{3})$/i.exec(value);
+  if (hex3) {
+    const [r, g, b] = hex3[1].toLowerCase().split('');
+    return `#${r}${r}${g}${g}${b}${b}`;
+  }
+
+  const hsl = /^hsla?\(\s*(-?\d+(?:\.\d+)?)\s*(?:deg)?\s*,\s*(\d+(?:\.\d+)?)%\s*,\s*(\d+(?:\.\d+)?)%/i.exec(value);
+  if (hsl) {
+    const h = ((Number(hsl[1]) % 360) + 360) % 360;
+    const s = clamp(Number(hsl[2]), 0, 100);
+    const l = clamp(Number(hsl[3]), 0, 100);
+    return hslToHex(h, s, l);
+  }
+
+  const rgb = /^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})/i.exec(value);
+  if (rgb) {
+    const r = clamp(Number(rgb[1]), 0, 255);
+    const g = clamp(Number(rgb[2]), 0, 255);
+    const b = clamp(Number(rgb[3]), 0, 255);
+    return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+  }
+
+  return null;
+}
+
+function remapForBrightnessStable(hex: string, brightness: PaletteBrightness): string {
+  const hsl = hexToHsl(hex);
+  if (!hsl) return hex;
+  const s =
+    brightness === 'dark'
+      ? clamp(hsl.s * 0.92 + 6, 12, 100)
+      : clamp(hsl.s * 0.96 + 4, 10, 100);
+  const l =
+    brightness === 'dark'
+      ? clamp(hsl.l * 0.46 + 6, 10, 38)
+      : clamp(hsl.l * 0.5 + 45, 56, 90);
+  return hslToHex(hsl.h, s, l);
+}
+
+function getAvatarColors(): string[] {
+  const type = avatarStore.rendererType;
+  if (type === 'black-hole') {
+    return [
+      blackHoleStore.colors.hot,
+      blackHoleStore.colors.mid1,
+      blackHoleStore.colors.mid2,
+      blackHoleStore.colors.mid3,
+      blackHoleStore.colors.outer,
+    ]
+      .map(normalizeColorToHex)
+      .filter((c): c is string => Boolean(c));
+  }
+  if (type === 'particles-face') {
+    return [particlesFaceStore.state.color, particlesFaceStore.state.secondaryColor]
+      .map(normalizeColorToHex)
+      .filter((c): c is string => Boolean(c));
+  }
+  return [
+    blobStore.skin.colors.x,
+    blobStore.skin.colors.y,
+    blobStore.skin.colors.z,
+  ]
+    .map(normalizeColorToHex)
+    .filter((c): c is string => Boolean(c));
+}
+
+function syncColorsFromAvatar() {
+  const gr = background.value?.gradient;
+  if (!gr) return;
+  const avatarColors = getAvatarColors();
+  if (avatarColors.length === 0) return;
+
+  const brightness: PaletteBrightness = gr.paletteBrightness === 'light' ? 'light' : 'dark';
+  const sceneColors = avatarColors.map((c) => remapForBrightnessStable(c, brightness));
+
+  if (gr.type === 'solid') {
+    gr.solidColor = sceneColors[0] ?? gr.solidColor;
+    return;
+  }
+
+  if (gr.type === 'orbs') {
+    gr.orbs.forEach((orb, i) => {
+      orb.color = sceneColors[i % sceneColors.length] ?? orb.color;
+    });
+    return;
+  }
+
+  gr.stops.forEach((stop, i) => {
+    stop.color = sceneColors[i % sceneColors.length] ?? stop.color;
+  });
 }
 
 /**
@@ -700,6 +810,10 @@ const gradientPreviewStyle = computed(() => {
               </button>
             </div>
           </div>
+          <button type="button" class="overlay-action-btn" @click="syncColorsFromAvatar">
+            <iconify-icon icon="ph:palette-duotone"></iconify-icon>
+            <span>Sync colors from avatar</span>
+          </button>
           <p class="randomize-hint">
             Tap a palette to apply it, or use dice to roll a new set with the selected palette.
             Brightness remaps colors for dark or light overlays. Scene settings save locally and with
