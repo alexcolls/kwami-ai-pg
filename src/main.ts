@@ -11,6 +11,7 @@ import { useThemeStore } from './stores/theme';
 import { useSceneStore } from './stores/scene';
 import { useAvatarStore } from './stores/avatar';
 import { useVoiceStore } from './stores/voice';
+import { i18n } from './i18n';
 
 const app = createApp(App);
 const pinia = createPinia();
@@ -31,6 +32,7 @@ const toastOptions: PluginOptions = {
 
 app.use(pinia);
 app.use(Toast, toastOptions);
+app.use(i18n);
 
 // Initialize theme settings
 const themeStore = useThemeStore();
