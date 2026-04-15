@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue';
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue';
 import { panelIcons } from '@/constants/panel-icons';
 import { useKwami } from '@/composables/useKwami';
 import { useTranscriptionState } from '@/composables/useTranscriptionState';
@@ -20,10 +20,19 @@ const {
   interimTranscript,
   isConnected,
   indicators,
+  sessionsForKwami,
+  liveSessionId,
+  viewingHistoryId,
+  sessionTitle,
   addMessage,
   clearMessages,
   updateIndicators,
+  openHistorySession,
+  returnToLiveView,
+  deleteHistorySession,
 } = useTranscriptionState();
+
+const isViewingHistory = computed(() => viewingHistoryId.value !== null);
 
 // Local-only UI state
 const inputMessage = ref('');
@@ -47,8 +56,10 @@ function scrollToBottom() {
   });
 }
 
-// Scroll when messages change
-watch(() => messages.value.length, () => scrollToBottom());
+watch(
+  () => messages.value.length,
+  () => scrollToBottom(),
+);
 
 function clearLog() {
   clearMessages();
@@ -56,10 +67,9 @@ function clearLog() {
 
 function sendMessage() {
   const text = inputMessage.value.trim();
-  if (!text || !isConnected.value) return;
+  if (!text || !isConnected.value || isViewingHistory.value) return;
 
   kwami.value?.sendMessage(text);
-  addMessage('user', text);
   inputMessage.value = '';
 }
 
@@ -101,6 +111,49 @@ onUnmounted(() => {
       >
     </div>
 
+    <!-- Past sessions (stored locally per Kwami) -->
+    <div v-if="sessionsForKwami.length" class="session-history">
+      <div class="session-history-label">
+        <iconify-icon icon="ph:clock-counter-clockwise-duotone"></iconify-icon>
+        <span>Sessions</span>
+      </div>
+      <div class="session-chips">
+        <button
+          v-if="isViewingHistory"
+          type="button"
+          class="session-chip session-chip-active"
+          @click="returnToLiveView"
+        >
+          ← Current
+        </button>
+        <button
+          v-for="s in sessionsForKwami"
+          :key="s.id"
+          type="button"
+          class="session-chip"
+          :class="{ 'session-chip-selected': viewingHistoryId === s.id }"
+          @click="openHistorySession(s.id)"
+        >
+          {{ sessionTitle(s.createdAt) }}
+          <span v-if="s.id === liveSessionId && isConnected" class="session-live">live</span>
+          <span
+            v-if="s.id !== liveSessionId || !isConnected"
+            class="session-delete"
+            title="Remove from history"
+            @click.stop="deleteHistorySession(s.id)"
+          >
+            <iconify-icon icon="ph:x"></iconify-icon>
+          </span>
+        </button>
+      </div>
+    </div>
+
+    <div v-if="isViewingHistory" class="history-banner">
+      <iconify-icon icon="ph:eye-duotone"></iconify-icon>
+      <span>Read-only — past session</span>
+      <button type="button" class="history-banner-btn" @click="returnToLiveView">Back to current</button>
+    </div>
+
     <div class="panel-body transcription-body">
       <!-- Real-time indicator -->
       <div class="realtime-indicator">
@@ -117,7 +170,7 @@ onUnmounted(() => {
       </div>
 
       <!-- Interim transcript -->
-      <div v-if="interimTranscript" class="interim-transcript">
+      <div v-if="interimTranscript && !isViewingHistory" class="interim-transcript">
         <span class="interim-label">Hearing:</span>
         <span class="interim-text">{{ interimTranscript }}</span>
       </div>
@@ -194,12 +247,12 @@ onUnmounted(() => {
             type="text"
             v-model="inputMessage"
             placeholder="Type a message..."
-            :disabled="!isConnected"
+            :disabled="!isConnected || isViewingHistory"
             @keypress.enter="sendMessage"
           />
           <button
             class="send-btn"
-            :disabled="!isConnected || !inputMessage.trim()"
+            :disabled="!isConnected || !inputMessage.trim() || isViewingHistory"
             @click="sendMessage"
           >
             <iconify-icon icon="ph:paper-plane-right-duotone"></iconify-icon>
@@ -208,7 +261,7 @@ onUnmounted(() => {
         <div class="input-actions">
           <button
             class="input-action-btn"
-            :disabled="!isConnected"
+            :disabled="!isConnected || isViewingHistory"
             @click="interrupt"
             title="Interrupt (Esc)"
           >
@@ -226,6 +279,107 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+.session-history {
+  padding: 8px 12px 0;
+  border-bottom: 1px solid var(--glass-border);
+  background: var(--surface-0);
+}
+
+.session-history-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.session-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-height: 72px;
+  overflow-y: auto;
+  padding-bottom: 8px;
+}
+
+.session-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--glass-border);
+  background: var(--surface-1);
+  color: var(--text-secondary);
+  font-size: 11px;
+  cursor: pointer;
+  max-width: 100%;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.session-chip:hover {
+  border-color: var(--accent-primary);
+  color: var(--text-primary);
+}
+
+.session-chip-selected {
+  border-color: var(--accent-primary);
+  background: rgba(124, 92, 255, 0.12);
+}
+
+.session-chip-active {
+  font-weight: 600;
+}
+
+.session-live {
+  font-size: 9px;
+  text-transform: uppercase;
+  color: var(--success);
+  font-weight: 700;
+}
+
+.session-delete {
+  display: inline-flex;
+  margin-left: 2px;
+  opacity: 0.45;
+  padding: 2px;
+}
+
+.session-delete:hover {
+  opacity: 1;
+  color: var(--accent-error);
+}
+
+.history-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: rgba(124, 92, 255, 0.08);
+  border-bottom: 1px solid var(--glass-border);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.history-banner-btn {
+  margin-left: auto;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--glass-border);
+  background: var(--surface-1);
+  color: var(--accent-primary);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.history-banner-btn:hover {
+  background: var(--surface-2);
+}
+
 .transcription-body {
   display: flex;
   flex-direction: column;

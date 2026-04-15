@@ -86,10 +86,37 @@ export function useKwami() {
     // Web search runs on the LiveKit agent (server-side); results are sent via data channel
     // and displayed when the client receives the 'search_results' message (see useSearchResults).
 
+    const agent = kwamiInstance.value.agent;
+
+    // Transcription panel + other UI listen for these window events (see useTranscriptionState).
+    agent.onUserSpeech((text) => {
+      const t = text?.trim();
+      if (!t) return;
+      window.dispatchEvent(
+        new CustomEvent('kwami:message', { detail: { role: 'user' as const, content: t } }),
+      );
+    });
+    agent.onAgentText((text) => {
+      const t = text?.trim();
+      if (!t) return;
+      window.dispatchEvent(
+        new CustomEvent('kwami:message', { detail: { role: 'assistant' as const, content: t } }),
+      );
+    });
+    agent.onInterimTranscript((text) => {
+      window.dispatchEvent(new CustomEvent('kwami:interim', { detail: text ?? '' }));
+    });
+
     // Track connection state changes
-    kwamiInstance.value.agent.onStateChange((state) => {
+    agent.onStateChange((state) => {
       const wasConnected = isConnected.value;
       isConnected.value = state !== 'idle';
+
+      const panelState =
+        state === 'initializing' ? 'listening' : state;
+      window.dispatchEvent(
+        new CustomEvent('kwami:stateChanged', { detail: panelState }),
+      );
 
       if (wasConnected !== isConnected.value) {
         console.log(`🔌 Connection state: ${isConnected.value ? 'connected' : 'disconnected'}`);
@@ -222,8 +249,23 @@ export function useKwami() {
         },
       });
 
-      await kwamiInstance.value.agent.connect();
+      // Open the transcription session + storage key before the room can emit messages (avoids a
+      // race where kwami:message runs before kwami:connected and beginNewLiveSession clears lines).
+      window.dispatchEvent(
+        new CustomEvent('kwami:sessionPrepare', {
+          detail: { memoryUserId: memoryUserId.value },
+        }),
+      );
+
+      // Use Kwami.connect (not agent.connect alone) so the first data payload includes
+      // kwamiId, soul, voice, and tools — the Python agent applies full config from that message.
+      await kwamiInstance.value.connect(memoryUserId.value);
       isConnected.value = true;
+      window.dispatchEvent(
+        new CustomEvent('kwami:connected', {
+          detail: { memoryUserId: memoryUserId.value },
+        }),
+      );
       console.log(`✅ Connected to agent as user: ${memoryUserId.value}`);
 
       // Sync all persisted panel configs to the backend agent after connecting
@@ -231,6 +273,7 @@ export function useKwami() {
     } catch (error: unknown) {
       console.error('Failed to connect:', error);
       isConnected.value = false;
+      window.dispatchEvent(new CustomEvent('kwami:connectFailed'));
 
       // Handle insufficient credits (402 from /token endpoint)
       const msg = error instanceof Error ? error.message : String(error);
