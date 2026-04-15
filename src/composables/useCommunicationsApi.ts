@@ -67,10 +67,28 @@ async function authHeaders(): Promise<HeadersInit> {
   };
 }
 
+function formatApiErrorBody(errorData: Record<string, unknown>): string {
+  const detail = errorData.detail ?? errorData.message;
+  if (typeof detail === 'string') return detail;
+  if (Array.isArray(detail)) {
+    return detail
+      .map((item) =>
+        typeof item === 'object' && item !== null && 'msg' in item
+          ? String((item as { msg: string }).msg)
+          : String(item),
+      )
+      .join('; ');
+  }
+  if (detail != null && typeof detail === 'object') return JSON.stringify(detail);
+  return '';
+}
+
 async function parseJson<T>(res: Response): Promise<T> {
   if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.detail || errorData.message || `Request failed: ${res.status}`);
+    const errorData = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+    throw new Error(
+      formatApiErrorBody(errorData) || `Request failed: ${res.status}`,
+    );
   }
   return res.json() as Promise<T>;
 }
@@ -118,6 +136,27 @@ export async function purchaseKwamiNumber(payload: {
   return parseJson(res);
 }
 
+export async function releaseKwamiPhone(payload: {
+  kwamiId: string;
+  channelId: string;
+  releaseProviderResources?: boolean;
+}) {
+  const headers = await authHeaders();
+  const res = await fetch(`${API_BASE}/channels/phone/release`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      ...payload,
+      releaseProviderResources: payload.releaseProviderResources ?? true,
+    }),
+  });
+  return parseJson<{
+    ok: boolean;
+    removedChannelIds: string[];
+    provider: Record<string, unknown>;
+  }>(res);
+}
+
 export async function configureWhatsappChannel(payload: {
   channelId: string;
   status?: string;
@@ -141,6 +180,21 @@ export async function startOutboundCall(payload: {
 }) {
   const headers = await authHeaders();
   const res = await fetch(`${API_BASE}/channels/calls/outbound`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(payload),
+  });
+  return parseJson(res);
+}
+
+/** Twilio REST only — no LiveKit room or agent (for debugging PSTN). */
+export async function startTwilioDirectTestCall(payload: {
+  kwamiId: string;
+  toNumber: string;
+  channelId?: string;
+}) {
+  const headers = await authHeaders();
+  const res = await fetch(`${API_BASE}/channels/calls/twilio-direct`, {
     method: 'POST',
     headers,
     body: JSON.stringify(payload),
