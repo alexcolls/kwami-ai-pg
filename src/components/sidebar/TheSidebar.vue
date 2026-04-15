@@ -81,7 +81,7 @@ onUnmounted(() => {});
   z-index: 1000;
   pointer-events: none;
   /* Smooth transform animation for position changes */
-  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1), gap var(--duration-slow) var(--ease-out);
   will-change: transform;
 }
 
@@ -93,18 +93,11 @@ onUnmounted(() => {});
 }
 
 /* Handle collapsed state for content via deep selector */
-.sidebar.collapsed :deep(.panel-column) {
-  transform: translateX(-20px);
-  opacity: 0;
-  pointer-events: none;
-  width: 0;
-  padding: 0;
-  overflow: hidden;
+.sidebar.collapsed {
+  gap: 0;
 }
 
-.sidebar.sidebar-right.collapsed :deep(.panel-column) {
-  transform: translateX(20px);
-}
+/* Panel collapse animation is handled by SidebarContent dynamic styles */
 </style>
 
 

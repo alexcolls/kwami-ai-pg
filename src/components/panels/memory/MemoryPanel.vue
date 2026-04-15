@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch, h, nextTick } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { panelIcons } from '@/constants/panel-icons';
 import { useToast, TYPE } from 'vue-toastification';
 import { useKwami } from '@/composables/useKwami';
@@ -10,10 +11,14 @@ import PanelSection from '@/components/ui/PanelSection.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
 import BaseSelect from '@/components/ui/BaseSelect.vue';
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue';
+import PanelHeaderControls from '@/components/ui/PanelHeaderControls.vue';
 import ReorganizePreview from '@/components/memory/ReorganizePreview.vue';
 import { MemoryGraph } from '@/components/memory';
+import { intlLocaleTag, getCurrentLocale } from '@/i18n';
+import { translateApiUserMessage } from '@/utils/translateApiMessage';
 
 const toast = useToast();
+const { t } = useI18n();
 
 const { memoryUserId } = useKwami();
 const authStore = useAuthStore();
@@ -79,8 +84,11 @@ const nodesHasMore = ref(false);
 const isLoadingMoreEdges = ref(false);
 const isLoadingMoreNodes = ref(false);
 
-// Graph modal state
-const showGraphModal = ref(false);
+// Graph modal state (shared so agent tools can open it)
+const showGraphModal = computed({
+  get: () => memoryUI.value.graphModalOpen,
+  set: (v) => { memoryUI.value.graphModalOpen = Boolean(v); },
+});
 
 // Delete confirmation state
 const showDeleteConfirm = ref(false);
@@ -142,11 +150,13 @@ async function saveEdge() {
       throw new Error(err.detail || 'Failed to update fact');
     }
 
-    toast.success('Fact updated', { timeout: 2000 });
+    toast.success(t('memory.toastFactUpdated'), { timeout: 2000 });
   } catch (e) {
     // Revert
     edge.fact = oldFact;
-    toast.error('Failed to update: ' + (e as Error).message);
+    toast.error(
+      t('memory.toastUpdateFailed', { message: translateApiUserMessage((e as Error).message, t) }),
+    );
   } finally {
     savingEdge.value = false;
   }
@@ -241,13 +251,15 @@ async function saveNode() {
       throw new Error(err.detail || 'Failed to update entity');
     }
 
-    toast.success('Entity updated', { timeout: 2000 });
+    toast.success(t('memory.toastEntityUpdated'), { timeout: 2000 });
   } catch (e) {
     // Revert
     node.name = oldName;
     node.summary = oldSummary;
     node.labels = oldLabels;
-    toast.error('Failed to update: ' + (e as Error).message);
+    toast.error(
+      t('memory.toastUpdateFailed', { message: translateApiUserMessage((e as Error).message, t) }),
+    );
   } finally {
     savingNode.value = false;
   }
@@ -317,7 +329,10 @@ async function mergePair(keepUuid: string, removeUuid: string) {
       throw new Error(err.detail || 'Failed to merge');
     }
     const result = await response.json();
-    toast.success(`Merged into "${result.keep_name}" (${result.recreated_edges} edges moved)`, { timeout: 3000 });
+    toast.success(
+      t('memory.mergeSuccess', { name: result.keep_name, edges: result.recreated_edges }),
+      { timeout: 3000 },
+    );
     // Remove the merged pair from the list
     duplicates.value = duplicates.value.filter(
       d => !(d.keep.uuid === keepUuid && d.remove.uuid === removeUuid)
@@ -325,7 +340,9 @@ async function mergePair(keepUuid: string, removeUuid: string) {
     // Refresh data
     loadMemoryData();
   } catch (e) {
-    toast.error('Merge failed: ' + (e as Error).message);
+    toast.error(
+      t('memory.toastMergeFailed', { message: translateApiUserMessage((e as Error).message, t) }),
+    );
   } finally {
     mergingPair.value = null;
   }
@@ -342,11 +359,12 @@ function formatDateTime(dateStr: string | null): string {
   if (!dateStr) return '';
   try {
     const date = new Date(dateStr);
-    const dateFormatted = date.toLocaleDateString('en-US', { 
-      month: 'short', 
+    const tag = intlLocaleTag(getCurrentLocale());
+    const dateFormatted = date.toLocaleDateString(tag, {
+      month: 'short',
       day: 'numeric',
     });
-    const timeFormatted = date.toLocaleTimeString('en-US', {
+    const timeFormatted = date.toLocaleTimeString(tag, {
       hour: '2-digit',
       minute: '2-digit',
       second: '2-digit',
@@ -546,7 +564,8 @@ async function deleteUserMemory() {
       nodesTotal.value = 0;
       edgesHasMore.value = false;
       nodesHasMore.value = false;
-      toast.success(`Memory deleted! ${result.deleted_threads} thread(s) removed`);
+      const nThreads = Number(result.deleted_threads) || 0;
+      toast.success(t('memory.toastMemoryDeleted', nThreads, { n: nThreads }));
     } else {
       throw new Error(result.errors?.join(', ') || 'Delete operation failed');
     }
@@ -578,7 +597,7 @@ function createUndoToast(message: string, onUndo: () => void) {
         e.stopPropagation();
         onUndo();
       }
-    }, 'Undo')
+    }, t('memory.undo'))
   ]);
 }
 
@@ -602,7 +621,7 @@ function deleteEdge(edgeUuid: string | null) {
   }, 5000);
   
   const toastId = toast(
-    createUndoToast('Fact removed', () => undoDeletion(edgeUuid)),
+    createUndoToast(t('memory.toastFactRemoved'), () => undoDeletion(edgeUuid)),
     {
       type: TYPE.INFO,
       timeout: 5000,
@@ -638,7 +657,7 @@ function undoDeletion(uuid: string) {
   }
   
   pendingDeletions.value.delete(uuid);
-  toast.success('Restored!', { timeout: 2000 });
+  toast.success(t('memory.toastRestored'), { timeout: 2000 });
 }
 
 async function performEdgeDeletion(edgeUuid: string) {
@@ -662,7 +681,9 @@ async function performEdgeDeletion(edgeUuid: string) {
   } catch (e) {
     const insertIndex = Math.min(savedPending.index, edges.value.length);
     edges.value.splice(insertIndex, 0, savedPending.item as Edge);
-    toast.error('Failed to delete: ' + (e as Error).message);
+    toast.error(
+      t('memory.toastDeleteFailed', { message: translateApiUserMessage((e as Error).message, t) }),
+    );
   }
 }
 
@@ -686,7 +707,7 @@ function deleteNode(nodeUuid: string | null) {
   }, 5000);
   
   const toastId = toast(
-    createUndoToast('Entity removed', () => undoDeletion(nodeUuid)),
+    createUndoToast(t('memory.toastEntityRemoved'), () => undoDeletion(nodeUuid)),
     {
       type: TYPE.INFO,
       timeout: 5000,
@@ -727,7 +748,9 @@ async function performNodeDeletion(nodeUuid: string) {
   } catch (e) {
     const insertIndex = Math.min(savedPending.index, nodes.value.length);
     nodes.value.splice(insertIndex, 0, savedPending.item as Node);
-    toast.error('Failed to delete: ' + (e as Error).message);
+    toast.error(
+      t('memory.toastDeleteFailed', { message: translateApiUserMessage((e as Error).message, t) }),
+    );
   }
 }
 
@@ -752,26 +775,27 @@ onMounted(() => {
   <div class="panel-inner">
     <div class="panel-header">
       <iconify-icon :icon="panelIcons.memory" class="panel-icon"></iconify-icon>
-      <h2>Memory</h2>
+      <h2>{{ t('memory.title') }}</h2>
+      <PanelHeaderControls />
     </div>
 
     <div class="panel-body">
      
       <!-- Memory Stats -->
-      <PanelSection title="Overview">
+      <PanelSection :title="t('memory.overview')">
         <div v-if="isLoading" class="loading-state">
           <iconify-icon icon="ph:spinner-gap-duotone" class="spin"></iconify-icon>
-          Loading memory data...
+          {{ t('memory.loadingMemoryData') }}
         </div>
         <div v-else-if="loadError" class="error-state">
           <iconify-icon icon="ph:warning-duotone"></iconify-icon>
           {{ loadError }}
-          <BaseButton size="sm" variant="secondary" @click="loadMemoryData">Retry</BaseButton>
+          <BaseButton size="sm" variant="secondary" @click="loadMemoryData">{{ t('memory.retry') }}</BaseButton>
         </div>
         <div v-else class="stats-grid">
           <div class="stat-card" :class="{ active: activeTab === 'facts' }" @click="activeTab = 'facts'">
             <div class="stat-value">{{ edgesTotal || edges.length }}</div>
-            <div class="stat-label">Facts</div>
+            <div class="stat-label">{{ t('memory.facts') }}</div>
             <div v-if="isLoadingMoreEdges" class="stat-sub loading-sub">
               <iconify-icon icon="ph:spinner-gap-duotone" class="spin"></iconify-icon>
               {{ edges.length }}/{{ edgesTotal }}
@@ -779,7 +803,7 @@ onMounted(() => {
           </div>
           <div class="stat-card" :class="{ active: activeTab === 'entities' }" @click="activeTab = 'entities'">
             <div class="stat-value">{{ nodesTotal || nodes.length }}</div>
-            <div class="stat-label">Entities</div>
+            <div class="stat-label">{{ t('memory.entities') }}</div>
             <div v-if="isLoadingMoreNodes" class="stat-sub loading-sub">
               <iconify-icon icon="ph:spinner-gap-duotone" class="spin"></iconify-icon>
               {{ nodes.length }}/{{ nodesTotal }}
@@ -787,20 +811,20 @@ onMounted(() => {
           </div>
           <div class="stat-card" :class="{ active: activeTab === 'messages' }" @click="activeTab = 'messages'">
             <div class="stat-value">{{ messages.length }}</div>
-            <div class="stat-label">Messages</div>
-            <div class="stat-sub">{{ sessionCount }} session{{ sessionCount !== 1 ? 's' : '' }}</div>
+            <div class="stat-label">{{ t('memory.messages') }}</div>
+            <div class="stat-sub">{{ sessionCount }} {{ sessionCount === 1 ? t('memory.session') : t('memory.sessions') }}</div>
           </div>
         </div>
       </PanelSection>
 
       <!-- Facts with Temporal Data -->
-      <PanelSection v-if="activeTab === 'facts'" title="Facts (Chronological)">
+      <PanelSection v-if="activeTab === 'facts'" :title="t('memory.factsChronological')">
         <div v-if="isLoading" class="loading-state small">
           <iconify-icon icon="ph:spinner-gap-duotone" class="spin"></iconify-icon>
         </div>
         <div v-else-if="!edges.length" class="empty-state small">
           <iconify-icon icon="ph:lightbulb-duotone"></iconify-icon>
-          No facts learned yet
+          {{ t('memory.noFactsLearned') }}
         </div>
         <div v-else class="facts-list">
           <div v-for="(edge, i) in edges" :key="edge.uuid || i" class="fact-item" :class="{ editing: editingEdgeUuid === edge.uuid }">
@@ -818,7 +842,7 @@ onMounted(() => {
                   <button 
                     class="action-btn edit-btn" 
                     @click="startEditEdge(edge)"
-                    title="Edit this fact"
+                    :title="t('memory.editFactTitle')"
                   >
                     <iconify-icon icon="ph:pencil-simple-duotone"></iconify-icon>
                   </button>
@@ -826,7 +850,7 @@ onMounted(() => {
                     class="action-btn delete-btn" 
                     @click="deleteEdge(edge.uuid)"
                     :disabled="deletingEdge === edge.uuid"
-                    title="Delete this fact"
+                    :title="t('memory.deleteFactTitle')"
                   >
                     <iconify-icon :icon="deletingEdge === edge.uuid ? 'ph:spinner-gap-duotone' : 'ph:trash-simple-duotone'" :class="{ spin: deletingEdge === edge.uuid }"></iconify-icon>
                   </button>
@@ -853,15 +877,15 @@ onMounted(() => {
                 <input
                   v-model="editEdgeData.fact"
                   class="edit-fact-input"
-                  placeholder="Enter fact..."
+                  :placeholder="t('memory.enterFact')"
                   @keydown.enter="saveEdge"
                   @keydown.escape="cancelEditEdge"
                 />
                 <div class="edit-actions">
-                  <button class="action-btn save-btn" @click="saveEdge" :disabled="savingEdge" title="Save">
+                  <button class="action-btn save-btn" @click="saveEdge" :disabled="savingEdge" :title="t('memory.save')">
                     <iconify-icon :icon="savingEdge ? 'ph:spinner-gap-duotone' : 'ph:check-bold'" :class="{ spin: savingEdge }"></iconify-icon>
                   </button>
-                  <button class="action-btn cancel-btn" @click="cancelEditEdge" title="Cancel">
+                  <button class="action-btn cancel-btn" @click="cancelEditEdge" :title="t('memory.cancel')">
                     <iconify-icon icon="ph:x-bold"></iconify-icon>
                   </button>
                 </div>
@@ -872,7 +896,7 @@ onMounted(() => {
         <!-- Lazy loading progress for facts -->
         <div v-if="isLoadingMoreEdges" class="load-more-bar">
           <iconify-icon icon="ph:spinner-gap-duotone" class="spin"></iconify-icon>
-          <span>Loading facts... {{ edges.length }} / {{ edgesTotal }}</span>
+          <span>{{ t('memory.loadingFacts', { loaded: edges.length, total: edgesTotal }) }}</span>
         </div>
         <button 
           v-else-if="edgesHasMore" 
@@ -880,18 +904,18 @@ onMounted(() => {
           @click="loadMoreEdges"
         >
           <iconify-icon icon="ph:arrow-down-duotone"></iconify-icon>
-          Load more ({{ edges.length }} / {{ edgesTotal }})
+          {{ t('memory.loadMore', { loaded: edges.length, total: edgesTotal }) }}
         </button>
       </PanelSection>
 
       <!-- Entities with Summaries -->
-      <PanelSection v-if="activeTab === 'entities'" title="Entities (with Summaries)">
+      <PanelSection v-if="activeTab === 'entities'" :title="t('memory.entitiesWithSummaries')">
         <div v-if="isLoading" class="loading-state small">
           <iconify-icon icon="ph:spinner-gap-duotone" class="spin"></iconify-icon>
         </div>
         <div v-else-if="!nodes.length" class="empty-state small">
           <iconify-icon icon="ph:tag-duotone"></iconify-icon>
-          No entities discovered
+          {{ t('memory.noEntitiesDiscovered') }}
         </div>
         <div v-else class="entities-list">
           <div v-for="(node, i) in nodes" :key="node.uuid || i" class="entity-item" :class="{ editing: editingNodeUuid === node.uuid }">
@@ -906,7 +930,7 @@ onMounted(() => {
                   <button 
                     class="action-btn edit-btn" 
                     @click="startEditNode(node)"
-                    title="Edit this entity"
+                    :title="t('memory.editEntityTitle')"
                   >
                     <iconify-icon icon="ph:pencil-simple-duotone"></iconify-icon>
                   </button>
@@ -914,7 +938,7 @@ onMounted(() => {
                     class="action-btn delete-btn" 
                     @click="deleteNode(node.uuid)"
                     :disabled="deletingNode === node.uuid"
-                    title="Delete this entity"
+                    :title="t('memory.deleteEntityTitle')"
                   >
                     <iconify-icon :icon="deletingNode === node.uuid ? 'ph:spinner-gap-duotone' : 'ph:trash-simple-duotone'" :class="{ spin: deletingNode === node.uuid }"></iconify-icon>
                   </button>
@@ -930,26 +954,26 @@ onMounted(() => {
             <template v-else>
               <div class="edit-entity-form">
                 <div class="edit-field">
-                  <label class="edit-label">Name</label>
+                  <label class="edit-label">{{ t('memory.name') }}</label>
                   <input
                     v-model="editNodeData.name"
                     class="edit-input"
-                    placeholder="Entity name..."
+                    :placeholder="t('memory.entityName')"
                     @keydown.escape="cancelEditNode"
                   />
                 </div>
                 <div class="edit-field">
-                  <label class="edit-label">Summary</label>
+                  <label class="edit-label">{{ t('memory.summary') }}</label>
                   <textarea
                     v-model="editNodeData.summary"
                     class="edit-textarea"
-                    placeholder="Summary..."
+                    :placeholder="t('memory.summaryPlaceholder')"
                     rows="2"
                     @keydown.escape="cancelEditNode"
                   ></textarea>
                 </div>
                 <div class="edit-field">
-                  <label class="edit-label">Labels</label>
+                  <label class="edit-label">{{ t('memory.labels') }}</label>
                   <div class="edit-labels">
                     <span 
                       v-for="(label, li) in editNodeData.labels" 
@@ -966,7 +990,7 @@ onMounted(() => {
                         :modelValue="editNodeData.newLabel"
                         @update:modelValue="addEditLabel"
                         :options="entityTypeOptions"
-                        placeholder="+ Add label"
+                        :placeholder="t('memory.addLabel')"
                       />
                     </div>
                   </div>
@@ -974,11 +998,11 @@ onMounted(() => {
                 <div class="edit-actions-row">
                   <button class="action-btn save-btn" @click="saveNode" :disabled="savingNode">
                     <iconify-icon :icon="savingNode ? 'ph:spinner-gap-duotone' : 'ph:check-bold'" :class="{ spin: savingNode }"></iconify-icon>
-                    Save
+                    {{ t('memory.save') }}
                   </button>
                   <button class="action-btn cancel-btn" @click="cancelEditNode">
                     <iconify-icon icon="ph:x-bold"></iconify-icon>
-                    Cancel
+                    {{ t('memory.cancel') }}
                   </button>
                 </div>
               </div>
@@ -988,7 +1012,7 @@ onMounted(() => {
         <!-- Lazy loading progress for entities -->
         <div v-if="isLoadingMoreNodes" class="load-more-bar">
           <iconify-icon icon="ph:spinner-gap-duotone" class="spin"></iconify-icon>
-          <span>Loading entities... {{ nodes.length }} / {{ nodesTotal }}</span>
+          <span>{{ t('memory.loadingEntities', { loaded: nodes.length, total: nodesTotal }) }}</span>
         </div>
         <button 
           v-else-if="nodesHasMore" 
@@ -996,25 +1020,25 @@ onMounted(() => {
           @click="loadMoreNodes"
         >
           <iconify-icon icon="ph:arrow-down-duotone"></iconify-icon>
-          Load more ({{ nodes.length }} / {{ nodesTotal }})
+          {{ t('memory.loadMore', { loaded: nodes.length, total: nodesTotal }) }}
         </button>
       </PanelSection>
 
       <!-- Messages (Conversation History) -->
-      <PanelSection v-if="activeTab === 'messages'" title="Conversation History">
+      <PanelSection v-if="activeTab === 'messages'" :title="t('memory.conversationHistory')">
         <div v-if="isLoading" class="loading-state small">
           <iconify-icon icon="ph:spinner-gap-duotone" class="spin"></iconify-icon>
         </div>
         <div v-else-if="!messages.length" class="empty-state small">
           <iconify-icon icon="ph:chat-circle-dots-duotone"></iconify-icon>
-          No conversation history
+          {{ t('memory.noConversationHistory') }}
         </div>
         <div v-else class="messages-list">
           <div v-for="(msg, i) in messages" :key="i" class="message-item" :class="msg.role_type || msg.role">
             <div class="message-header">
               <span class="message-role">
                 <iconify-icon :icon="msg.role_type === 'assistant' || msg.role === 'assistant' ? 'ph:robot-duotone' : 'ph:user-duotone'"></iconify-icon>
-                {{ msg.role || msg.role_type || 'unknown' }}
+                {{ msg.role || msg.role_type || t('memory.unknown') }}
               </span>
               <span v-if="msg.created_at" class="message-date">{{ formatDateTime(msg.created_at) }}</span>
             </div>
@@ -1024,7 +1048,7 @@ onMounted(() => {
       </PanelSection>
 
       <!-- Knowledge Graph -->
-      <PanelSection title="Knowledge Graph">
+      <PanelSection :title="t('memory.knowledgeGraph')">
         <div class="graph-actions">
           <BaseButton
             variant="primary"
@@ -1032,7 +1056,7 @@ onMounted(() => {
             icon="ph:graph-duotone"
             @click="showGraphModal = true"
           >
-            Open Graph View
+            {{ t('memory.openGraphView') }}
           </BaseButton>
           <BaseButton
             variant="secondary"
@@ -1041,7 +1065,7 @@ onMounted(() => {
             @click="loadMemoryData"
             :disabled="isLoading"
           >
-            Refresh
+            {{ t('memory.refresh') }}
           </BaseButton>
         </div>
       </PanelSection>
@@ -1052,7 +1076,7 @@ onMounted(() => {
           <div v-if="showGraphModal" class="graph-modal-overlay" @click.self="showGraphModal = false">
             <div class="graph-modal">
               <div class="graph-modal-header">
-                <h2><iconify-icon icon="ph:graph-duotone"></iconify-icon> Memory Knowledge Graph</h2>
+                <h2><iconify-icon icon="ph:graph-duotone"></iconify-icon> {{ t('memory.graphModalTitle') }}</h2>
                 <button class="close-btn" @click="showGraphModal = false">
                   <iconify-icon icon="ph:x"></iconify-icon>
                 </button>
@@ -1069,13 +1093,13 @@ onMounted(() => {
       </Teleport>
 
       <!-- Graph Operations -->
-      <PanelSection title="Graph Operations">
+      <PanelSection :title="t('memory.graphOps')">
         <!-- Reorganize -->
         <div class="graph-ops-section">
           <div class="graph-ops-row">
             <div class="graph-ops-info">
-              <h4><iconify-icon icon="ph:broom-duotone"></iconify-icon> Reorganize</h4>
-              <p>Remove orphan nodes, auto-merge high-confidence duplicates, and detect communities.</p>
+              <h4><iconify-icon icon="ph:broom-duotone"></iconify-icon> {{ t('memoryOps.reorganizeTitle') }}</h4>
+              <p>{{ t('memoryOps.reorganizeDesc') }}</p>
             </div>
             <BaseButton
               variant="primary"
@@ -1085,7 +1109,13 @@ onMounted(() => {
               :disabled="reorganizeRef?.loading || reorganizeRef?.applying"
               @click="reorganizeRef?.fetchPreview()"
             >
-              {{ reorganizeRef?.loading ? 'Scanning...' : reorganizeRef?.applying ? 'Applying...' : 'Reorganize' }}
+              {{
+                reorganizeRef?.loading
+                  ? t('memoryGraph.scanning')
+                  : reorganizeRef?.applying
+                    ? t('memoryGraph.applying')
+                    : t('memoryGraph.reorganize')
+              }}
             </BaseButton>
           </div>
         </div>
@@ -1094,8 +1124,8 @@ onMounted(() => {
         <div class="graph-ops-section">
           <div class="graph-ops-row">
             <div class="graph-ops-info">
-              <h4><iconify-icon icon="ph:copy-duotone"></iconify-icon> Duplicates</h4>
-              <p>Find nodes with similar names that may represent the same entity. Merge them to consolidate edges and clean up the graph.</p>
+              <h4><iconify-icon icon="ph:copy-duotone"></iconify-icon> {{ t('memoryOps.duplicatesTitle') }}</h4>
+              <p>{{ t('memoryOps.duplicatesDesc') }}</p>
             </div>
             <BaseButton
               variant="secondary"
@@ -1105,7 +1135,7 @@ onMounted(() => {
               :disabled="duplicatesLoading"
               @click="loadDuplicates"
             >
-              Scan
+              {{ t('memoryOps.scan') }}
             </BaseButton>
           </div>
           <div v-if="duplicatesLoading" class="loading-state small">
@@ -1113,20 +1143,20 @@ onMounted(() => {
           </div>
           <div v-else-if="duplicates.length === 0 && !duplicatesLoading" class="empty-state small">
             <iconify-icon icon="ph:check-circle-duotone"></iconify-icon>
-            No duplicates found
+            {{ t('memoryOps.noDuplicates') }}
           </div>
           <div v-else class="duplicates-list">
             <div v-for="dup in duplicates" :key="`${dup.keep.uuid}-${dup.remove.uuid}`" class="dup-item">
               <div class="dup-header">
                 <span class="dup-score">{{ dup.score }}%</span>
-                <span class="dup-match">match</span>
+                <span class="dup-match">{{ t('memoryOps.match') }}</span>
               </div>
               <div class="dup-nodes">
                 <div class="dup-node keep">
                   <iconify-icon icon="ph:check-circle-duotone" class="keep-icon"></iconify-icon>
                   <div>
                     <span class="dup-name">{{ dup.keep.name }}</span>
-                    <span class="dup-edges">{{ dup.keep.edge_count }} edges</span>
+                    <span class="dup-edges">{{ dup.keep.edge_count }} {{ t('memoryOps.edges') }}</span>
                   </div>
                 </div>
                 <iconify-icon icon="ph:arrows-merge-duotone" class="merge-arrow"></iconify-icon>
@@ -1134,7 +1164,7 @@ onMounted(() => {
                   <iconify-icon icon="ph:x-circle-duotone" class="remove-icon"></iconify-icon>
                   <div>
                     <span class="dup-name">{{ dup.remove.name }}</span>
-                    <span class="dup-edges">{{ dup.remove.edge_count }} edges</span>
+                    <span class="dup-edges">{{ dup.remove.edge_count }} {{ t('memoryOps.edges') }}</span>
                   </div>
                 </div>
               </div>
@@ -1147,7 +1177,7 @@ onMounted(() => {
                 @click="mergePair(dup.keep.uuid, dup.remove.uuid)"
                 block
               >
-                Merge
+                {{ t('memoryOps.merge') }}
               </BaseButton>
             </div>
           </div>
@@ -1157,8 +1187,8 @@ onMounted(() => {
         <div class="graph-ops-section">
           <div class="graph-ops-row">
             <div class="graph-ops-info">
-              <h4><iconify-icon icon="ph:circles-three-plus-duotone"></iconify-icon> Communities</h4>
-              <p>Group strongly connected entities into clusters using the Louvain algorithm. Reveals the natural topic areas in your memory.</p>
+              <h4><iconify-icon icon="ph:circles-three-plus-duotone"></iconify-icon> {{ t('memoryOps.communitiesTitle') }}</h4>
+              <p>{{ t('memoryOps.communitiesDesc') }}</p>
             </div>
             <BaseButton
               variant="secondary"
@@ -1168,7 +1198,7 @@ onMounted(() => {
               :disabled="communitiesLoading"
               @click="loadCommunities"
             >
-              Detect
+              {{ t('memoryOps.detect') }}
             </BaseButton>
           </div>
           <div v-if="communitiesLoading" class="loading-state small">
@@ -1176,20 +1206,22 @@ onMounted(() => {
           </div>
           <div v-else-if="communities.length === 0 && !communitiesLoading" class="empty-state small">
             <iconify-icon icon="ph:circles-three-plus-duotone"></iconify-icon>
-            Click Detect to find communities
+            {{ t('memoryOps.communitiesEmpty') }}
           </div>
           <div v-else class="communities-list">
             <div v-for="comm in communities" :key="comm.id" class="community-item">
               <div class="community-header">
                 <span class="community-id">{{ comm.members.slice(0, 2).map(m => m.name).join(' & ') }}</span>
-                <span class="community-size">{{ comm.size }} node{{ comm.size !== 1 ? 's' : '' }}</span>
+                <span class="community-size">{{
+                  t('memoryOps.communityNodes', comm.size, { n: comm.size })
+                }}</span>
               </div>
               <div class="community-members">
                 <span v-for="m in comm.members.slice(0, 6)" :key="m.uuid" class="member-chip">
                   {{ m.name }}
                 </span>
                 <span v-if="comm.members.length > 6" class="member-more">
-                  +{{ comm.members.length - 6 }} more
+                  {{ t('memoryOps.moreMembers', { n: comm.members.length - 6 }) }}
                 </span>
               </div>
             </div>
@@ -1198,16 +1230,16 @@ onMounted(() => {
       </PanelSection>
 
       <!-- Danger Zone -->
-      <PanelSection title="Danger Zone">
+      <PanelSection :title="t('memoryOps.dangerZone')">
         <div class="danger-zone">
-          <h4><iconify-icon icon="ph:warning-duotone"></iconify-icon> Destructive Action</h4>
-          <p>Permanently delete all memory for this user. This includes all threads, facts, entities, and the knowledge graph.</p>
+          <h4><iconify-icon icon="ph:warning-duotone"></iconify-icon> {{ t('memoryOps.destructiveTitle') }}</h4>
+          <p>{{ t('memoryOps.destructiveDesc') }}</p>
           <BaseButton 
             variant="danger" 
             icon="ph:trash-simple-duotone" 
             @click="showDeleteConfirm = true"
           >
-            Delete All User Memory
+            {{ t('memoryOps.deleteAllMemory') }}
           </BaseButton>
         </div>
       </PanelSection>
@@ -1223,20 +1255,20 @@ onMounted(() => {
       <!-- Delete Confirmation -->
       <ConfirmDialog
         :open="showDeleteConfirm"
-        title="Delete All Memory?"
+        :title="t('memoryOps.deleteDialogTitle')"
         icon="ph:warning-duotone"
-        confirmLabel="Delete Forever"
+        :confirmLabel="t('memoryOps.deleteForever')"
         confirmIcon="ph:trash-simple-duotone"
         confirmVariant="danger"
         :loading="isDeleting"
         @confirm="deleteUserMemory"
         @cancel="showDeleteConfirm = false"
       >
-        <p>You are about to permanently delete all memory for:</p>
+        <p>{{ t('memoryOps.deleteIntro') }}</p>
         <code>{{ userId }}</code>
         <p class="warning-text">
-          <strong>This action cannot be undone.</strong> All threads, facts, entities,
-          and the knowledge graph will be permanently deleted.
+          <strong>{{ t('memory.deleteCannotUndo') }}</strong>
+          {{ t('memory.deleteDetails') }}
         </p>
         <div v-if="deleteError" class="delete-error">
           <iconify-icon icon="ph:x-circle-duotone"></iconify-icon>

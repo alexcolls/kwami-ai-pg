@@ -102,6 +102,7 @@ export function useVoiceLiveUpdates(
             provider: llm.value.provider,
             model: llm.value.model,
             temperature: llm.value.temperature,
+            maxTokens: llm.value.maxTokens,
         };
 
         console.log('🧠 Sending LLM update:', llmConfig);

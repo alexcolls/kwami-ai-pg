@@ -1,19 +1,22 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
+import { useToast } from 'vue-toastification';
 import { useKwami } from '@/composables/useKwami';
 import { useSceneBackground } from '@/composables/useSceneBackground';
 import { useUIStore } from '@/stores/ui';
 import { useAuthStore } from '@/stores/auth';
 import AuthGuard from '@/components/auth/AuthGuard.vue';
-import WelcomeScreen from '@/components/welcome/WelcomeScreen.vue';
 import TheSidebar from '@/components/sidebar/TheSidebar.vue';
 import ControlBar from '@/components/controls/ControlBar.vue';
 import AvatarPanel from '@/components/panels/avatar/AvatarPanel.vue';
+import AudioPanel from '@/components/panels/audio/AudioPanel.vue';
 import ScenePanel from '@/components/panels/scene/ScenePanel.vue';
 import VoicePanel from '@/components/panels/voice/VoicePanel.vue';
 import EnhancementsPanel from '@/components/panels/enhancements/EnhancementsPanel.vue';
 import TranscriptionPanel from '@/components/panels/transcription/TranscriptionPanel.vue';
-import PersonaPanel from '@/components/panels/persona/PersonaPanel.vue';
+import CommunicationsPanel from '@/components/panels/communications/CommunicationsPanel.vue';
+import SoulPanel from '@/components/panels/soul/SoulPanel.vue';
 import MemoryPanel from '@/components/panels/memory/MemoryPanel.vue';
 import ToolsPanel from '@/components/panels/tools/ToolsPanel.vue';
 import InfoPanel from '@/components/panels/info/InfoPanel.vue';
@@ -29,18 +32,18 @@ import { useWorkspaceStore } from '@/stores/workspace';
 import { useKwamiConfigWatchers } from '@/composables/useKwamiConfigSync';
 import { useSearchResults } from '@/composables/useSearchResults';
 import { useNavigation } from '@/composables/useNavigation';
-import { useSearchStore } from '@/stores/search';
+import { useWorkspaceAgentTools } from '@/composables/useWorkspaceAgentTools';
 import { useAvatarStore } from '@/stores/avatar';
 import { useBlobXyzSync } from '@/composables/avatar/sync/useBlobXyzSync';
-import { useOrbitalShardsSync } from '@/composables/avatar/sync/useOrbitalShardsSync';
-import { useStarsGenesisSync } from '@/composables/avatar/sync/useStarsGenesisSync';
-import { useCrystalBallSync } from '@/composables/avatar/sync/useCrystalBallSync';
 import { useBlackHoleSync } from '@/composables/avatar/sync/useBlackHoleSync';
+import { useParticlesFaceSync } from '@/composables/avatar/sync/useParticlesFaceSync';
+import { randomizeAvatarPanel } from '@/composables/avatar/randomizeAvatarPanel';
 
-const { kwami, init, switchRenderer, rendererType: kwamiRendererType } = useKwami();
+const { kwami, init, switchRenderer, rendererType: kwamiRendererType, isConnected } = useKwami();
 const { initialize: initSceneBackground } = useSceneBackground();
 import { useVoiceStore } from '@/stores/voice';
 import { useCreditsStore } from '@/stores/credits';
+import { loadUserLocaleFromDb } from '@/lib/userAppSettings';
 
 const uiStore = useUIStore();
 const authStore = useAuthStore();
@@ -48,57 +51,50 @@ const workspaceStore = useWorkspaceStore();
 
 // Search results: callback + event listener both update store; panel reads store
 const searchResults = useSearchResults();
-const searchStore = useSearchStore();
 const avatarStore = useAvatarStore();
 
 // Navigation: extension opens tab/split; no sidebar
 useNavigation();
+useWorkspaceAgentTools();
 
 // Sync per-kwami config: apply config when switching kwami, debounced save to DB
 useKwamiConfigWatchers();
 const voiceStore = useVoiceStore();
 const creditsStore = useCreditsStore();
+const toast = useToast();
+const { t } = useI18n();
+
+function onInsufficientCredits() {
+  toast.error(t('apiErrors.insufficientCredits'));
+}
 
 // Avatar sync composables (used to apply saved state on init)
 const { applyToKwami: applyBlobToKwami } = useBlobXyzSync({
   kwami,
   getBlob: () => kwami.value?.avatar.getBlob(),
 });
-const { applyToKwami: applyOrbitalShardsToKwami } = useOrbitalShardsSync({
-  kwami,
-  getOrbitalShards: () => kwami.value?.avatar.getOrbitalShards(),
-});
-const { applyToKwami: applyStarsGenesisToKwami } = useStarsGenesisSync({
-  kwami,
-  getStarsGenesis: () => kwami.value?.avatar.getStarsGenesis(),
-});
-const { applyToKwami: applyCrystalBallToKwami } = useCrystalBallSync({
-  kwami,
-  getCrystalBall: () => (kwami.value?.avatar as any)?.getCrystalBall?.(),
-});
 const { applyToKwami: applyBlackHoleToKwami } = useBlackHoleSync({
   kwami,
   getBlackHole: () => (kwami.value?.avatar as any)?.getBlackHole?.(),
 });
+const { applyToKwami: applyParticlesFaceToKwami } = useParticlesFaceSync({
+  kwami,
+  getParticlesFace: () => (kwami.value?.avatar as any)?.getParticlesFace?.(),
+});
 
 const canvasRef = ref<HTMLCanvasElement | null>(null);
 
-// Welcome screen state
-const showWelcome = ref(false);
-const hasShownWelcome = ref(false);
-
-// Watch for authentication: welcome screen, credits, load kwamis from DB
+// Watch for authentication: credits, load kwamis from DB (welcome rings shown only during AuthGuard loading)
 watch(
   () => authStore.isAuthenticated,
-  (isAuth, wasAuth) => {
-    if (isAuth && wasAuth === false && !hasShownWelcome.value) {
-      showWelcome.value = true;
-      hasShownWelcome.value = true;
-    }
+  (isAuth) => {
     if (isAuth) {
       creditsStore.init();
       const uid = authStore.userId;
-      if (uid) void workspaceStore.loadFromDb(uid);
+      if (uid) {
+        void workspaceStore.loadFromDb(uid);
+        void loadUserLocaleFromDb(uid);
+      }
     }
   },
   { immediate: true },
@@ -111,22 +107,32 @@ function onKwamiDisconnected() {
 }
 function onKwamiConfigApplied() {
   applySavedAvatarState();
-  applySavedPersonaState();
+  applySavedSoulState();
   initSceneBackground();
+}
+
+function onRandomizeAvatarPanel() {
+  randomizeAvatarPanel({
+    applyBlob: applyBlobToKwami,
+    applyBlackHole: applyBlackHoleToKwami,
+    applyParticles: applyParticlesFaceToKwami,
+  });
+  window.dispatchEvent(new CustomEvent('kwami:randomized'));
 }
 
 onMounted(() => {
   window.addEventListener('kwami:disconnected', onKwamiDisconnected);
   window.addEventListener('kwami:configApplied', onKwamiConfigApplied);
+  window.addEventListener('kwami:randomize-avatar-panel', onRandomizeAvatarPanel);
+  window.addEventListener('kwami:insufficient-credits', onInsufficientCredits);
 });
 onUnmounted(() => {
   window.removeEventListener('kwami:disconnected', onKwamiDisconnected);
   window.removeEventListener('kwami:configApplied', onKwamiConfigApplied);
+  window.removeEventListener('kwami:randomize-avatar-panel', onRandomizeAvatarPanel);
+  window.removeEventListener('kwami:insufficient-credits', onInsufficientCredits);
 });
 
-function onWelcomeComplete() {
-  showWelcome.value = false;
-}
 
 // Track if Kwami has been initialized
 const isInitialized = ref(false);
@@ -143,18 +149,16 @@ function applySavedAvatarState() {
   // Apply the saved state for the active renderer
   switch (savedRenderer) {
     case 'blob-xyz': applyBlobToKwami(); break;
-    case 'orbital-shards': applyOrbitalShardsToKwami(); break;
-    case 'stars-genesis': applyStarsGenesisToKwami(); break;
-    case 'crystal-ball': applyCrystalBallToKwami(); break;
     case 'black-hole': applyBlackHoleToKwami(); break;
+    case 'particles-face': applyParticlesFaceToKwami(); break;
   }
 }
 
-// Apply current store persona to the Kwami instance so the live agent matches the active kwami config
-function applySavedPersonaState() {
+// Apply current store soul to the Kwami instance so the live agent matches the active kwami config
+function applySavedSoulState() {
   if (!kwami.value) return;
-  const saved = voiceStore.personaConfig;
-  kwami.value.persona.updateConfig({
+  const saved = voiceStore.soulConfig;
+  const soulConfig = {
     name: saved.name,
     personality: saved.personality,
     systemPrompt: saved.systemPrompt,
@@ -163,7 +167,13 @@ function applySavedPersonaState() {
     responseLength: saved.responseLength,
     emotionalTone: saved.emotionalTone,
     emotionalTraits: { ...saved.emotionalTraits },
-  });
+  };
+  kwami.value.soul.updateConfig(soulConfig);
+
+  // Keep active backend agent in sync when switching/applying workspace config.
+  if (isConnected.value) {
+    kwami.value.agent.syncConfigToBackend('soul', soulConfig);
+  }
 }
 
 // Initialize Kwami when canvas becomes available (after auth)
@@ -186,8 +196,8 @@ function initializeKwami() {
     applySavedAvatarState();
   }
 
-  // Apply saved persona config to kwami
-  applySavedPersonaState();
+  // Apply saved soul config to kwami
+  applySavedSoulState();
 
   // Trigger initial resize to ensure proper sizing
   requestAnimationFrame(() => {
@@ -197,7 +207,7 @@ function initializeKwami() {
   // Console info
   console.log('🎮 Kwami App (🫧 blob renderer)');
   console.log('Shortcuts: R=randomize, L=listening, T=thinking, I=idle, P=toggle panel');
-  console.log('Renderer: B=blob, O|C=orbital-shards');
+  console.log('Renderer: B=blob, H=black-hole');
   console.log('Access kwami via window.kwami in console');
 }
 
@@ -257,11 +267,10 @@ onMounted(() => {
     }
     // Renderer switch shortcuts
     if (e.key === 'b' || e.key === 'B') switchRenderer('blob-xyz');
-    if (e.key === 'c' || e.key === 'C' || e.key === 'o' || e.key === 'O') switchRenderer('orbital-shards');
+    if (e.key === 'h' || e.key === 'H') switchRenderer('black-hole');
     // Avatar state shortcuts
     if (e.key === 'r') {
-      kwami.value?.avatar.randomize();
-      window.dispatchEvent(new CustomEvent('kwami:randomized'));
+      onRandomizeAvatarPanel();
       console.log('🎲 Randomized!');
     }
     if (e.key === 'l') {
@@ -288,14 +297,6 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <!-- Welcome screen shown after login -->
-  <WelcomeScreen
-    v-if="showWelcome"
-    :visible="showWelcome"
-    :duration="3500"
-    @complete="onWelcomeComplete"
-  />
-
   <AuthGuard>
     <div id="kwami-root" class="root-layout">
       <!-- Main area: canvas + overlays (no nav sidebar) -->
@@ -303,7 +304,7 @@ onUnmounted(() => {
         <canvas id="kwami-canvas" ref="canvasRef"></canvas>
 
         <!-- UI controls only shown when authenticated and welcome complete -->
-        <template v-if="authStore.isAuthenticated && !showWelcome">
+        <template v-if="authStore.isAuthenticated">
           <!-- Search results as orbit cards around the Kwami (blob) -->
           <SearchOrbitCards />
           <!-- Control Bar (top-right of main area; moves with canvas when nav opens) -->
@@ -314,14 +315,16 @@ onUnmounted(() => {
         </template>
       </div>
 
-      <template v-if="authStore.isAuthenticated && !showWelcome">
+      <template v-if="authStore.isAuthenticated">
         <TheSidebar>
           <AvatarPanel v-if="uiStore.activePanel === 'avatar'" />
+          <AudioPanel v-if="uiStore.activePanel === 'audio'" />
           <ScenePanel v-if="uiStore.activePanel === 'scene'" />
           <VoicePanel v-if="uiStore.activePanel === 'voice'" />
           <EnhancementsPanel v-if="uiStore.activePanel === 'enhancements'" />
           <TranscriptionPanel v-if="uiStore.activePanel === 'transcription'" />
-          <PersonaPanel v-if="uiStore.activePanel === 'persona'" />
+          <CommunicationsPanel v-if="uiStore.activePanel === 'communications'" />
+          <SoulPanel v-if="uiStore.activePanel === 'soul'" />
           <MemoryPanel v-if="uiStore.activePanel === 'memory'" />
           <ToolsPanel v-if="uiStore.activePanel === 'tools'" />
           <InfoPanel v-if="uiStore.activePanel === 'info'" />

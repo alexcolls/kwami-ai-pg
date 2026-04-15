@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useKwami } from '@/composables/useKwami';
 import { useVoiceStore } from '@/stores/voice';
 import { storeToRefs } from 'pinia';
@@ -14,6 +15,8 @@ import { useVoiceLiveUpdates } from '@/composables/useVoiceLiveUpdates';
 
 const { kwami, isConnected } = useKwami();
 const voiceStore = useVoiceStore();
+const panelIcon = panelIcons.voice ?? 'mdi:account-voice';
+const { t } = useI18n();
 
 // Use store refs for reactive state that persists across panel switches
 const { pipelineMode, stt, llm, tts, realtime, activePreset } = storeToRefs(voiceStore);
@@ -122,7 +125,7 @@ watch(() => stt.value.language, (newLang, oldLang) => {
 </script>
 
 <template>
-  <BasePanel :icon="panelIcons.voice" title="Voice Pipeline">
+  <BasePanel :icon="panelIcon" :title="t('voice2.title')">
     <!-- Mode Selection -->
     <PanelSection>
       <div class="mode-selector">
@@ -131,20 +134,20 @@ watch(() => stt.value.language, (newLang, oldLang) => {
           :class="{ active: pipelineMode === 'stt-llm-tts' }"
           @click="pipelineMode = 'stt-llm-tts'"
         >
-          <iconify-icon icon="ph:arrows-left-right-duotone"></iconify-icon> Standard
+          <iconify-icon icon="ph:arrows-left-right-duotone"></iconify-icon> {{ t('voice2.standard') }}
         </button>
         <button
           class="mode-btn"
           :class="{ active: pipelineMode === 'realtime' }"
           @click="pipelineMode = 'realtime'"
         >
-          <iconify-icon icon="ph:lightning-duotone"></iconify-icon> Realtime
+          <iconify-icon icon="ph:lightning-duotone"></iconify-icon> {{ t('voice2.realtime') }}
         </button>
       </div>
     </PanelSection>
 
     <!-- Presets -->
-    <PanelSection title="Quick Presets" icon="ph:lightning-duotone">
+      <PanelSection :title="t('voice2.quickPresets')" icon="ph:lightning-duotone">
       <div class="preset-grid">
         <button
           v-for="preset in presets"
@@ -163,20 +166,20 @@ watch(() => stt.value.language, (newLang, oldLang) => {
     <!-- Standard Pipeline Config -->
     <div v-if="pipelineMode === 'stt-llm-tts'" class="pipeline-config">
       <!-- STT Section -->
-      <PanelSection title="Speech to Text (STT)" icon="ph:microphone-duotone">
+      <PanelSection :title="t('voice2.sttTitle')" icon="ph:microphone-duotone">
         <div class="config-form">
           <BaseSelect
-            label="Provider"
+            :label="t('voice2.provider')"
             v-model="stt.provider"
             :options="sttProviders.map((p) => ({ label: p.label, value: p.provider }))"
           />
           <BaseSelect
-            label="Model"
+            :label="t('voice2.model')"
             v-model="stt.model"
             :options="sttModels.map((m) => ({ label: m.name, value: m.model }))"
           />
           <BaseSelect
-            label="Language"
+            :label="t('voice2.language')"
             v-model="stt.language"
             :options="sttLanguages"
           />
@@ -184,20 +187,20 @@ watch(() => stt.value.language, (newLang, oldLang) => {
       </PanelSection>
 
       <!-- LLM Section -->
-      <PanelSection title="Language Model (LLM)" icon="ph:brain-duotone">
+      <PanelSection :title="t('voice2.llmTitle')" icon="ph:brain-duotone">
         <div class="config-form">
           <BaseSelect
-            label="Provider"
+            :label="t('voice2.provider')"
             v-model="llm.provider"
             :options="llmProviders.map((p) => ({ label: p.label, value: p.provider }))"
           />
           <BaseSelect
-            label="Model"
+            :label="t('voice2.model')"
             v-model="llm.model"
             :options="llmModels.map((m) => ({ label: m.name, value: m.model }))"
           />
           <BaseSlider 
-            label="Temperature" 
+            :label="t('voice2.temperature')" 
             :min="0" 
             :max="1" 
             :step="0.05" 
@@ -205,7 +208,7 @@ watch(() => stt.value.language, (newLang, oldLang) => {
             :showValue="true"
           />
           <BaseSlider 
-            label="Max Tokens" 
+            :label="t('voice2.maxTokens')" 
             :min="64" 
             :max="4096" 
             :step="64" 
@@ -216,22 +219,22 @@ watch(() => stt.value.language, (newLang, oldLang) => {
       </PanelSection>
 
       <!-- TTS Section -->
-      <PanelSection title="Text to Speech (TTS)" icon="ph:speaker-high-duotone">
+      <PanelSection :title="t('voice2.ttsTitle')" icon="ph:speaker-high-duotone">
         <div class="config-form">
           <BaseSelect
-            label="Provider"
+            :label="t('voice2.provider')"
             v-model="tts.provider"
             :options="ttsProviders.map((p) => ({ label: p.label, value: p.provider }))"
           />
           <BaseSelect
-            label="Model"
+            :label="t('voice2.model')"
             v-model="tts.model"
             :options="ttsModels.map((m) => ({ label: m.name, value: m.model }))"
           />
           
           <!-- Voice selection with categories -->
           <div class="voice-selection">
-            <label class="field-label">Voice</label>
+            <label class="field-label">{{ t('voice2.voice') }}</label>
             <select v-model="tts.voice" class="voice-select">
               <optgroup v-for="(voices, category) in groupedVoices" :key="category" :label="category">
                 <option v-for="voice in voices" :key="voice.id" :value="voice.id">
@@ -242,7 +245,7 @@ watch(() => stt.value.language, (newLang, oldLang) => {
           </div>
           
           <BaseSlider 
-            label="Speed" 
+            :label="t('voice2.speed')" 
             :min="0.5" 
             :max="2" 
             :step="0.1" 
@@ -255,20 +258,20 @@ watch(() => stt.value.language, (newLang, oldLang) => {
 
     <!-- Realtime Config -->
     <div v-else class="realtime-config">
-      <PanelSection title="Realtime Model" icon="ph:lightning-duotone">
+      <PanelSection :title="t('voice2.realtimeModel')" icon="ph:lightning-duotone">
         <div class="config-form">
           <BaseSelect
-            label="Provider"
+            :label="t('voice2.provider')"
             v-model="realtime.provider"
             :options="realtimeProviders.map((p) => ({ label: p.label, value: p.provider }))"
           />
           <BaseSelect
-            label="Model"
+            :label="t('voice2.model')"
             v-model="realtime.model"
             :options="realtimeModels.map((m) => ({ label: m.name, value: m.model }))"
           />
           <BaseSelect
-            label="Voice"
+            :label="t('voice2.voice')"
             v-model="realtime.voice"
             :options="realtimeVoices.map((v) => ({ label: v.name, value: v.id }))"
           />

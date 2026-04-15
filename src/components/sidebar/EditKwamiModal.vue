@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue';
 import BaseInput from '@/components/ui/BaseInput.vue';
 import BaseColorPicker from '@/components/ui/BaseColorPicker.vue';
@@ -15,6 +16,7 @@ const emit = defineEmits<{
   (e: 'save', payload: { name: string; colors: { x: string; y: string; z: string } }): void;
   (e: 'delete'): void;
 }>();
+const { t } = useI18n();
 
 const name = ref('');
 const colors = ref<{ x: string; y: string; z: string }>({ x: '#00d9ff', y: '#a855f7', z: '#22c55e' });
@@ -56,27 +58,27 @@ function onRandomize() {
 <template>
   <ConfirmDialog
     :open="open"
-    title="Edit Kwami"
+    :title="t('sidebarModals.editKwamiTitle')"
     icon="ph:pencil-simple-duotone"
-    confirm-label="Save"
+    :confirm-label="t('sidebarModals.save')"
     confirm-variant="accent"
     @confirm="onConfirm"
     @cancel="onCancel"
   >
-    <p>Name is synced with the persona name for the active Kwami.</p>
+    <p>{{ t('sidebarModals.editKwamiHint') }}</p>
     <BaseInput
       v-model="name"
-      placeholder="Kwami name"
-      label="Name"
+      :placeholder="t('sidebarModals.kwamiNamePlaceholder')"
+      :label="t('sidebarModals.name')"
       class="kwami-name-input"
       @keydown.enter.prevent="onConfirm"
     />
     <div class="kwami-gradient-section">
       <div class="gradient-section-header">
-        <span class="gradient-label">Avatar gradient</span>
-        <button type="button" class="gradient-dice-btn" title="Randomize colors" @click="onRandomize">
+        <span class="gradient-label">{{ t('sidebarModals.avatarGradient') }}</span>
+        <button type="button" class="gradient-dice-btn" :title="t('sidebarModals.randomizeColors')" @click="onRandomize">
           <iconify-icon icon="ph:dice-five-duotone"></iconify-icon>
-          <span>Random</span>
+          <span>{{ t('sidebarModals.random') }}</span>
         </button>
       </div>
       <div class="gradient-block">
@@ -91,7 +93,7 @@ function onRandomize() {
     <template #footerLeft>
       <button type="button" class="delete-kwami-btn" @click="onDelete">
         <iconify-icon icon="ph:trash-duotone"></iconify-icon>
-        Delete Kwami
+        {{ t('sidebarModals.deleteKwami') }}
       </button>
     </template>
   </ConfirmDialog>

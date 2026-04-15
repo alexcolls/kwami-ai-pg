@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import type { InferenceModel, PluginModel } from '@/composables/useModelsApi';
 import RangeBar from './RangeBar.vue';
 import { getFlagIcon } from '@/constants/language-flags';
+
+const { t } = useI18n();
 
 // Language name mapping
 const LANGUAGE_NAMES: Record<string, string> = {
@@ -112,29 +115,12 @@ const speedPercent = computed(() => {
 });
 
 const speedDisplay = computed(() => {
-  const labels: Record<string, string> = {
-    fast: 'Fast',
-    standard: 'Medium',
-    slow: 'Slow',
+  const keys: Record<string, string> = {
+    fast: 'sttModelCard.speedFast',
+    standard: 'sttModelCard.speedMedium',
+    slow: 'sttModelCard.speedSlow',
   };
-  return labels[props.model.speed] || 'Medium';
-});
-
-// Language display and percentage
-const isMultilingual = computed(() => {
-  return props.model.languages?.includes('multilingual') ?? false;
-});
-
-const languageDisplay = computed(() => {
-  if (!props.model.languages || props.model.languages.length === 0) return null;
-  if (isMultilingual.value) return 'Multi';
-  if (props.model.languages.length === 1) return props.model.languages[0]!.toUpperCase();
-  return `${props.model.languages.length}`;
-});
-
-// Language percent: multilingual = 100%, single language = 30%
-const languagePercent = computed(() => {
-  return isMultilingual.value ? 100 : 30;
+  return t(keys[props.model.speed] ?? 'sttModelCard.speedMedium');
 });
 
 // Formatted languages for tooltip
@@ -187,8 +173,8 @@ function handleClick() {
         <RangeBar 
           :value="contextPercent" 
           icon="ph:stack-duotone"
-          label="Context"
-          :title="`Context: ${contextDisplay}`"
+          :label="t('llmModelCard.context')"
+          :title="t('llmModelCard.contextTitle', { ctx: contextDisplay })"
         />
         <span class="range-value">{{ contextDisplay }}</span>
       </div>
@@ -196,8 +182,8 @@ function handleClick() {
         <RangeBar 
           :value="pricePercent" 
           icon="ph:currency-dollar-duotone"
-          label="Price"
-          :title="`Price: ${priceDisplay}/1M`"
+          :label="t('sttModelCard.price')"
+          :title="t('llmModelCard.priceTitle', { price: priceDisplay })"
         />
         <span class="range-value">{{ priceDisplay }}</span>
       </div>
@@ -223,7 +209,11 @@ function handleClick() {
             <div v-if="showLanguages && formattedLanguages.length > 1" class="languages-popover">
               <div class="popover-header">
                 <iconify-icon icon="ph:globe-duotone"></iconify-icon>
-                <span>{{ formattedLanguages.length }} Languages</span>
+                <span>{{
+                  t('sttModelCard.languagesHeading', formattedLanguages.length, {
+                    n: formattedLanguages.length,
+                  })
+                }}</span>
               </div>
               <div class="languages-grid">
                 <span 
@@ -244,21 +234,29 @@ function handleClick() {
         <RangeBar 
           :value="speedPercent" 
           icon="ph:lightning-duotone"
-          label="Speed"
-          :title="`Speed: ${speedDisplay}`"
+          :label="t('sttModelCard.speed')"
+          :title="t('sttModelCard.speedTitle', { speed: speedDisplay })"
         />
         <span class="range-value">{{ speedDisplay }}</span>
       </div>
     </div>
     
     <div v-if="keyCapabilities.length" class="card-capabilities">
-      <span v-if="keyCapabilities.includes('vision')" class="cap-badge vision" title="Vision">
+      <span
+        v-if="keyCapabilities.includes('vision')"
+        class="cap-badge vision"
+        :title="t('llmModelCard.titleVision')"
+      >
         <iconify-icon icon="ph:eye-duotone"></iconify-icon>
-        <span class="cap-label">Vision</span>
+        <span class="cap-label">{{ t('llmModelCard.capVision') }}</span>
       </span>
-      <span v-if="keyCapabilities.includes('function_calling')" class="cap-badge tools" title="Function calling">
+      <span
+        v-if="keyCapabilities.includes('function_calling')"
+        class="cap-badge tools"
+        :title="t('llmModelCard.titleFunctionCalling')"
+      >
         <iconify-icon icon="ph:wrench-duotone"></iconify-icon>
-        <span class="cap-label">Tools</span>
+        <span class="cap-label">{{ t('llmModelCard.capTools') }}</span>
       </span>
     </div>
     

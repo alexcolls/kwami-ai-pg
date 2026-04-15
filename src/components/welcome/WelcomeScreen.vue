@@ -1,82 +1,79 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch } from 'vue';
-import WelcomeRings from '@/components/ui/WelcomeRings.vue';
+import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue';
+import { useI18n } from 'vue-i18n';
+import WelcomeRings from '@/components/welcome/WelcomeRings.vue';
+
+import './welcome-layer.css';
+
+const DEFAULT_WELCOME_SOUND = '/welcome.mp3';
 
 export interface WelcomeScreenProps {
-  /** Whether the welcome screen is visible */
   visible?: boolean;
-  /** Duration to show the welcome screen in ms (default 4000) */
   duration?: number;
+  soundUrl?: string;
 }
 
 const props = withDefaults(defineProps<WelcomeScreenProps>(), {
   visible: true,
   duration: 4000,
+  soundUrl: DEFAULT_WELCOME_SOUND,
 });
 
-const emit = defineEmits<{
-  (e: 'complete'): void;
-}>();
+const emit = defineEmits<{ (e: 'complete'): void }>();
+const { t } = useI18n();
 
 const isVisible = ref(props.visible);
-const isFadingOut = ref(false);
-const isRunning = ref(false);
-
 let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
-function startAnimation() {
-  isRunning.value = true;
-  
-  // Start fade out after duration
+function playWelcomeSound() {
+  const url = props.soundUrl?.trim();
+  if (!url) return;
+  try {
+    const audio = new Audio(url);
+    audio.volume = 0.6;
+    audio.play().catch(() => {});
+  } catch {
+    // ignore
+  }
+}
+
+function startTimer() {
   timeoutId = setTimeout(() => {
-    isFadingOut.value = true;
-    
-    // Complete after fade out animation
-    setTimeout(() => {
-      isVisible.value = false;
-      isRunning.value = false;
-      emit('complete');
-    }, 800);
+    isVisible.value = false;
+    emit('complete');
   }, props.duration);
 }
 
 function skip() {
-  if (timeoutId) {
-    clearTimeout(timeoutId);
-  }
-  isFadingOut.value = true;
-  setTimeout(() => {
-    isVisible.value = false;
-    isRunning.value = false;
-    emit('complete');
-  }, 300);
+  if (timeoutId) clearTimeout(timeoutId);
+  isVisible.value = false;
+  emit('complete');
 }
 
-watch(() => props.visible, (newVal) => {
-  if (newVal) {
-    isVisible.value = true;
-    isFadingOut.value = false;
-    isRunning.value = false;
-    // Small delay to ensure mount
-    requestAnimationFrame(() => {
-      startAnimation();
-    });
-  }
-});
+watch(
+  () => props.visible,
+  (visible) => {
+    if (visible) {
+      isVisible.value = true;
+      nextTick(() => {
+        playWelcomeSound();
+        startTimer();
+      });
+    }
+  },
+);
 
 onMounted(() => {
   if (props.visible) {
-    // Small delay to ensure mount
-    requestAnimationFrame(() => {
-      startAnimation();
+    nextTick(() => {
+      playWelcomeSound();
+      startTimer();
     });
   }
 });
 
 onUnmounted(() => {
-  if (timeoutId) {
-    clearTimeout(timeoutId);
-  }
+  if (timeoutId) clearTimeout(timeoutId);
 });
 </script>
 
@@ -85,11 +82,9 @@ onUnmounted(() => {
     <Transition name="welcome-fade">
       <div
         v-if="isVisible"
-        class="welcome-screen"
-        :class="{ 'fading-out': isFadingOut }"
+        class="welcome-screen welcome-screen--rings"
         @click="skip"
       >
-        <!-- Animated rings with wordmark - exact original settings -->
         <WelcomeRings
           :ring-count="120"
           :ring-stroke-width="2"
@@ -100,14 +95,10 @@ onUnmounted(() => {
           :animate-gradient="true"
           :include-wordmark="true"
           :opacity="1"
-          :running="isRunning"
+          :running="true"
           z-index="1"
         />
-        
-        <!-- Skip hint -->
-        <div class="skip-hint">
-          Click anywhere to skip
-        </div>
+        <div class="skip-hint">{{ t('welcomeScreen.clickToSkip') }}</div>
       </div>
     </Transition>
   </Teleport>
@@ -118,13 +109,16 @@ onUnmounted(() => {
   position: fixed;
   inset: 0;
   z-index: 9999;
-  background: linear-gradient(135deg, #050510 0%, #0a0a20 50%, #050510 100%);
   cursor: pointer;
-  transition: opacity 0.8s ease-out;
 }
 
-.welcome-screen.fading-out {
-  opacity: 0;
+.welcome-screen--rings {
+  background: radial-gradient(
+    circle at center,
+    #0a0a0a 0%,
+    #050505 45%,
+    #000000 100%
+  );
 }
 
 .skip-hint {
@@ -146,7 +140,6 @@ onUnmounted(() => {
   }
 }
 
-/* Transition */
 .welcome-fade-enter-active {
   transition: opacity 0.3s ease-out;
 }

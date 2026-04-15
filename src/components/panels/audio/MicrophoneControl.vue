@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useKwami } from '@/composables/useKwami';
 import PanelSection from '@/components/ui/PanelSection.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
 
 const { kwami } = useKwami();
+const { t } = useI18n();
 const micActive = ref(false);
 const volume = ref(1);
 
@@ -44,18 +46,18 @@ onMounted(() => {
 </script>
 
 <template>
-  <PanelSection title="Microphone">
+  <PanelSection :title="t('audioPanel.microphone')">
     <div class="mic-controls">
       <BaseButton
         :variant="micActive ? 'primary' : 'secondary'"
         :icon="micActive ? 'ph:microphone-slash-duotone' : 'ph:microphone-duotone'"
         @click="toggleMic"
       >
-        {{ micActive ? 'Stop Mic' : 'Start Mic' }}
+        {{ micActive ? t('audioPanel.stopMic') : t('audioPanel.startMic') }}
       </BaseButton>
       <div class="mic-status">
         <span class="status-indicator" :class="{ active: micActive }"></span>
-        <span class="status-text">{{ micActive ? 'Active' : 'Inactive' }}</span>
+        <span class="status-text">{{ micActive ? t('audioPanel.active') : t('audioPanel.inactive') }}</span>
       </div>
     </div>
   </PanelSection>

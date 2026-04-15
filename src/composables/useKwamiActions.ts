@@ -1,4 +1,5 @@
 import { ref, computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useAuthStore } from '@/stores/auth';
 import { useVoiceStore } from '@/stores/voice';
 import { useWorkspaceStore } from '@/stores/workspace';
@@ -14,6 +15,7 @@ export interface KwamiForEdit {
 }
 
 export function useKwamiActions() {
+  const { t } = useI18n();
   const authStore = useAuthStore();
   const voiceStore = useVoiceStore();
   const workspaceStore = useWorkspaceStore();
@@ -91,9 +93,14 @@ export function useKwamiActions() {
       initial.config = getConfig();
     }
     const newKwami = await workspaceStore.addKwami(authStore.userId, initial);
-    voiceStore.personaConfig.name = newKwami.name;
+    voiceStore.soulConfig.name = newKwami.name;
     showNewKwamiModal.value = false;
-    toast.success(newKwami.emoji ? `Created "${newKwami.name}" ${newKwami.emoji}` : `Created "${newKwami.name}"`);
+    toast.success(
+      t('kwamiActions.created', {
+        name: newKwami.name,
+        emoji: newKwami.emoji ? ` ${newKwami.emoji}` : '',
+      }),
+    );
     return newKwami;
   }
 
@@ -102,11 +109,11 @@ export function useKwamiActions() {
     if (!kwami) return;
     await workspaceStore.updateKwami(kwami.id, payload, authStore.userId);
     if (workspaceStore.activeWorkspaceId === kwami.id) {
-      voiceStore.personaConfig.name = payload.name;
+      voiceStore.soulConfig.name = payload.name;
     }
     showEditKwamiModal.value = false;
     editKwami.value = null;
-    toast.success('Kwami updated');
+    toast.success(t('kwamiActions.updated'));
   }
 
   async function onDeleteConfirm() {
@@ -117,7 +124,7 @@ export function useKwamiActions() {
     }
     const deleteFn = workspaceStore.deleteKwami;
     if (typeof deleteFn !== 'function') {
-      toast.error('Please refresh the page and try again');
+      toast.error(t('kwamiActions.refreshPage'));
       closeDelete();
       return;
     }
@@ -125,9 +132,9 @@ export function useKwamiActions() {
     closeDelete();
     if (ok) {
       await deleteKwamiZepMemory(id, authStore.userId);
-      toast.success('Kwami deleted');
+      toast.success(t('kwamiActions.deleted'));
     } else {
-      toast.error('Failed to delete kwami');
+      toast.error(t('kwamiActions.deleteFailed'));
     }
   }
 

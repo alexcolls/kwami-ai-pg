@@ -1,8 +1,12 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useToast } from 'vue-toastification'
 import { useAuthStore } from '@/stores/auth'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
+import { translateApiUserMessage } from '@/utils/translateApiMessage'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   userId: string
@@ -52,7 +56,9 @@ async function fetchPreview() {
     previewCommunities.value = data.communities_estimate || 0
     showDialog.value = true
   } catch (e) {
-    toast.error('Preview failed: ' + (e as Error).message)
+    toast.error(
+      t('memoryReorg.previewFailed', { message: translateApiUserMessage((e as Error).message, t) }),
+    )
   } finally {
     loading.value = false
   }
@@ -66,7 +72,7 @@ async function apply() {
   }))
 
   if (selectedOrphans.length === 0 && selectedMerges.length === 0) {
-    toast.info('No actions selected')
+    toast.info(t('memoryReorg.noActionsSelected'))
     showDialog.value = false
     return
   }
@@ -85,11 +91,16 @@ async function apply() {
     }
     const result = await response.json()
     const r = result.report
-    toast.success(`Done! ${r.orphans_removed} orphans removed, ${r.merges_performed} merges`, { timeout: 5000 })
+    toast.success(
+      t('memoryReorg.doneReport', { orphans: r.orphans_removed, merges: r.merges_performed }),
+      { timeout: 5000 },
+    )
     showDialog.value = false
     emit('done')
   } catch (e) {
-    toast.error('Apply failed: ' + (e as Error).message)
+    toast.error(
+      t('memoryReorg.applyFailed', { message: translateApiUserMessage((e as Error).message, t) }),
+    )
   } finally {
     applying.value = false
   }
@@ -99,6 +110,10 @@ const selectedCount = () =>
   previewOrphans.value.filter(o => o.selected).length +
   previewMerges.value.filter(m => m.selected).length
 
+const applyConfirmLabel = computed(() =>
+  t('memoryReorg.applyWithCount', { count: selectedCount() }),
+)
+
 // Expose trigger method for parent
 defineExpose({ fetchPreview, loading, applying })
 </script>
@@ -106,9 +121,9 @@ defineExpose({ fetchPreview, loading, applying })
 <template>
   <ConfirmDialog
     :open="showDialog"
-    title="Reorganize Preview"
+    :title="t('memoryReorg.previewTitle')"
     icon="ph:broom-duotone"
-    :confirmLabel="`Apply (${selectedCount()} actions)`"
+    :confirmLabel="applyConfirmLabel"
     confirmIcon="ph:check-bold"
     confirmVariant="primary"
     :loading="applying"
@@ -116,15 +131,20 @@ defineExpose({ fetchPreview, loading, applying })
     @cancel="showDialog = false"
   >
     <p v-if="previewOrphans.length === 0 && previewMerges.length === 0" class="empty-msg">
-      Nothing to reorganize -- your graph looks clean.
+      {{ t('memoryReorg.nothingToReorganize') }}
     </p>
 
     <!-- Orphans -->
     <div v-if="previewOrphans.length > 0" class="reorg-section">
       <div class="reorg-section-header">
         <iconify-icon icon="ph:trash-simple-duotone"></iconify-icon>
-        <strong>Orphan nodes ({{ previewOrphans.filter(o => o.selected).length }}/{{ previewOrphans.length }})</strong>
-        <span class="reorg-hint">Nodes with zero connections</span>
+        <strong>{{
+          t('memoryReorg.orphanTitle', {
+            selected: previewOrphans.filter((o) => o.selected).length,
+            total: previewOrphans.length,
+          })
+        }}</strong>
+        <span class="reorg-hint">{{ t('memoryReorg.orphanHint') }}</span>
       </div>
       <div class="reorg-checklist">
         <label v-for="orphan in previewOrphans" :key="orphan.uuid" class="reorg-check-item">
@@ -143,8 +163,13 @@ defineExpose({ fetchPreview, loading, applying })
     <div v-if="previewMerges.length > 0" class="reorg-section">
       <div class="reorg-section-header">
         <iconify-icon icon="ph:git-merge-duotone"></iconify-icon>
-        <strong>Duplicate merges ({{ previewMerges.filter(m => m.selected).length }}/{{ previewMerges.length }})</strong>
-        <span class="reorg-hint">95%+ name similarity</span>
+        <strong>{{
+          t('memoryReorg.duplicateTitle', {
+            selected: previewMerges.filter((m) => m.selected).length,
+            total: previewMerges.length,
+          })
+        }}</strong>
+        <span class="reorg-hint">{{ t('memoryReorg.duplicateHint') }}</span>
       </div>
       <div class="reorg-checklist">
         <label v-for="(merge, idx) in previewMerges" :key="idx" class="reorg-check-item">
@@ -164,11 +189,13 @@ defineExpose({ fetchPreview, loading, applying })
     <!-- Communities info -->
     <div v-if="previewCommunities > 0" class="communities-info">
       <iconify-icon icon="ph:circles-three-plus-duotone"></iconify-icon>
-      <span>{{ previewCommunities }} communities detected</span>
+      <span>{{
+        t('memoryReorg.communitiesDetected', previewCommunities, { n: previewCommunities })
+      }}</span>
     </div>
 
     <p v-if="previewOrphans.length > 0 || previewMerges.length > 0" class="reorg-warning">
-      Selected actions <strong>cannot be undone</strong>. Uncheck any items you want to keep.
+      {{ t('memoryReorg.warningUndo') }}
     </p>
   </ConfirmDialog>
 </template>

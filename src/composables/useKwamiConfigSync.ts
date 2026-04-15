@@ -5,12 +5,14 @@ import { useAvatarStore } from '@/stores/avatar';
 import { useVoiceStore } from '@/stores/voice';
 import { useSceneStore } from '@/stores/scene';
 import { useThemeStore } from '@/stores/theme';
+import { useCommunicationsStore } from '@/stores/communications';
 
 export type KwamiConfig = {
   avatar?: unknown;
   voice?: unknown;
   scene?: unknown;
   theme?: unknown;
+  telephony?: unknown;
 };
 
 /** Clone config to a plain JSON-serializable object so DB/store never holds reactive refs and round-trip is safe. */
@@ -29,6 +31,7 @@ export function useKwamiConfigSync() {
   const voiceStore = useVoiceStore();
   const sceneStore = useSceneStore();
   const themeStore = useThemeStore();
+  const communicationsStore = useCommunicationsStore();
 
   function getConfig(): KwamiConfig {
     return {
@@ -36,6 +39,7 @@ export function useKwamiConfigSync() {
       voice: voiceStore.getSnapshot(),
       scene: sceneStore.getSnapshot(),
       theme: themeStore.getSnapshot(), // mode, accent, glass, ui, accessibility, flashlight, effects
+      telephony: communicationsStore.getSnapshot(),
     };
   }
 
@@ -43,8 +47,20 @@ export function useKwamiConfigSync() {
   function switchToKwami(id: string) {
     const raw = getConfig();
     const plain = safeConfigClone(raw);
-    workspaceStore.saveActiveConfig(plain, authStore.userId);
+    workspaceStore.updateActiveConfigLocal(plain);
     workspaceStore.setActive(id);
+  }
+
+  async function saveCurrentConfig() {
+    const plain = safeConfigClone(getConfig());
+    return workspaceStore.saveActiveConfig(plain, authStore.userId);
+  }
+
+  function revertCurrentConfig() {
+    const savedConfig = workspaceStore.discardActiveConfigChanges();
+    if (savedConfig) {
+      applyConfig(savedConfig);
+    }
   }
 
   function applyConfig(config: KwamiConfig) {
@@ -63,55 +79,48 @@ export function useKwamiConfigSync() {
       if (config.scene && typeof config.scene === 'object') {
         sceneStore.applySnapshot(config.scene as Parameters<typeof sceneStore.applySnapshot>[0]);
       }
+      if (config.telephony && typeof config.telephony === 'object') {
+        communicationsStore.applySnapshot(
+          config.telephony as Parameters<typeof communicationsStore.applySnapshot>[0],
+        );
+      }
       window.dispatchEvent(new CustomEvent('kwami:configApplied'));
     } catch (e) {
       console.warn('Failed to apply kwami config:', e);
     }
   }
 
-  return { getConfig, applyConfig, switchToKwami };
+  return { getConfig, applyConfig, switchToKwami, saveCurrentConfig, revertCurrentConfig };
 }
 
 export function useKwamiConfigWatchers() {
   const { getConfig, applyConfig, switchToKwami } = useKwamiConfigSync();
   const workspaceStore = useWorkspaceStore();
-  const avatarStore = useAvatarStore();
-  const voiceStore = useVoiceStore();
-  const sceneStore = useSceneStore();
   const themeStore = useThemeStore();
+  const sceneStore = useSceneStore();
 
-  // When active workspace (or its config) changes, apply that kwami's config
+  // When active workspace changes, apply that kwami's config
   watch(
+    () => workspaceStore.activeWorkspaceId,
     () => {
-      const id = workspaceStore.activeWorkspaceId;
-      const ws = id ? workspaceStore.getActiveWorkspace() : undefined;
-      return { id, config: ws?.config };
-    },
-    ({ config }) => {
+      const config = workspaceStore.getActiveWorkspace()?.config;
       if (config && typeof config === 'object' && Object.keys(config as object).length > 0) {
         applyConfig(config as KwamiConfig);
       }
     },
-    { immediate: true, deep: true },
+    { immediate: true },
   );
 
-  // Debounced save: shared timeout so any trigger schedules one save
-  const authStore = useAuthStore();
-  let saveTimeout: ReturnType<typeof setTimeout> | null = null;
-  function scheduleSave() {
-    if (saveTimeout) clearTimeout(saveTimeout);
-    saveTimeout = setTimeout(() => {
-      saveTimeout = null;
-      try {
-        const plain = safeConfigClone(getConfig());
-        workspaceStore.saveActiveConfig(plain, authStore.userId);
-      } catch (e) {
-        console.warn('Failed to save kwami config:', e);
-      }
-    }, 1500);
+  function syncDraftConfig() {
+    try {
+      const plain = safeConfigClone(getConfig());
+      workspaceStore.updateActiveConfigLocal(plain);
+    } catch (e) {
+      console.warn('Failed to sync local kwami config:', e);
+    }
   }
 
-  // Watch all config (avatar, voice, scene, theme) – stringify so any deep change triggers save
+  // Watch all config and store it locally as a draft. Server persistence is explicit.
   watch(
     () => {
       try {
@@ -120,14 +129,21 @@ export function useKwamiConfigWatchers() {
         return '';
       }
     },
-    scheduleSave,
+    syncDraftConfig,
     { flush: 'post' },
   );
 
-  // Explicit watch on theme so theme changes always trigger save (avoids Pinia reactivity not tracking store refs used only inside getSnapshot)
+  // Scene store: deep watch so overlay/media/star-field edits mark workspace dirty & include in Save.
+  watch(
+    () => sceneStore.background,
+    () => syncDraftConfig(),
+    { deep: true, flush: 'post' },
+  );
+
+  // Explicit watch on theme so theme changes always sync the local draft.
   watch(
     () => JSON.stringify(themeStore.getSnapshot()),
-    scheduleSave,
+    syncDraftConfig,
     { flush: 'post' },
   );
 

@@ -1,0 +1,1528 @@
+import { watch } from 'vue';
+import { useI18n } from 'vue-i18n';
+import { i18n } from '@/i18n';
+import type {
+  Kwami,
+  LLMProvider,
+  STTProvider,
+  STTLanguage,
+  TTSProvider,
+  RealtimeProvider,
+} from 'kwami';
+import { useKwami } from '@/composables/useKwami';
+import { useUIStore, type PanelSizePreset } from '@/stores/ui';
+import { useSearchStore } from '@/stores/search';
+import { useVoiceStore } from '@/stores/voice';
+import { useThemeStore, accentPresets, themePresets } from '@/stores/theme';
+import { useSceneStore } from '@/stores/scene';
+import { useAvatarStore } from '@/stores/avatar';
+import { useBlobXyzStore } from '@/stores/avatar.blob-xyz';
+import { useBlackHoleStore } from '@/stores/avatar.black-hole';
+import { useParticlesFaceStore } from '@/stores/avatar.particles-face';
+import { useTranscriptionState } from '@/composables/useTranscriptionState';
+import { useAgentActionState } from '@/composables/useAgentActionState';
+import { avatarPresets } from '@/presets/avatar/avatar-presets';
+
+const WORKSPACE_PANELS = [
+  'avatar',
+  'scene',
+  'voice',
+  'enhancements',
+  'transcription',
+  'communications',
+  'soul',
+  'memory',
+  'tools',
+  'info',
+  'metrics',
+  'account',
+  'theme',
+  'models',
+  'credits',
+] as const;
+
+type WorkspacePanel = (typeof WORKSPACE_PANELS)[number];
+type ResponseLength = 'short' | 'medium' | 'long';
+
+const PANEL_ALIASES: Record<string, WorkspacePanel> = {
+  account: 'account',
+  avatar: 'avatar',
+  chat: 'transcription',
+  communications: 'communications',
+  credits: 'credits',
+  energy: 'credits',
+  enhancements: 'enhancements',
+  info: 'info',
+  memory: 'memory',
+  metrics: 'metrics',
+  model: 'models',
+  models: 'models',
+  scene: 'scene',
+  settings: 'theme',
+  soul: 'soul',
+  theme: 'theme',
+  tools: 'tools',
+  transcript: 'transcription',
+  transcription: 'transcription',
+  whatsapp: 'communications',
+  messages: 'communications',
+  phone: 'communications',
+  calls: 'communications',
+  voice: 'voice',
+};
+
+const ADVANCED_VOICE_CONTROLS = new Set([
+  'pipelineMode',
+  'llmModel',
+  'sttModel',
+  'ttsModel',
+  'realtimeModel',
+]);
+
+const RESETTABLE_DOMAINS = ['avatar', 'theme', 'scene'] as const;
+const UI_CONTROL_DOMAINS = [
+  'workspace',
+  'panel',
+  'theme',
+  'avatar',
+  'scene',
+  'voice',
+  'enhancements',
+  'memory',
+  'search',
+] as const;
+
+type UiControlDomain = (typeof UI_CONTROL_DOMAINS)[number];
+
+const UI_DOMAIN_ALIASES: Record<string, UiControlDomain> = {
+  appearance: 'avatar',
+  avatar: 'avatar',
+  enhancement: 'enhancements',
+  enhancements: 'enhancements',
+  memory: 'memory',
+  memoryui: 'memory',
+  panel: 'panel',
+  panels: 'panel',
+  scene: 'scene',
+  search: 'search',
+  theme: 'theme',
+  ui: 'workspace',
+  voice: 'voice',
+  workspace: 'workspace',
+};
+
+function normalizePanel(panelName: unknown): WorkspacePanel | null {
+  if (typeof panelName !== 'string') return null;
+  const normalized = panelName.trim().toLowerCase().replace(/\s+/g, '_').replace(/-/g, '_');
+  return PANEL_ALIASES[normalized.replace(/_/g, '')] ?? PANEL_ALIASES[normalized] ?? null;
+}
+
+function normalizeKey(value: string): string {
+  return value.trim().toLowerCase().replace(/[\s_-]+/g, '');
+}
+
+function normalizeDomain(domain: unknown): UiControlDomain | null {
+  if (typeof domain !== 'string') return null;
+  return UI_DOMAIN_ALIASES[normalizeKey(domain)] ?? null;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function buildSoulConfig(voiceStore: ReturnType<typeof useVoiceStore>) {
+  const saved = voiceStore.soulConfig;
+  return {
+    name: saved.name,
+    personality: saved.personality,
+    systemPrompt: saved.systemPrompt,
+    traits: [...saved.traits],
+    conversationStyle: saved.conversationStyle,
+    responseLength: saved.responseLength,
+    emotionalTone: saved.emotionalTone,
+    emotionalTraits: { ...saved.emotionalTraits },
+  };
+}
+
+export function useWorkspaceAgentTools() {
+  const { t } = useI18n();
+  const { kwami, rendererType, isConnected } = useKwami();
+
+  function humanizePanel(panel: WorkspacePanel): string {
+    return t(`workspaceAgentTools.panels.${panel}`);
+  }
+  const uiStore = useUIStore();
+  const searchStore = useSearchStore();
+  const voiceStore = useVoiceStore();
+  const themeStore = useThemeStore();
+  const sceneStore = useSceneStore();
+  const avatarStore = useAvatarStore();
+  const blobStore = useBlobXyzStore();
+  const blackHoleStore = useBlackHoleStore();
+  const particlesFaceStore = useParticlesFaceStore();
+  const { messages } = useTranscriptionState();
+  const actionState = useAgentActionState();
+
+  function emitConfigApplied() {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('kwami:configApplied'));
+    }
+  }
+
+  function persistAvatarChanges() {
+    avatarStore.saveSettings();
+    emitConfigApplied();
+  }
+
+  function syncSoulToAgent() {
+    const soulConfig = buildSoulConfig(voiceStore);
+    kwami.value?.soul.updateConfig(soulConfig);
+    if (isConnected.value) {
+      kwami.value?.agent.syncConfigToBackend('soul', soulConfig);
+    }
+  }
+
+  function syncVoiceModelsToAgent(control: string, value: Record<string, unknown>) {
+    if (!kwami.value || !isConnected.value) return;
+    const agent = kwami.value.agent;
+
+    if (control === 'llmModel') {
+      agent.updateLlmLive({
+        provider: typeof value.provider === 'string' ? value.provider : undefined,
+        model: typeof value.model === 'string' ? value.model : undefined,
+        temperature: typeof value.temperature === 'number' ? value.temperature : undefined,
+      });
+      return;
+    }
+
+    if (control === 'sttModel') {
+      agent.updateSttLive({
+        provider: typeof value.provider === 'string' ? value.provider : undefined,
+        model: typeof value.model === 'string' ? value.model : undefined,
+        language: typeof value.language === 'string' ? value.language : undefined,
+      });
+      return;
+    }
+
+    if (control === 'ttsModel') {
+      agent.updateTtsLive({
+        provider: typeof value.provider === 'string' ? value.provider : undefined,
+        model: typeof value.model === 'string' ? value.model : undefined,
+        voice: typeof value.voice === 'string' ? value.voice : undefined,
+        speed: typeof value.speed === 'number' ? value.speed : undefined,
+      });
+      return;
+    }
+
+    if (control === 'realtimeModel') {
+      agent.updateRealtimeLive({
+        provider: typeof value.provider === 'string' ? value.provider : undefined,
+        model: typeof value.model === 'string' ? value.model : undefined,
+        voice: typeof value.voice === 'string' ? value.voice : undefined,
+      });
+    }
+  }
+
+  function syncEnhancementsToAgent() {
+    if (!kwami.value) return;
+    const agent = kwami.value.agent;
+    const eState = voiceStore.enhancementsState;
+    const voiceConfig = {
+      enhancements: {
+        turnDetection: {
+          enabled: eState.turnDetection.enabled,
+          mode: eState.turnDetection.mode,
+          model: eState.turnDetection.model,
+          minEndpointingDelay: eState.turnDetection.minEndpointingDelay,
+          maxEndpointingDelay: eState.turnDetection.maxEndpointingDelay,
+          allowInterruptions: eState.interruptions.enabled,
+          minInterruptionDuration: eState.interruptions.minDuration,
+          minInterruptionWords: eState.interruptions.minWords,
+        },
+        noiseCancellation: {
+          enabled: eState.noiseCancellation.enabled,
+          mode: eState.noiseCancellation.mode,
+        },
+        echoCancellation: eState.audioProcessing.echoCancellation,
+        autoGainControl: eState.audioProcessing.autoGainControl,
+        preemptiveGeneration: eState.performance.preemptiveGeneration,
+      },
+      vad: {
+        provider: eState.vad.provider,
+        threshold: eState.vad.threshold,
+        minSpeechDuration: eState.vad.minSpeech,
+        minSilenceDuration: eState.vad.minSilence,
+      },
+    };
+
+    agent.updateConfig({
+      livekit: {
+        ...agent.getConfig().livekit,
+        voice: {
+          ...agent.getConfig().livekit?.voice,
+          ...voiceConfig,
+        },
+      } as any,
+    });
+
+    if (isConnected.value) {
+      agent.syncConfigToBackend('voice', voiceConfig);
+    }
+  }
+
+  async function confirmIfNeeded(
+    required: boolean,
+    confirm: unknown,
+    title: string,
+    message: string,
+  ): Promise<boolean> {
+    if (!required || confirm === true) return true;
+    return actionState.requestConfirmation({
+      title,
+      message,
+      confirmLabel: t('workspaceAgentTools.confirmApply'),
+      cancelLabel: t('workspaceAgentTools.confirmCancel'),
+    });
+  }
+
+  async function openPanel(panelName: unknown) {
+    const panel = normalizePanel(panelName);
+    if (!panel) {
+      const allowedPanels = WORKSPACE_PANELS.join(', ');
+      actionState.recordError(
+        t('workspaceAgentTools.errOpenPanel'),
+        t('workspaceAgentTools.unknownPanel', { panel: String(panelName), allowed: allowedPanels }),
+      );
+      return {
+        success: false,
+        message: t('workspaceAgentTools.unknownPanel', { panel: String(panelName), allowed: allowedPanels }),
+      };
+    }
+
+    uiStore.setPanel(panel);
+    const readablePanel = humanizePanel(panel);
+    actionState.recordAction(t('workspaceAgentTools.actionOpenedPanel'), readablePanel, { announce: true });
+    return {
+      success: true,
+      panel,
+      message: t('workspaceAgentTools.openedPanel', { panel: readablePanel }),
+    };
+  }
+
+  async function closePanel() {
+    if (!uiStore.isPanelOpen) {
+      return { success: true, message: t('workspaceAgentTools.panelAlreadyClosed') };
+    }
+
+    uiStore.togglePanel();
+    actionState.recordAction(
+      t('workspaceAgentTools.actionClosedPanel'),
+      humanizePanel(uiStore.activePanel as WorkspacePanel),
+      {
+        announce: true,
+      },
+    );
+    return { success: true, message: t('workspaceAgentTools.closedPanel') };
+  }
+
+  async function setRenderer(renderer: unknown) {
+    if (renderer !== 'blob-xyz' && renderer !== 'black-hole' && renderer !== 'particles-face') {
+      actionState.recordError(
+        t('workspaceAgentTools.errSwitchRenderer'),
+        `Unknown renderer "${String(renderer)}"`,
+      );
+      return {
+        success: false,
+        message: t('workspaceAgentTools.unknownRenderer'),
+      };
+    }
+
+    avatarStore.setRendererType(renderer);
+    persistAvatarChanges();
+    actionState.recordAction(t('workspaceAgentTools.actionSwitchedRenderer'), renderer, { announce: true });
+    return {
+      success: true,
+      renderer,
+      message: t('workspaceAgentTools.switchedRenderer', { renderer }),
+    };
+  }
+
+  async function setResponseLength(length: unknown, confirm: unknown) {
+    if (length !== 'short' && length !== 'medium' && length !== 'long') {
+      actionState.recordError(
+        t('workspaceAgentTools.errResponseLength'),
+        `Unknown length "${String(length)}"`,
+      );
+      return {
+        success: false,
+        message: t('workspaceAgentTools.unknownResponseLength'),
+      };
+    }
+
+    const approved = await confirmIfNeeded(
+      true,
+      confirm,
+      t('workspaceAgentTools.confirmResponseTitle'),
+      t('workspaceAgentTools.confirmResponseBody', { length }),
+    );
+    if (!approved) {
+      actionState.recordAction(t('workspaceAgentTools.actionKeptResponseLength'), undefined, { announce: true });
+      return { success: false, cancelled: true, message: t('workspaceAgentTools.responseLengthCancelled') };
+    }
+
+    voiceStore.soulConfig.responseLength = length as ResponseLength;
+    syncSoulToAgent();
+    actionState.recordAction(t('workspaceAgentTools.actionUpdatedResponseLength'), length, { announce: true });
+    return {
+      success: true,
+      responseLength: length,
+      message: t('workspaceAgentTools.changedResponseLength', { length }),
+    };
+  }
+
+  async function clearSearchResults() {
+    if (!searchStore.hasSearchData) {
+      return { success: true, message: t('workspaceAgentTools.noSearchToClear') };
+    }
+
+    const clearedCount = searchStore.results.length;
+    searchStore.clear();
+    actionState.recordAction(
+      t('workspaceAgentTools.actionClearedSearch'),
+      t('workspaceAgentTools.searchResultsDetail', clearedCount, { n: clearedCount }),
+      {
+        announce: true,
+      },
+    );
+    return {
+      success: true,
+      clearedCount,
+      message: t('workspaceAgentTools.clearedSearch'),
+    };
+  }
+
+  async function showWorkspaceStatus() {
+    return {
+      success: true,
+      connected: isConnected.value,
+      activePanel: uiStore.activePanel,
+      isPanelOpen: uiStore.isPanelOpen,
+      renderer: rendererType.value,
+      responseLength: voiceStore.soulConfig.responseLength,
+      hasSearchResults: searchStore.hasSearchData,
+      themeMode: themeStore.mode,
+      sidebarPosition: themeStore.sidebarPosition,
+      visibleMessages: messages.value.length,
+      message: t('workspaceAgentTools.workspaceStatus', {
+        panelState: uiStore.isPanelOpen
+          ? t('workspaceAgentTools.panelStateOpen')
+          : t('workspaceAgentTools.panelStateClosed'),
+        activePanel: String(uiStore.activePanel),
+        renderer: String(rendererType.value),
+        theme: String(themeStore.mode),
+        sidebar: String(themeStore.sidebarPosition),
+      }),
+    };
+  }
+
+  async function setPanelControl(control: unknown, value: unknown) {
+    if (control === 'activePanel') {
+      return openPanel(value);
+    }
+
+    if (control === 'isOpen') {
+      if (typeof value !== 'boolean') {
+        return { success: false, message: t('workspaceAgentTools.panelOpenBool') };
+      }
+      if (uiStore.isPanelOpen !== value) {
+        uiStore.togglePanel();
+      }
+      actionState.recordAction(
+        value ? t('workspaceAgentTools.actionOpenedPanelColumn') : t('workspaceAgentTools.actionClosedPanelColumn'),
+        undefined,
+        {
+          announce: true,
+        },
+      );
+      return {
+        success: true,
+        message: t('workspaceAgentTools.panelColumnState', {
+          state: value ? t('workspaceAgentTools.panelColumnOpen') : t('workspaceAgentTools.panelColumnClosed'),
+        }),
+      };
+    }
+
+    if (control === 'sizePreset') {
+      if (value !== 'small' && value !== 'medium' && value !== 'large') {
+        return { success: false, message: t('workspaceAgentTools.sizePresetInvalid') };
+      }
+      uiStore.setSizePreset(value as PanelSizePreset);
+      actionState.recordAction(t('workspaceAgentTools.actionUpdatedPanelSize'), value, { announce: true });
+      return { success: true, message: t('workspaceAgentTools.sizePresetSet', { value }) };
+    }
+
+    return { success: false, message: t('workspaceAgentTools.unknownPanelControl', { control: String(control) }) };
+  }
+
+  async function setThemeControl(control: unknown, value: unknown) {
+    if (typeof control !== 'string') {
+      return { success: false, message: t('workspaceAgentTools.themeControlString') };
+    }
+
+    const normalized = normalizeKey(control);
+    if (normalized === 'preset') {
+      if (typeof value !== 'string') return { success: false, message: t('workspaceAgentTools.themePresetName') };
+      const preset = themePresets.find((item) => normalizeKey(item.name) === normalizeKey(value));
+      if (!preset)
+        return { success: false, message: t('workspaceAgentTools.unknownThemePreset', { value }) };
+      themeStore.applyPreset(preset);
+      actionState.recordAction(t('workspaceAgentTools.actionAppliedThemePreset'), preset.name, { announce: true });
+      return { success: true, message: t('workspaceAgentTools.appliedThemePreset', { name: preset.name }) };
+    }
+
+    if (normalized === 'accentpreset') {
+      if (typeof value !== 'string') return { success: false, message: t('workspaceAgentTools.accentPresetName') };
+      const preset = accentPresets.find((item) => normalizeKey(item.name) === normalizeKey(value));
+      if (!preset)
+        return { success: false, message: t('workspaceAgentTools.unknownAccentPreset', { value }) };
+      themeStore.setAccentPreset(preset);
+      actionState.recordAction(t('workspaceAgentTools.actionAppliedAccentPreset'), preset.name, { announce: true });
+      return { success: true, message: t('workspaceAgentTools.appliedAccentPreset', { name: preset.name }) };
+    }
+
+    switch (normalized) {
+      case 'mode':
+        if (value === 'dark' || value === 'light' || value === 'system' || value === 'auto') {
+          themeStore.setMode(value);
+          break;
+        }
+        return { success: false, message: t('workspaceAgentTools.themeModeInvalid') };
+      case 'sidebarposition':
+        if (value === 'left' || value === 'right') {
+          themeStore.setSidebarPosition(value);
+          break;
+        }
+        return { success: false, message: t('workspaceAgentTools.sidebarInvalid') };
+      case 'compactmode':
+        if (typeof value !== 'boolean') return { success: false, message: t('workspaceAgentTools.compactBool') };
+        themeStore.setCompactMode(value);
+        break;
+      case 'accentprimary':
+        if (typeof value !== 'string') return { success: false, message: t('workspaceAgentTools.accentPrimaryHex') };
+        themeStore.setAccentPrimary(value);
+        break;
+      case 'accentsecondary':
+        if (typeof value !== 'string') return { success: false, message: t('workspaceAgentTools.accentSecondaryHex') };
+        themeStore.setAccentSecondary(value);
+        break;
+      case 'glassblur':
+        if (typeof value !== 'number') return { success: false, message: t('workspaceAgentTools.glassBlurNum') };
+        themeStore.setGlassBlur(value);
+        break;
+      case 'glassopacity':
+        if (typeof value !== 'number') return { success: false, message: t('workspaceAgentTools.glassOpacityNum') };
+        themeStore.setGlassOpacity(value);
+        break;
+      case 'saturation':
+        if (typeof value !== 'number') return { success: false, message: t('workspaceAgentTools.saturationNum') };
+        themeStore.setSaturation(value);
+        break;
+      case 'gradientdirection':
+        if (typeof value !== 'number') return { success: false, message: t('workspaceAgentTools.gradientDirectionNum') };
+        themeStore.setGradientDirection(value);
+        break;
+      case 'panelborder':
+        if (typeof value !== 'boolean') return { success: false, message: t('workspaceAgentTools.panelBorderBool') };
+        themeStore.setPanelBorder(value);
+        break;
+      case 'gloweffects':
+        if (typeof value !== 'boolean') return { success: false, message: t('workspaceAgentTools.glowBool') };
+        themeStore.setGlowEffects(value);
+        break;
+      case 'highcontrast':
+        if (typeof value !== 'boolean') return { success: false, message: t('workspaceAgentTools.highContrastBool') };
+        themeStore.setHighContrast(value);
+        break;
+      case 'focusindicators':
+        if (typeof value !== 'boolean') return { success: false, message: t('workspaceAgentTools.focusIndicatorsBool') };
+        themeStore.setFocusIndicators(value);
+        break;
+      case 'cursorflashlight':
+        if (typeof value !== 'boolean') return { success: false, message: t('workspaceAgentTools.cursorFlashlightBool') };
+        themeStore.setCursorFlashlight(value);
+        break;
+      case 'flashlightsize':
+        if (typeof value !== 'number') return { success: false, message: t('workspaceAgentTools.flashlightSizeNum') };
+        themeStore.setFlashlightSize(value);
+        break;
+      case 'flashlightintensity':
+        if (typeof value !== 'number') return { success: false, message: t('workspaceAgentTools.flashlightIntensityNum') };
+        themeStore.setFlashlightIntensity(value);
+        break;
+      case 'flashlightcolor':
+        if (typeof value !== 'string') return { success: false, message: t('workspaceAgentTools.flashlightColorHex') };
+        themeStore.setFlashlightColor(value);
+        break;
+      case 'borderradius':
+        if (typeof value !== 'number') return { success: false, message: t('workspaceAgentTools.borderRadiusNum') };
+        themeStore.setBorderRadius(value);
+        break;
+      default:
+        return { success: false, message: t('workspaceAgentTools.unknownThemeControl', { control }) };
+    }
+
+    actionState.recordAction(t('workspaceAgentTools.actionUpdatedThemeControl'), String(control), { announce: true });
+    return { success: true, message: t('workspaceAgentTools.updatedThemeControl', { control }) };
+  }
+
+  async function setAvatarControl(control: unknown, value: unknown) {
+    if (typeof control !== 'string') {
+      return { success: false, message: t('workspaceAgentTools.avatarControlString') };
+    }
+
+    const normalized = normalizeKey(control);
+    if (normalized === 'renderer') {
+      return setRenderer(value);
+    }
+
+    if (normalized === 'preset') {
+      if (typeof value !== 'string') return { success: false, message: t('workspaceAgentTools.avatarPresetName') };
+      const preset = avatarPresets.find(
+        (item) => normalizeKey(item.id) === normalizeKey(value) || normalizeKey(item.name) === normalizeKey(value),
+      );
+      if (!preset) return { success: false, message: t('workspaceAgentTools.unknownAvatarPreset', { value }) };
+      avatarStore.applyPreset(preset.id);
+      persistAvatarChanges();
+      actionState.recordAction(t('workspaceAgentTools.actionAppliedAvatarPreset'), preset.name, { announce: true });
+      return { success: true, message: t('workspaceAgentTools.appliedAvatarPreset', { name: preset.name }) };
+    }
+
+    switch (normalized) {
+      case 'blobskintype': {
+        const validSkins = [
+          'radial', 'banded', 'striped', 'marble', 'fresnel', 'iridescent', 'spiral', 'plasma', 'gradient',
+          'matte', 'glossy', 'metallic', 'subsurface',
+          'chrome', 'clay', 'jade', 'toon-matcap', 'hologram',
+          'flat', 'stepped', 'halftone', 'outlined',
+        ];
+        if (!validSkins.includes(value as string)) {
+          return {
+            success: false,
+            message: t('workspaceAgentTools.blobSkinInvalid', { list: validSkins.join(', ') }),
+          };
+        }
+        blobStore.skin.type = value as typeof blobStore.skin.type;
+      }
+        break;
+      case 'blobcolors':
+        if (!isRecord(value)) return { success: false, message: t('workspaceAgentTools.blobColorsObject') };
+        blobStore.setColors(
+          typeof value.x === 'string' ? value.x : blobStore.skin.colors.x,
+          typeof value.y === 'string' ? value.y : blobStore.skin.colors.y,
+          typeof value.z === 'string' ? value.z : blobStore.skin.colors.z,
+        );
+        break;
+      case 'blobspikes':
+        if (!isRecord(value)) return { success: false, message: t('workspaceAgentTools.blobSpikesObject') };
+        blobStore.setSpikes(
+          typeof value.x === 'number' ? value.x : blobStore.shape.spikes.x,
+          typeof value.y === 'number' ? value.y : blobStore.shape.spikes.y,
+          typeof value.z === 'number' ? value.z : blobStore.shape.spikes.z,
+        );
+        break;
+      case 'blobamplitude':
+        if (!isRecord(value)) return { success: false, message: t('workspaceAgentTools.blobAmplitudeObject') };
+        blobStore.setAmplitude(
+          typeof value.x === 'number' ? value.x : blobStore.shape.amplitude.x,
+          typeof value.y === 'number' ? value.y : blobStore.shape.amplitude.y,
+          typeof value.z === 'number' ? value.z : blobStore.shape.amplitude.z,
+        );
+        break;
+      case 'blobrotation':
+        if (!isRecord(value)) return { success: false, message: t('workspaceAgentTools.blobRotationObject') };
+        blobStore.setRotation(
+          typeof value.x === 'number' ? value.x : blobStore.animation.rotation.x,
+          typeof value.y === 'number' ? value.y : blobStore.animation.rotation.y,
+          typeof value.z === 'number' ? value.z : blobStore.animation.rotation.z,
+        );
+        break;
+      case 'blobscale':
+        if (typeof value !== 'number') return { success: false, message: t('workspaceAgentTools.blobScaleNum') };
+        blobStore.shape.scale = value;
+        break;
+      case 'blobopacity':
+        if (typeof value !== 'number') return { success: false, message: t('workspaceAgentTools.blobOpacityNum') };
+        blobStore.skin.opacity = value;
+        break;
+      case 'blobshininess':
+        if (typeof value !== 'number') return { success: false, message: t('workspaceAgentTools.blobShininessNum') };
+        blobStore.skin.shininess = value;
+        break;
+      case 'blobwireframe':
+        if (typeof value !== 'boolean') return { success: false, message: t('workspaceAgentTools.blobWireframeBool') };
+        blobStore.skin.wireframe = value;
+        break;
+      case 'blobglassmode':
+        if (typeof value !== 'boolean') return { success: false, message: t('workspaceAgentTools.blobGlassBool') };
+        blobStore.skin.glassMode = value;
+        break;
+      case 'blobaudioreactivity':
+        if (typeof value !== 'number') return { success: false, message: t('workspaceAgentTools.blobAudioReactivityNum') };
+        blobStore.audio.reactivity = value;
+        break;
+      case 'blobaudioenabled':
+        if (typeof value !== 'boolean') return { success: false, message: t('workspaceAgentTools.blobAudioEnabledBool') };
+        blobStore.audio.enabled = value;
+        break;
+      case 'blackholecolorscheme':
+        if (typeof value !== 'string') return { success: false, message: t('workspaceAgentTools.bhColorScheme') };
+        blackHoleStore.setColorSchemePreset(value as 'classic' | 'fire' | 'ice' | 'nebula' | 'void');
+        break;
+      case 'blackholecolors':
+        if (!isRecord(value)) return { success: false, message: t('workspaceAgentTools.bhColorsObject') };
+        blackHoleStore.updateColors({
+          hot: typeof value.hot === 'string' ? value.hot : blackHoleStore.colors.hot,
+          mid1: typeof value.mid1 === 'string' ? value.mid1 : blackHoleStore.colors.mid1,
+          mid2: typeof value.mid2 === 'string' ? value.mid2 : blackHoleStore.colors.mid2,
+          mid3: typeof value.mid3 === 'string' ? value.mid3 : blackHoleStore.colors.mid3,
+          outer: typeof value.outer === 'string' ? value.outer : blackHoleStore.colors.outer,
+        });
+        break;
+      case 'blackholecore':
+        if (!isRecord(value)) return { success: false, message: t('workspaceAgentTools.bhCoreObject') };
+        blackHoleStore.updateCore(value);
+        break;
+      case 'blackholedisk':
+        if (!isRecord(value)) return { success: false, message: t('workspaceAgentTools.bhDiskObject') };
+        blackHoleStore.updateDisk(value);
+        break;
+      case 'blackholeanimation':
+        if (!isRecord(value)) return { success: false, message: t('workspaceAgentTools.bhAnimObject') };
+        blackHoleStore.updateAnimation(value);
+        break;
+      case 'blackholeeffects':
+        if (!isRecord(value)) return { success: false, message: t('workspaceAgentTools.bhEffectsObject') };
+        blackHoleStore.updateEffects(value);
+        break;
+      case 'blackholescale':
+        if (typeof value !== 'number') return { success: false, message: t('workspaceAgentTools.bhScaleNum') };
+        blackHoleStore.setScale(value);
+        break;
+      case 'particlesfaceappearance':
+      case 'particlesfacemotion':
+        if (!isRecord(value)) return { success: false, message: t('workspaceAgentTools.particlesFaceObject') };
+        particlesFaceStore.update(value);
+        break;
+      default:
+        return { success: false, message: t('workspaceAgentTools.unknownAvatarControl', { control }) };
+    }
+
+    persistAvatarChanges();
+    actionState.recordAction(t('workspaceAgentTools.actionUpdatedAvatarControl'), String(control), { announce: true });
+    return { success: true, message: t('workspaceAgentTools.updatedAvatarControl', { control }) };
+  }
+
+  async function setSceneControl(control: unknown, value: unknown) {
+    if (typeof control !== 'string') {
+      return { success: false, message: t('workspaceAgentTools.sceneControlString') };
+    }
+
+    switch (normalizeKey(control)) {
+      case 'mediatype':
+        if (value !== 'none' && value !== 'image' && value !== 'video' && value !== 'hdri') {
+          return { success: false, message: t('workspaceAgentTools.mediaTypeInvalid') };
+        }
+        sceneStore.setMediaType(value);
+        break;
+      case 'imageurl':
+        if (typeof value !== 'string') return { success: false, message: t('workspaceAgentTools.imageUrlString') };
+        sceneStore.setImageUrl(value);
+        break;
+      case 'imagefit':
+        if (value !== 'cover' && value !== 'contain' && value !== 'stretch') {
+          return { success: false, message: t('workspaceAgentTools.imageFitInvalid') };
+        }
+        sceneStore.setImageFit(value);
+        break;
+      case 'imageopacity':
+        if (typeof value !== 'number') return { success: false, message: t('workspaceAgentTools.imageOpacityNum') };
+        sceneStore.setImageOpacity(value);
+        break;
+      case 'videourl':
+        if (typeof value !== 'string') return { success: false, message: t('workspaceAgentTools.videoUrlString') };
+        sceneStore.setVideoUrl(value);
+        break;
+      case 'videofit':
+        if (value !== 'cover' && value !== 'contain' && value !== 'stretch') {
+          return { success: false, message: t('workspaceAgentTools.videoFitInvalid') };
+        }
+        sceneStore.setVideoFit(value);
+        break;
+      case 'videoopacity':
+        if (typeof value !== 'number') return { success: false, message: t('workspaceAgentTools.videoOpacityNum') };
+        sceneStore.setVideoOpacity(value);
+        break;
+      case 'videoloop':
+        if (typeof value !== 'boolean') return { success: false, message: t('workspaceAgentTools.videoLoopBool') };
+        sceneStore.setVideoLoop(value);
+        break;
+      case 'videomuted':
+        if (typeof value !== 'boolean') return { success: false, message: t('workspaceAgentTools.videoMutedBool') };
+        sceneStore.setVideoMuted(value);
+        break;
+      case 'hdriurl':
+        if (typeof value !== 'string') return { success: false, message: t('workspaceAgentTools.hdriUrlString') };
+        sceneStore.setHdriUrl(value);
+        break;
+      case 'hdriintensity':
+        if (typeof value !== 'number') return { success: false, message: t('workspaceAgentTools.hdriIntensityNum') };
+        sceneStore.setHdriIntensity(value);
+        break;
+      case 'hdriopacity':
+        if (typeof value !== 'number') return { success: false, message: t('workspaceAgentTools.hdriOpacityNum') };
+        sceneStore.setHdriOpacity(value);
+        break;
+      case 'hdrirotation':
+        if (typeof value !== 'number') return { success: false, message: t('workspaceAgentTools.hdriRotationNum') };
+        sceneStore.setHdriRotation(value);
+        break;
+      case 'hdriblur':
+        if (typeof value !== 'number') return { success: false, message: t('workspaceAgentTools.hdriBlurNum') };
+        sceneStore.setHdriBlur(value);
+        break;
+      case 'gradientenabled':
+        if (typeof value !== 'boolean') return { success: false, message: t('workspaceAgentTools.gradientEnabledBool') };
+        sceneStore.setGradientEnabled(value);
+        break;
+      case 'gradienttype':
+        if (value !== 'solid' && value !== 'radial' && value !== 'linear' && value !== 'orbs') {
+          return { success: false, message: t('workspaceAgentTools.gradientTypeInvalid') };
+        }
+        sceneStore.setGradientType(value);
+        break;
+      case 'gradientsolidcolor':
+        if (typeof value !== 'string') return { success: false, message: t('workspaceAgentTools.gradientSolidHex') };
+        sceneStore.background.gradient.solidColor = value;
+        break;
+      case 'gradientangle':
+        if (typeof value !== 'number') return { success: false, message: t('workspaceAgentTools.gradientAngleNum') };
+        sceneStore.setGradientAngle(value);
+        break;
+      case 'gradientradialcenter':
+        if (!isRecord(value) || typeof value.x !== 'number' || typeof value.y !== 'number') {
+          return { success: false, message: t('workspaceAgentTools.gradientRadialCenterObject') };
+        }
+        sceneStore.setGradientRadialCenter(value.x, value.y);
+        break;
+      case 'gradientradialsize':
+        if (typeof value !== 'number') return { success: false, message: t('workspaceAgentTools.gradientRadialSizeNum') };
+        sceneStore.setGradientRadialSize(value);
+        break;
+      case 'gradientopacity':
+        if (typeof value !== 'number') return { success: false, message: t('workspaceAgentTools.gradientOpacityNum') };
+        sceneStore.setGradientOpacity(value);
+        break;
+      case 'gradientblendmode':
+        if (
+          value !== 'normal' &&
+          value !== 'multiply' &&
+          value !== 'screen' &&
+          value !== 'overlay' &&
+          value !== 'soft-light'
+        ) {
+          return { success: false, message: t('workspaceAgentTools.gradientBlendInvalid') };
+        }
+        sceneStore.setGradientBlendMode(value);
+        break;
+      default:
+        return { success: false, message: t('workspaceAgentTools.unknownSceneControl', { control }) };
+    }
+
+    actionState.recordAction(t('workspaceAgentTools.actionUpdatedSceneControl'), String(control), { announce: true });
+    return { success: true, message: t('workspaceAgentTools.updatedSceneControl', { control }) };
+  }
+
+  async function setVoiceControl(control: unknown, value: unknown, confirm: unknown) {
+    if (typeof control !== 'string') {
+      return { success: false, message: t('workspaceAgentTools.voiceControlString') };
+    }
+
+    const normalized = normalizeKey(control);
+    const approved = await confirmIfNeeded(
+      ADVANCED_VOICE_CONTROLS.has(normalized),
+      confirm,
+      t('workspaceAgentTools.confirmVoiceTitle'),
+      t('workspaceAgentTools.confirmVoiceBody', { control }),
+    );
+    if (!approved) {
+      return { success: false, cancelled: true, message: t('workspaceAgentTools.cancelledVoiceControl', { control }) };
+    }
+
+    if (normalized === 'pipelinemode') {
+      if (value !== 'realtime' && value !== 'stt-llm-tts') {
+        return { success: false, message: t('workspaceAgentTools.pipelineModeInvalid') };
+      }
+      voiceStore.setPipelineMode(value);
+      if (kwami.value) {
+        kwami.value.agent.updateConfig({
+          livekit: {
+            ...kwami.value.agent.getConfig().livekit,
+            voice: voiceStore.voiceConfig,
+          },
+        });
+      }
+      actionState.recordAction(t('workspaceAgentTools.actionUpdatedPipeline'), value, { announce: true });
+      return {
+        success: true,
+        message: isConnected.value
+          ? t('workspaceAgentTools.pipelineModeSetReconnect', { mode: value })
+          : t('workspaceAgentTools.pipelineModeSet', { mode: value }),
+      };
+    }
+
+    if (normalized === 'ttsvoice') {
+      if (typeof value !== 'string') return { success: false, message: t('workspaceAgentTools.ttsVoiceString') };
+      voiceStore.updateTTS({ voice: value });
+      if (isConnected.value && kwami.value) {
+        kwami.value.agent.updateTtsLive({ voice: value, speed: voiceStore.tts.speed });
+      }
+    } else if (normalized === 'ttsspeed') {
+      if (typeof value !== 'number') return { success: false, message: t('workspaceAgentTools.ttsSpeedNum') };
+      voiceStore.updateTTS({ speed: value });
+      if (isConnected.value && kwami.value) {
+        kwami.value.agent.updateTtsLive({ voice: voiceStore.tts.voice, speed: value });
+      }
+    } else if (normalized === 'realtimevoice') {
+      if (typeof value !== 'string') return { success: false, message: t('workspaceAgentTools.realtimeVoiceString') };
+      voiceStore.updateRealtime({ voice: value });
+      if (isConnected.value && kwami.value) {
+        kwami.value.agent.updateRealtimeLive({ voice: value });
+      }
+    } else if (normalized === 'sttlanguage') {
+      if (typeof value !== 'string') return { success: false, message: t('workspaceAgentTools.sttLanguageString') };
+      voiceStore.updateSTT({ language: value as STTLanguage });
+      if (isConnected.value && kwami.value) {
+        kwami.value.agent.updateSttLive({
+          provider: voiceStore.stt.provider,
+          model: voiceStore.stt.model,
+          language: value as STTLanguage,
+        });
+      }
+    } else if (normalized === 'responselength') {
+      return setResponseLength(value, true);
+    } else if (normalized === 'emotionaltone') {
+      if (value !== 'neutral' && value !== 'warm' && value !== 'enthusiastic' && value !== 'calm') {
+        return { success: false, message: t('workspaceAgentTools.emotionalToneInvalid') };
+      }
+      voiceStore.soulConfig.emotionalTone = value;
+      syncSoulToAgent();
+    } else if (normalized === 'llmmodel' || normalized === 'sttmodel' || normalized === 'ttsmodel' || normalized === 'realtimemodel') {
+      if (!isRecord(value))
+        return { success: false, message: t('workspaceAgentTools.voiceControlSettingsObject', { control }) };
+      if (normalized === 'llmmodel') {
+        voiceStore.updateLLM({
+          provider:
+            typeof value.provider === 'string'
+              ? (value.provider as LLMProvider)
+              : voiceStore.llm.provider,
+          model: typeof value.model === 'string' ? value.model : voiceStore.llm.model,
+          temperature: typeof value.temperature === 'number' ? value.temperature : voiceStore.llm.temperature,
+        });
+      } else if (normalized === 'sttmodel') {
+        voiceStore.updateSTT({
+          provider:
+            typeof value.provider === 'string'
+              ? (value.provider as STTProvider)
+              : voiceStore.stt.provider,
+          model: typeof value.model === 'string' ? value.model : voiceStore.stt.model,
+          language:
+            typeof value.language === 'string'
+              ? (value.language as STTLanguage)
+              : voiceStore.stt.language,
+        });
+      } else if (normalized === 'ttsmodel') {
+        voiceStore.updateTTS({
+          provider:
+            typeof value.provider === 'string'
+              ? (value.provider as TTSProvider)
+              : voiceStore.tts.provider,
+          model: typeof value.model === 'string' ? value.model : voiceStore.tts.model,
+          voice: typeof value.voice === 'string' ? value.voice : voiceStore.tts.voice,
+          speed: typeof value.speed === 'number' ? value.speed : voiceStore.tts.speed,
+        });
+      } else {
+        voiceStore.updateRealtime({
+          provider:
+            typeof value.provider === 'string'
+              ? (value.provider as RealtimeProvider)
+              : voiceStore.realtime.provider,
+          model: typeof value.model === 'string' ? value.model : voiceStore.realtime.model,
+          voice: typeof value.voice === 'string' ? value.voice : voiceStore.realtime.voice,
+        });
+      }
+
+      syncVoiceModelsToAgent(
+        normalized === 'llmmodel'
+          ? 'llmModel'
+          : normalized === 'sttmodel'
+            ? 'sttModel'
+            : normalized === 'ttsmodel'
+              ? 'ttsModel'
+              : 'realtimeModel',
+        value,
+      );
+    } else {
+      return { success: false, message: t('workspaceAgentTools.unknownVoiceControl', { control }) };
+    }
+
+    actionState.recordAction(t('workspaceAgentTools.actionUpdatedVoiceControl'), String(control), { announce: true });
+    return { success: true, message: t('workspaceAgentTools.updatedVoiceControl', { control }) };
+  }
+
+  async function setEnhancementControl(control: unknown, value: unknown) {
+    if (typeof control !== 'string') {
+      return { success: false, message: t('workspaceAgentTools.enhancementControlString') };
+    }
+
+    const eState = voiceStore.enhancementsState;
+    switch (normalizeKey(control)) {
+      case 'turndetectionenabled':
+        if (typeof value !== 'boolean') return { success: false, message: t('workspaceAgentTools.turnDetectionEnabledBool') };
+        eState.turnDetection.enabled = value;
+        break;
+      case 'turndetectionmode':
+        if (value !== 'vad' && value !== 'stt' && value !== 'model' && value !== 'manual') {
+          return { success: false, message: t('workspaceAgentTools.turnDetectionModeInvalid') };
+        }
+        eState.turnDetection.mode = value;
+        break;
+      case 'turndetectionmodel':
+        if (value !== 'english' && value !== 'multilingual') {
+          return { success: false, message: t('workspaceAgentTools.turnDetectionModelInvalid') };
+        }
+        eState.turnDetection.model = value;
+        break;
+      case 'minendpointingdelay':
+        if (typeof value !== 'number') return { success: false, message: t('workspaceAgentTools.minEndpointingNum') };
+        eState.turnDetection.minEndpointingDelay = value;
+        break;
+      case 'maxendpointingdelay':
+        if (typeof value !== 'number') return { success: false, message: t('workspaceAgentTools.maxEndpointingNum') };
+        eState.turnDetection.maxEndpointingDelay = value;
+        break;
+      case 'interruptionsenabled':
+        if (typeof value !== 'boolean') return { success: false, message: t('workspaceAgentTools.interruptionsEnabledBool') };
+        eState.interruptions.enabled = value;
+        break;
+      case 'interruptionduration':
+        if (typeof value !== 'number') return { success: false, message: t('workspaceAgentTools.interruptionDurationNum') };
+        eState.interruptions.minDuration = value;
+        break;
+      case 'interruptionwords':
+        if (typeof value !== 'number') return { success: false, message: t('workspaceAgentTools.interruptionWordsNum') };
+        eState.interruptions.minWords = value;
+        break;
+      case 'noisecancellationenabled':
+        if (typeof value !== 'boolean') return { success: false, message: t('workspaceAgentTools.noiseCancellationEnabledBool') };
+        eState.noiseCancellation.enabled = value;
+        break;
+      case 'noisecancellationmode':
+        if (value !== 'bvc' && value !== 'krisp' && value !== 'default') {
+          return { success: false, message: t('workspaceAgentTools.noiseCancellationModeInvalid') };
+        }
+        eState.noiseCancellation.mode = value;
+        break;
+      case 'vadthreshold':
+        if (typeof value !== 'number') return { success: false, message: t('workspaceAgentTools.vadThresholdNum') };
+        eState.vad.threshold = value;
+        break;
+      case 'vadminspeech':
+        if (typeof value !== 'number') return { success: false, message: t('workspaceAgentTools.vadMinSpeechNum') };
+        eState.vad.minSpeech = value;
+        break;
+      case 'vadminsilence':
+        if (typeof value !== 'number') return { success: false, message: t('workspaceAgentTools.vadMinSilenceNum') };
+        eState.vad.minSilence = value;
+        break;
+      case 'echocancellation':
+        if (typeof value !== 'boolean') return { success: false, message: t('workspaceAgentTools.echoCancellationBool') };
+        eState.audioProcessing.echoCancellation = value;
+        break;
+      case 'autogaincontrol':
+        if (typeof value !== 'boolean') return { success: false, message: t('workspaceAgentTools.autoGainBool') };
+        eState.audioProcessing.autoGainControl = value;
+        break;
+      case 'preemptivegeneration':
+        if (typeof value !== 'boolean') return { success: false, message: t('workspaceAgentTools.preemptiveGenBool') };
+        eState.performance.preemptiveGeneration = value;
+        break;
+      default:
+        return { success: false, message: t('workspaceAgentTools.unknownEnhancementControl', { control }) };
+    }
+
+    syncEnhancementsToAgent();
+    actionState.recordAction(t('workspaceAgentTools.actionUpdatedEnhancementControl'), String(control), { announce: true });
+    return { success: true, message: t('workspaceAgentTools.updatedEnhancementControl', { control }) };
+  }
+
+  async function setMemoryUiControl(control: unknown, value: unknown) {
+    if (typeof control !== 'string') {
+      return { success: false, message: t('workspaceAgentTools.memoryUiControlString') };
+    }
+
+    const normalizedControl = normalizeKey(control);
+    const openGraphControls = new Set([
+      'opengraph',
+      'opengraphview',
+      'showgraph',
+      'showgraphview',
+      'knowledgegraph',
+      'knowledgegraphview',
+      'graph',
+      'graphview',
+    ]);
+
+    if (normalizedControl === 'activetab') {
+      if (value !== 'facts' && value !== 'entities' && value !== 'messages') {
+        return { success: false, message: t('workspaceAgentTools.memoryTabInvalid') };
+      }
+      voiceStore.memoryUI.activeTab = value;
+      voiceStore.memoryUI.graphModalOpen = false;
+      uiStore.setPanel('memory');
+      actionState.recordAction(t('workspaceAgentTools.actionOpenedMemoryView'), String(value), { announce: true });
+      return { success: true, message: t('workspaceAgentTools.openedMemoryView', { tab: String(value) }) };
+    }
+
+    if (openGraphControls.has(normalizedControl)) {
+      const shouldOpen = value === undefined
+        ? true
+        : value === true
+          || value === 'true'
+          || value === 'open'
+          || value === 'show'
+          || value === 1;
+      voiceStore.memoryUI.graphModalOpen = shouldOpen;
+      uiStore.setPanel('memory');
+      actionState.recordAction(
+        shouldOpen ? t('workspaceAgentTools.actionOpenedMemoryGraph') : t('workspaceAgentTools.actionClosedMemoryGraph'),
+        'knowledge-graph',
+        { announce: true },
+      );
+      return {
+        success: true,
+        message: shouldOpen ? t('workspaceAgentTools.openedMemoryGraph') : t('workspaceAgentTools.closedMemoryGraph'),
+      };
+    }
+
+    return { success: false, message: t('workspaceAgentTools.unknownMemoryUiControl', { control: String(control) }) };
+  }
+
+  async function resetUiDomain(domain: unknown, confirm: unknown) {
+    if (domain !== 'avatar' && domain !== 'theme' && domain !== 'scene') {
+      return {
+        success: false,
+        message: t('workspaceAgentTools.resettableDomains', { list: RESETTABLE_DOMAINS.join(', ') }),
+      };
+    }
+
+    const approved = await confirmIfNeeded(
+      true,
+      confirm,
+      t('workspaceAgentTools.confirmResetTitle', { domain: String(domain) }),
+      t('workspaceAgentTools.confirmResetBody', { domain: String(domain) }),
+    );
+    if (!approved) {
+      return { success: false, cancelled: true, message: t('workspaceAgentTools.cancelledReset', { domain: String(domain) }) };
+    }
+
+    if (domain === 'avatar') {
+      avatarStore.reset();
+      blobStore.resetAll();
+      blackHoleStore.resetAll();
+      particlesFaceStore.resetAll();
+      persistAvatarChanges();
+    } else if (domain === 'theme') {
+      themeStore.resetToDefaults();
+    } else {
+      sceneStore.resetToDefaults();
+    }
+
+    actionState.recordAction(t('workspaceAgentTools.actionResetUiDomain'), String(domain), { announce: true });
+    return { success: true, message: t('workspaceAgentTools.resetDomainDone', { domain: String(domain) }) };
+  }
+
+  async function listUiControls() {
+    return {
+      success: true,
+      panels: [...WORKSPACE_PANELS],
+      panelControls: ['activePanel', 'isOpen', 'sizePreset'],
+      themeControls: [
+        'preset',
+        'accentPreset',
+        'mode',
+        'sidebarPosition',
+        'compactMode',
+        'accentPrimary',
+        'accentSecondary',
+        'glassBlur',
+        'glassOpacity',
+        'saturation',
+        'gradientDirection',
+        'panelBorder',
+        'glowEffects',
+        'highContrast',
+        'focusIndicators',
+        'cursorFlashlight',
+        'flashlightSize',
+        'flashlightIntensity',
+        'flashlightColor',
+        'borderRadius',
+      ],
+      avatarControls: [
+        'renderer',
+        'preset',
+        'blobSkinType',
+        'blobColors',
+        'blobSpikes',
+        'blobAmplitude',
+        'blobRotation',
+        'blobScale',
+        'blobOpacity',
+        'blobShininess',
+        'blobWireframe',
+        'blobGlassMode',
+        'blobAudioReactivity',
+        'blobAudioEnabled',
+        'blackHoleColorScheme',
+        'blackHoleColors',
+        'blackHoleCore',
+        'blackHoleDisk',
+        'blackHoleAnimation',
+        'blackHoleEffects',
+        'blackHoleScale',
+        'particlesFaceAppearance',
+        'particlesFaceMotion',
+      ],
+      sceneControls: [
+        'mediaType',
+        'imageUrl',
+        'imageFit',
+        'imageOpacity',
+        'videoUrl',
+        'videoFit',
+        'videoOpacity',
+        'videoLoop',
+        'videoMuted',
+        'hdriUrl',
+        'hdriIntensity',
+        'hdriOpacity',
+        'hdriRotation',
+        'hdriBlur',
+        'gradientEnabled',
+        'gradientType',
+        'gradientSolidColor',
+        'gradientAngle',
+        'gradientRadialCenter',
+        'gradientRadialSize',
+        'gradientOpacity',
+        'gradientBlendMode',
+      ],
+      voiceControls: [
+        'pipelineMode',
+        'ttsVoice',
+        'ttsSpeed',
+        'realtimeVoice',
+        'sttLanguage',
+        'responseLength',
+        'emotionalTone',
+        'llmModel',
+        'sttModel',
+        'ttsModel',
+        'realtimeModel',
+      ],
+      enhancementControls: [
+        'turnDetectionEnabled',
+        'turnDetectionMode',
+        'turnDetectionModel',
+        'minEndpointingDelay',
+        'maxEndpointingDelay',
+        'interruptionsEnabled',
+        'interruptionDuration',
+        'interruptionWords',
+        'noiseCancellationEnabled',
+        'noiseCancellationMode',
+        'vadThreshold',
+        'vadMinSpeech',
+        'vadMinSilence',
+        'echoCancellation',
+        'autoGainControl',
+        'preemptiveGeneration',
+      ],
+      memoryUiControls: ['activeTab', 'openGraphView'],
+      resettableDomains: [...RESETTABLE_DOMAINS],
+      message: t('workspaceAgentTools.listUiMessage'),
+    };
+  }
+
+  async function setUiControl(
+    domain: unknown,
+    control: unknown,
+    value: unknown,
+    confirm: unknown,
+  ) {
+    const normalizedDomain = normalizeDomain(domain);
+    if (!normalizedDomain) {
+      return {
+        success: false,
+        message: t('workspaceAgentTools.unknownUiDomain', {
+          domain: String(domain),
+          supported: UI_CONTROL_DOMAINS.join(', '),
+        }),
+      };
+    }
+
+    if (typeof control !== 'string') {
+      return {
+        success: false,
+        message: t('workspaceAgentTools.uiControlNameString'),
+      };
+    }
+
+    const normalizedControl = normalizeKey(control);
+
+    if (normalizedDomain === 'workspace') {
+      if (normalizedControl === 'openpanel') return openPanel(value);
+      if (normalizedControl === 'closepanel') return closePanel();
+      if (normalizedControl === 'focustranscription') return openPanel('transcription');
+      if (normalizedControl === 'renderer') return setRenderer(value);
+      if (normalizedControl === 'responselength') return setResponseLength(value, confirm);
+      if (normalizedControl === 'status') return showWorkspaceStatus();
+      if (normalizedControl === 'listcontrols') return listUiControls();
+      return {
+        success: false,
+        message: t('workspaceAgentTools.workspaceControlsHint'),
+      };
+    }
+
+    if (normalizedDomain === 'panel') {
+      return setPanelControl(
+        normalizedControl === 'openpanel' ? 'activePanel' : control,
+        normalizedControl === 'openpanel' ? value : value,
+      );
+    }
+
+    if (normalizedDomain === 'theme') {
+      return setThemeControl(control, value);
+    }
+
+    if (normalizedDomain === 'avatar') {
+      return setAvatarControl(control, value);
+    }
+
+    if (normalizedDomain === 'scene') {
+      return setSceneControl(control, value);
+    }
+
+    if (normalizedDomain === 'voice') {
+      return setVoiceControl(control, value, confirm);
+    }
+
+    if (normalizedDomain === 'enhancements') {
+      return setEnhancementControl(control, value);
+    }
+
+    if (normalizedDomain === 'memory') {
+      return setMemoryUiControl(control, value);
+    }
+
+    if (normalizedDomain === 'search') {
+      if (normalizedControl === 'clear' || normalizedControl === 'clearresults') {
+        return clearSearchResults();
+      }
+      return {
+        success: false,
+        message: t('workspaceAgentTools.searchControlsHint'),
+      };
+    }
+
+    return {
+      success: false,
+      message: t('workspaceAgentTools.unsupportedUiDomain', { domain: normalizedDomain }),
+    };
+  }
+
+  function registerTools(instance: Kwami) {
+    instance.registerTool({
+      name: 'set_ui_control',
+      description: t('workspaceAgentTools.toolDescSetUiControl'),
+      parameters: {
+        domain: {
+          type: 'string',
+          enum: [...UI_CONTROL_DOMAINS],
+        },
+        control: {
+          type: 'string',
+        },
+        value: {},
+        confirm: {
+          type: 'boolean',
+        },
+      },
+      handler: async ({ domain, control, value, confirm }) =>
+        setUiControl(domain, control, value, confirm),
+    });
+
+    instance.registerTool({
+      name: 'open_workspace_panel',
+      description: t('workspaceAgentTools.toolDescOpenWorkspacePanel'),
+      parameters: { panelName: { type: 'string', enum: [...WORKSPACE_PANELS] } },
+      handler: async ({ panelName }) => openPanel(panelName),
+    });
+
+    instance.registerTool({
+      name: 'close_workspace_panel',
+      description: t('workspaceAgentTools.toolDescCloseWorkspacePanel'),
+      handler: async () => closePanel(),
+    });
+
+    instance.registerTool({
+      name: 'focus_transcription_panel',
+      description: t('workspaceAgentTools.toolDescFocusTranscription'),
+      handler: async () => openPanel('transcription'),
+    });
+
+    instance.registerTool({
+      name: 'set_panel_control',
+      description: t('workspaceAgentTools.toolDescSetPanelControl'),
+      parameters: {
+        control: { type: 'string', enum: ['activePanel', 'isOpen', 'sizePreset'] },
+        value: { type: 'string' },
+      },
+      handler: async ({ control, value }) => setPanelControl(control, value),
+    });
+
+    instance.registerTool({
+      name: 'set_theme_control',
+      description: t('workspaceAgentTools.toolDescSetThemeControl'),
+      parameters: {
+        control: { type: 'string' },
+        value: {},
+      },
+      handler: async ({ control, value }) => setThemeControl(control, value),
+    });
+
+    instance.registerTool({
+      name: 'set_avatar_control',
+      description: t('workspaceAgentTools.toolDescSetAvatarControl'),
+      parameters: {
+        control: { type: 'string' },
+        value: {},
+      },
+      handler: async ({ control, value }) => setAvatarControl(control, value),
+    });
+
+    instance.registerTool({
+      name: 'set_scene_control',
+      description: t('workspaceAgentTools.toolDescSetSceneControl'),
+      parameters: {
+        control: { type: 'string' },
+        value: {},
+      },
+      handler: async ({ control, value }) => setSceneControl(control, value),
+    });
+
+    instance.registerTool({
+      name: 'set_voice_control',
+      description: t('workspaceAgentTools.toolDescSetVoiceControl'),
+      parameters: {
+        control: { type: 'string' },
+        value: {},
+        confirm: { type: 'boolean' },
+      },
+      handler: async ({ control, value, confirm }) => setVoiceControl(control, value, confirm),
+    });
+
+    instance.registerTool({
+      name: 'set_enhancement_control',
+      description: t('workspaceAgentTools.toolDescSetEnhancementControl'),
+      parameters: {
+        control: { type: 'string' },
+        value: {},
+      },
+      handler: async ({ control, value }) => setEnhancementControl(control, value),
+    });
+
+    instance.registerTool({
+      name: 'set_memory_ui_control',
+      description: t('workspaceAgentTools.toolDescSetMemoryUi'),
+      parameters: {
+        control: { type: 'string', enum: ['activeTab', 'openGraphView', 'knowledgeGraph', 'graphView'] },
+        value: {},
+      },
+      handler: async ({ control, value }) => setMemoryUiControl(control, value),
+    });
+
+    instance.registerTool({
+      name: 'set_workspace_renderer',
+      description: t('workspaceAgentTools.toolDescSetRenderer'),
+      parameters: {
+        renderer: { type: 'string', enum: ['blob-xyz', 'black-hole', 'particles-face'] },
+      },
+      handler: async ({ renderer }) => setRenderer(renderer),
+    });
+
+    instance.registerTool({
+      name: 'set_response_length',
+      description: t('workspaceAgentTools.toolDescSetResponseLength'),
+      parameters: {
+        length: { type: 'string', enum: ['short', 'medium', 'long'] },
+        confirm: { type: 'boolean' },
+      },
+      handler: async ({ length, confirm }) => setResponseLength(length, confirm),
+    });
+
+    instance.registerTool({
+      name: 'clear_search_results',
+      description: t('workspaceAgentTools.toolDescClearSearch'),
+      handler: async () => clearSearchResults(),
+    });
+
+    instance.registerTool({
+      name: 'reset_ui_domain',
+      description: t('workspaceAgentTools.toolDescResetUiDomain'),
+      parameters: {
+        domain: { type: 'string', enum: [...RESETTABLE_DOMAINS] },
+        confirm: { type: 'boolean' },
+      },
+      handler: async ({ domain, confirm }) => resetUiDomain(domain, confirm),
+    });
+
+    instance.registerTool({
+      name: 'list_ui_controls',
+      description: t('workspaceAgentTools.toolDescListUiControls'),
+      handler: async () => listUiControls(),
+    });
+
+    instance.registerTool({
+      name: 'show_workspace_status',
+      description: t('workspaceAgentTools.toolDescShowWorkspaceStatus'),
+      handler: async () => showWorkspaceStatus(),
+    });
+  }
+
+  watch(
+    kwami,
+    (instance) => {
+      if (!instance) return;
+      registerTools(instance);
+    },
+    { immediate: true },
+  );
+
+  watch(
+    () => i18n.global.locale.value,
+    () => {
+      if (kwami.value) registerTools(kwami.value);
+    },
+  );
+}

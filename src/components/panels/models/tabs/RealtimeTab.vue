@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useModelsApi } from '@/composables/useModelsApi';
 import { useVoiceStore } from '@/stores/voice';
 import { storeToRefs } from 'pinia';
@@ -7,6 +8,7 @@ import type { RealtimeProvider } from 'kwami';
 import PanelSection from '@/components/ui/PanelSection.vue';
 
 const { fetchRealtimeModels, realtimeModels, isLoading } = useModelsApi();
+const { t } = useI18n();
 const voiceStore = useVoiceStore();
 const { realtime, modelsUI } = storeToRefs(voiceStore);
 
@@ -88,13 +90,13 @@ function getModelInfo(modelId: string) {
     <!-- Info Banner -->
     <div class="info-banner">
       <iconify-icon icon="ph:info-duotone"></iconify-icon>
-      <p>Realtime models enable bidirectional audio streaming with ultra-low latency. Some models also support live video input.</p>
+      <p>{{ t('modelTabs.realtimeInfo') }}</p>
     </div>
 
     <!-- Loading State -->
     <div v-if="isLoading" class="loading-state">
       <iconify-icon icon="ph:spinner-duotone" class="spinner"></iconify-icon>
-      <span>Loading models...</span>
+      <span>{{ t('modelTabs.loadingModels') }}</span>
     </div>
 
     <template v-if="!isLoading && hasModels">
@@ -123,17 +125,17 @@ function getModelInfo(modelId: string) {
             </div>
             <div class="model-id">{{ model }}</div>
             <div class="model-features">
-              <span v-if="getModelInfo(model).features.includes('audio')" class="feature audio" title="Bidirectional Audio">
+              <span v-if="getModelInfo(model).features.includes('audio')" class="feature audio" :title="t('modelTabs.bidirectionalAudio')">
                 <iconify-icon icon="ph:waveform-duotone"></iconify-icon>
-                <span class="feature-label">Audio</span>
+                <span class="feature-label">{{ t('modelTabs.audio') }}</span>
               </span>
-              <span v-if="getModelInfo(model).video" class="feature video" title="Video Input">
+              <span v-if="getModelInfo(model).video" class="feature video" :title="t('modelTabs.videoInput')">
                 <iconify-icon icon="ph:video-camera-duotone"></iconify-icon>
-                <span class="feature-label">Video</span>
+                <span class="feature-label">{{ t('modelTabs.video') }}</span>
               </span>
-              <span v-if="getModelInfo(model).features.includes('function_calling')" class="feature tools" title="Function Calling">
+              <span v-if="getModelInfo(model).features.includes('function_calling')" class="feature tools" :title="t('modelTabs.functionCalling')">
                 <iconify-icon icon="ph:wrench-duotone"></iconify-icon>
-                <span class="feature-label">Tools</span>
+                <span class="feature-label">{{ t('modelTabs.tools') }}</span>
               </span>
             </div>
             <div class="selected-indicator">
@@ -144,10 +146,10 @@ function getModelInfo(modelId: string) {
       </PanelSection>
 
       <!-- Video Settings -->
-      <PanelSection title="Video Input" icon="ph:video-camera-duotone" collapsible defaultCollapsed>
+      <PanelSection :title="t('modelTabs.realtimeVideoInput')" icon="ph:video-camera-duotone" collapsible defaultCollapsed>
         <div class="video-settings">
           <label class="toggle-row">
-            <span>Enable Video</span>
+            <span>{{ t('modelTabs.enableVideo') }}</span>
             <button
               class="toggle-btn"
               :class="{ active: videoEnabled }"
@@ -158,12 +160,12 @@ function getModelInfo(modelId: string) {
               </span>
             </button>
           </label>
-          <p class="setting-hint">Send camera feed to the model for visual understanding</p>
+          <p class="setting-hint">{{ t('modelTabs.videoHint') }}</p>
           
           <div v-if="videoEnabled" class="video-options">
             <p class="coming-soon">
               <iconify-icon icon="ph:hammer-duotone"></iconify-icon>
-              Camera settings coming soon
+              {{ t('modelTabs.cameraSettingsSoon') }}
             </p>
           </div>
         </div>
@@ -173,7 +175,7 @@ function getModelInfo(modelId: string) {
     <!-- Empty State -->
     <div v-if="!isLoading && !hasModels" class="empty-state">
       <iconify-icon icon="ph:video-camera-slash-duotone"></iconify-icon>
-      <span>No realtime models available</span>
+      <span>{{ t('modelTabs.noRealtimeModels') }}</span>
     </div>
   </div>
 </template>

@@ -1,9 +1,25 @@
 <script setup lang="ts">
-defineProps<{
+import { computed, useSlots } from 'vue';
+import PanelHeaderControls from '@/components/ui/PanelHeaderControls.vue';
+import { useThemeStore } from '@/stores/theme';
+
+const props = withDefaults(defineProps<{
   title: string;
   icon: string;
   noPadding?: boolean;
-}>();
+  showSizeButtons?: boolean;
+  showCloseButton?: boolean;
+}>(), {
+  noPadding: false,
+  showSizeButtons: true,
+  showCloseButton: true,
+});
+
+const slots = useSlots();
+const themeStore = useThemeStore();
+const isRightSidebar = computed(() => themeStore.sidebarPosition === 'right');
+
+const hasActionSlot = computed(() => Boolean(slots.actions));
 </script>
 
 <template>
@@ -11,12 +27,27 @@ defineProps<{
     <div class="panel-header">
       <iconify-icon :icon="icon" class="panel-icon"></iconify-icon>
       <h2>{{ title }}</h2>
-      <div class="header-actions">
-        <slot name="actions"></slot>
+      <div class="header-actions" :class="{ 'sidebar-right': isRightSidebar }">
+        <template v-if="isRightSidebar">
+          <PanelHeaderControls
+            :show-size-buttons="props.showSizeButtons"
+            :show-close-button="props.showCloseButton"
+            :show-divider="hasActionSlot"
+          />
+          <slot name="actions"></slot>
+        </template>
+        <template v-else>
+          <slot name="actions"></slot>
+          <PanelHeaderControls
+            :show-size-buttons="props.showSizeButtons"
+            :show-close-button="props.showCloseButton"
+            :show-divider="hasActionSlot"
+          />
+        </template>
       </div>
     </div>
 
-    <div class="panel-body" :class="{ 'no-padding': noPadding }">
+    <div class="panel-body" :class="{ 'no-padding': props.noPadding }">
       <slot></slot>
     </div>
   </div>
@@ -58,6 +89,12 @@ h2 {
   display: flex;
   align-items: center;
   gap: 8px;
+  width: 100%;
+  justify-content: flex-end;
+}
+
+.header-actions.sidebar-right {
+  justify-content: flex-start;
 }
 
 .panel-body {

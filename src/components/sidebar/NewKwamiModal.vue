@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue';
 import BaseInput from '@/components/ui/BaseInput.vue';
 import BaseToggle from '@/components/ui/BaseToggle.vue';
@@ -18,6 +19,7 @@ const emit = defineEmits<{
   (e: 'close'): void;
   (e: 'confirm', payload: { name: string; randomize: boolean; colors: { x: string; y: string; z: string } }): void;
 }>();
+const { t } = useI18n();
 
 const name = ref('');
 const randomize = ref(false);
@@ -56,30 +58,31 @@ function onRandomize() {
   <ConfirmDialog
     :open="open"
     title="New Kwami"
+    :title="t('sidebarModals.newKwamiTitle')"
     icon="ph:sparkle-duotone"
-    confirm-label="Create"
+    :confirm-label="t('sidebarModals.create')"
     confirm-variant="accent"
     @confirm="onConfirm"
     @cancel="onCancel"
   >
-    <p>Give your new Kwami a name (optional). It will be synced with the persona name.</p>
+    <p>{{ t('sidebarModals.newKwamiHint') }}</p>
     <BaseInput
       v-model="name"
-      placeholder="e.g. Luna, Atlas..."
-      label="Name"
+      :placeholder="t('sidebarModals.namePlaceholder')"
+      :label="t('sidebarModals.name')"
       class="kwami-name-input"
       @keydown.enter.prevent="onConfirm"
     />
     <div class="kwami-modal-toggle">
-      <BaseToggle v-model="randomize" label="Randomize" />
-      <span class="toggle-hint">When off, the new Kwami keeps the current configuration.</span>
+      <BaseToggle v-model="randomize" :label="t('sidebarModals.randomize')" />
+      <span class="toggle-hint">{{ t('sidebarModals.randomizeHint') }}</span>
     </div>
     <div class="kwami-gradient-section">
       <div class="gradient-section-header">
-        <span class="gradient-label">Avatar gradient</span>
-        <button type="button" class="gradient-dice-btn" title="Randomize colors" @click="onRandomize">
+        <span class="gradient-label">{{ t('sidebarModals.avatarGradient') }}</span>
+        <button type="button" class="gradient-dice-btn" :title="t('sidebarModals.randomizeColors')" @click="onRandomize">
           <iconify-icon icon="ph:dice-five-duotone"></iconify-icon>
-          <span>Random</span>
+          <span>{{ t('sidebarModals.random') }}</span>
         </button>
       </div>
       <div class="gradient-block">

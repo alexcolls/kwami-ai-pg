@@ -1,16 +1,21 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useUIStore } from '@/stores/ui';
 import { useWorkspaceStore } from '@/stores/workspace';
 import { useKwamiConfigSync } from '@/composables/useKwamiConfigSync';
 import { getGradient } from '@/composables/useKwamiGradient';
+import { useToast } from 'vue-toastification';
 
 const uiStore = useUIStore();
 const workspaceStore = useWorkspaceStore();
 const { switchToKwami } = useKwamiConfigSync();
+const toast = useToast();
+const { t } = useI18n();
 
 const trayExpanded = ref(false);
 const kwamiListRef = ref<HTMLElement | null>(null);
+const DRAFT_TOOLTIP_STORAGE_KEY = 'kwami-unsaved-draft-hint-shown';
 
 const activeWorkspace = computed(() => workspaceStore.getActiveWorkspace());
 const workspaces = computed(() => workspaceStore.workspaces);
@@ -28,8 +33,18 @@ function toggleTray() {
 }
 
 function switchKwami(id: string) {
+  const shouldShowDraftHint =
+    activeWorkspace.value?.id !== id &&
+    activeWorkspace.value?.hasUnsavedConfig &&
+    localStorage.getItem(DRAFT_TOOLTIP_STORAGE_KEY) !== 'true';
+
   switchToKwami(id);
   trayExpanded.value = false;
+
+  if (shouldShowDraftHint) {
+    localStorage.setItem(DRAFT_TOOLTIP_STORAGE_KEY, 'true');
+    toast.info(t('sidebarModals.unsavedDraftHint'));
+  }
 }
 
 function onAddClick(event?: MouseEvent) {
@@ -65,17 +80,22 @@ defineExpose({ scrollListToBottom });
 
 <template>
   <div class="kwami-selector" :class="{ expanded: trayExpanded }">
-    <button class="kwami-active-btn" @click.stop="toggleTray" title="Switch Kwami">
+    <button class="kwami-active-btn" @click.stop="toggleTray" :title="t('sidebarModals.switchKwami')">
       <div
         v-if="activeWorkspace"
         class="kwami-preview"
         :style="{ background: getGradient(activeWorkspace.colors) }"
       ></div>
+      <span
+        v-if="activeWorkspace?.hasUnsavedConfig"
+        class="unsaved-dot active-dot"
+        :title="t('sidebarModals.unsavedKwamiTitle')"
+      ></span>
     </button>
 
     <div class="kwami-tray" :class="{ visible: trayExpanded }">
       <div class="kwami-tray-header">
-        <span class="kwami-tray-title">Your Kwamis</span>
+        <span class="kwami-tray-title">{{ t('sidebarModals.yourKwamis') }}</span>
       </div>
       <div ref="kwamiListRef" class="kwami-list">
         <button
@@ -90,22 +110,27 @@ defineExpose({ scrollListToBottom });
           <div class="kwami-item-info">
             <span
               class="kwami-item-name"
-              :title="'Edit name & gradient: ' + ws.name"
+              :title="t('sidebarModals.editNameGradient', { name: ws.name })"
               @click.stop="onEditClick(ws, $event)"
             >{{ ws.name }}</span>
             <span v-if="ws.emoji" class="kwami-item-emoji">{{ ws.emoji }}</span>
           </div>
+          <span
+            v-if="ws.hasUnsavedConfig"
+            class="unsaved-dot item-dot"
+            :title="t('sidebarModals.unsavedChanges')"
+          ></span>
           <iconify-icon
             icon="ph:pencil-simple-duotone"
             class="kwami-item-edit"
-            title="Edit name & gradient"
+            :title="t('sidebarModals.editNameGradientShort')"
             @click.stop="onEditClick(ws, $event)"
           />
         </button>
       </div>
-      <button type="button" class="kwami-add-btn" @click="onAddClick($event)" title="Create new Kwami">
+      <button type="button" class="kwami-add-btn" @click="onAddClick($event)" :title="t('sidebarModals.createNewKwami')">
         <iconify-icon icon="ph:plus-bold"></iconify-icon>
-        <span>New Kwami</span>
+        <span>{{ t('sidebarModals.newKwami') }}</span>
       </button>
     </div>
   </div>
@@ -145,6 +170,24 @@ defineExpose({ scrollListToBottom });
   height: 28px;
   border-radius: 6px;
   background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
+}
+
+.unsaved-dot {
+  display: inline-flex;
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: var(--warning);
+  box-shadow:
+    0 0 0 2px var(--glass-bg),
+    0 0 12px color-mix(in srgb, var(--warning) 45%, transparent);
+  flex-shrink: 0;
+}
+
+.active-dot {
+  position: absolute;
+  top: -2px;
+  right: -2px;
 }
 
 .kwami-tray {
@@ -269,6 +312,10 @@ defineExpose({ scrollListToBottom });
 .kwami-item-emoji {
   font-size: 10px;
   color: var(--text-muted);
+}
+
+.item-dot {
+  margin-left: auto;
 }
 
 .kwami-add-btn {

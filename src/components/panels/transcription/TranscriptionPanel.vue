@@ -1,21 +1,45 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue';
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { panelIcons } from '@/constants/panel-icons';
 import { useKwami } from '@/composables/useKwami';
 import { useTranscriptionState } from '@/composables/useTranscriptionState';
 import { useSearchResults } from '@/composables/useSearchResults';
+import PanelHeaderControls from '@/components/ui/PanelHeaderControls.vue';
+import { useThemeStore } from '@/stores/theme';
+import { intlLocaleTag, getCurrentLocale } from '@/i18n';
 
 const { kwami } = useKwami();
-const searchResults = useSearchResults();
+const { t } = useI18n();
+const themeStore = useThemeStore();
+const isRightSidebar = computed(() => themeStore.sidebarPosition === 'right');
+const {
+  query: searchQuery,
+  results: searchItems,
+  answer: searchAnswer,
+  loading: searchLoading,
+  error: searchError,
+  clear: clearSearch,
+  hasSearchData,
+} = useSearchResults();
 const {
   messages,
   interimTranscript,
   isConnected,
   indicators,
+  sessionsForKwami,
+  liveSessionId,
+  viewingHistoryId,
+  sessionTitle,
   addMessage,
   clearMessages,
   updateIndicators,
+  openHistorySession,
+  returnToLiveView,
+  deleteHistorySession,
 } = useTranscriptionState();
+
+const isViewingHistory = computed(() => viewingHistoryId.value !== null);
 
 // Local-only UI state
 const inputMessage = ref('');
@@ -24,7 +48,7 @@ const conversationLog = ref<HTMLElement | null>(null);
 // Helpers
 function formatTime(timestamp: number): string {
   const date = new Date(timestamp);
-  return date.toLocaleTimeString('en-US', {
+  return date.toLocaleTimeString(intlLocaleTag(getCurrentLocale()), {
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
@@ -39,8 +63,10 @@ function scrollToBottom() {
   });
 }
 
-// Scroll when messages change
-watch(() => messages.value.length, () => scrollToBottom());
+watch(
+  () => messages.value.length,
+  () => scrollToBottom(),
+);
 
 function clearLog() {
   clearMessages();
@@ -48,16 +74,15 @@ function clearLog() {
 
 function sendMessage() {
   const text = inputMessage.value.trim();
-  if (!text || !isConnected.value) return;
+  if (!text || !isConnected.value || isViewingHistory.value) return;
 
   kwami.value?.sendMessage(text);
-  addMessage('user', text);
   inputMessage.value = '';
 }
 
 function interrupt() {
   kwami.value?.interrupt();
-  addMessage('system', '🛑 Interrupted');
+  addMessage('system', `🛑 ${t('transcription.interrupted')}`);
   updateIndicators('listening');
 }
 
@@ -65,7 +90,7 @@ function interrupt() {
 const onKeydown = (e: KeyboardEvent) => {
   if (e.key === 'Escape' && isConnected.value) {
     interrupt();
-    addMessage('system', '🛑 Interrupted (Esc)');
+    addMessage('system', `🛑 ${t('transcription.interruptedEsc')}`);
   }
 };
 
@@ -87,10 +112,62 @@ onUnmounted(() => {
   <div class="panel-inner">
     <div class="panel-header">
       <iconify-icon :icon="panelIcons.transcription" class="panel-icon"></iconify-icon>
-      <h2>Transcription</h2>
-      <span class="message-count"
-        >{{ messages.length }} message{{ messages.length !== 1 ? 's' : '' }}</span
-      >
+      <h2>{{ t('transcription.title') }}</h2>
+      <template v-if="isRightSidebar">
+        <PanelHeaderControls :show-divider="true" />
+        <span class="message-count"
+          >{{ messages.length }} {{ messages.length === 1 ? t('transcription.message') : t('transcription.messages') }}</span
+        >
+      </template>
+      <template v-else>
+        <span class="message-count"
+          >{{ messages.length }} {{ messages.length === 1 ? t('transcription.message') : t('transcription.messages') }}</span
+        >
+        <PanelHeaderControls :show-divider="true" />
+      </template>
+    </div>
+
+    <!-- Past sessions (stored locally per Kwami) -->
+    <div v-if="sessionsForKwami.length" class="session-history">
+      <div class="session-history-label">
+        <iconify-icon icon="ph:clock-counter-clockwise-duotone"></iconify-icon>
+        <span>{{ t('transcription.sessions') }}</span>
+      </div>
+      <div class="session-chips">
+        <button
+          v-if="isViewingHistory"
+          type="button"
+          class="session-chip session-chip-active"
+          @click="returnToLiveView"
+        >
+          ← {{ t('transcription.current') }}
+        </button>
+        <button
+          v-for="s in sessionsForKwami"
+          :key="s.id"
+          type="button"
+          class="session-chip"
+          :class="{ 'session-chip-selected': viewingHistoryId === s.id }"
+          @click="openHistorySession(s.id)"
+        >
+          {{ sessionTitle(s.createdAt) }}
+          <span v-if="s.id === liveSessionId && isConnected" class="session-live">{{ t('transcription.live') }}</span>
+          <span
+            v-if="s.id !== liveSessionId || !isConnected"
+            class="session-delete"
+            :title="t('transcription.removeFromHistory')"
+            @click.stop="deleteHistorySession(s.id)"
+          >
+            <iconify-icon icon="ph:x"></iconify-icon>
+          </span>
+        </button>
+      </div>
+    </div>
+
+    <div v-if="isViewingHistory" class="history-banner">
+      <iconify-icon icon="ph:eye-duotone"></iconify-icon>
+      <span>{{ t('transcription.readOnlyPast') }}</span>
+      <button type="button" class="history-banner-btn" @click="returnToLiveView">{{ t('transcription.backToCurrent') }}</button>
     </div>
 
     <div class="panel-body transcription-body">
@@ -98,42 +175,42 @@ onUnmounted(() => {
       <div class="realtime-indicator">
         <div class="indicator-row" :class="{ active: indicators.user }">
           <iconify-icon icon="ph:microphone-duotone"></iconify-icon>
-          <span>Listening...</span>
+          <span>{{ t('transcription.listening') }}</span>
           <div class="voice-wave"><span></span><span></span><span></span><span></span></div>
         </div>
         <div class="indicator-row" :class="{ active: indicators.agent }">
           <iconify-icon icon="ph:speaker-high-duotone"></iconify-icon>
-          <span>Speaking...</span>
+          <span>{{ t('transcription.speaking') }}</span>
           <div class="voice-wave"><span></span><span></span><span></span><span></span></div>
         </div>
       </div>
 
       <!-- Interim transcript -->
-      <div v-if="interimTranscript" class="interim-transcript">
-        <span class="interim-label">Hearing:</span>
+      <div v-if="interimTranscript && !isViewingHistory" class="interim-transcript">
+        <span class="interim-label">{{ t('transcription.hearing') }}</span>
         <span class="interim-text">{{ interimTranscript }}</span>
       </div>
 
       <!-- Web search results (when agent used web_search) -->
-      <div v-if="searchResults.loading || searchResults.error || searchResults.hasSearchData" class="search-results-section">
+      <div v-if="searchLoading || searchError || hasSearchData" class="search-results-section">
         <div class="search-results-header">
           <iconify-icon icon="ph:magnifying-glass-duotone"></iconify-icon>
-          <span>Web search</span>
-          <button v-if="searchResults.hasSearchData || searchResults.error" class="search-clear" @click="searchResults.clear" title="Clear results">
+          <span>{{ t('transcription.webSearch') }}</span>
+          <button v-if="hasSearchData || searchError" class="search-clear" @click="clearSearch" :title="t('transcription.clearResults')">
             <iconify-icon icon="ph:x"></iconify-icon>
           </button>
         </div>
-        <div v-if="searchResults.loading" class="search-loading">
+        <div v-if="searchLoading" class="search-loading">
           <iconify-icon icon="ph:spinner-gap-duotone" class="spin"></iconify-icon>
-          Searching...
+          {{ t('transcription.searching') }}
         </div>
-        <div v-else-if="searchResults.error" class="search-error">{{ searchResults.error }}</div>
+        <div v-else-if="searchError" class="search-error">{{ searchError }}</div>
         <div v-else class="search-results-body">
-          <p v-if="searchResults.answer" class="search-answer">{{ searchResults.answer }}</p>
-          <p class="search-query">“{{ searchResults.query }}”</p>
+          <p v-if="searchAnswer" class="search-answer">{{ searchAnswer }}</p>
+          <p class="search-query">“{{ searchQuery }}”</p>
           <div class="search-list">
             <a
-              v-for="(r, i) in searchResults.results"
+              v-for="(r, i) in searchItems"
               :key="i"
               :href="r.url"
               target="_blank"
@@ -151,8 +228,8 @@ onUnmounted(() => {
       <div class="conversation-log" ref="conversationLog">
         <div v-if="messages.length === 0" class="log-empty">
           <iconify-icon icon="ph:chat-circle-dots-duotone"></iconify-icon>
-          <span>No messages yet</span>
-          <span class="log-hint">Connect and start talking to see transcriptions</span>
+          <span>{{ t('transcription.noMessages') }}</span>
+          <span class="log-hint">{{ t('transcription.connectHint') }}</span>
         </div>
 
         <div v-for="(msg, index) in messages" :key="index" class="log-message" :class="msg.role">
@@ -170,7 +247,7 @@ onUnmounted(() => {
           <div class="message-content">
             <div class="message-header">
               <span class="message-role">{{
-                msg.role === 'user' ? 'You' : msg.role === 'assistant' ? 'Kwami' : 'System'
+                msg.role === 'user' ? t('transcription.you') : msg.role === 'assistant' ? t('transcription.kwami') : t('transcription.system')
               }}</span>
               <span class="message-time">{{ formatTime(msg.timestamp) }}</span>
             </div>
@@ -185,13 +262,13 @@ onUnmounted(() => {
           <input
             type="text"
             v-model="inputMessage"
-            placeholder="Type a message..."
-            :disabled="!isConnected"
+            :placeholder="t('transcription.typeMessage')"
+            :disabled="!isConnected || isViewingHistory"
             @keypress.enter="sendMessage"
           />
           <button
             class="send-btn"
-            :disabled="!isConnected || !inputMessage.trim()"
+            :disabled="!isConnected || !inputMessage.trim() || isViewingHistory"
             @click="sendMessage"
           >
             <iconify-icon icon="ph:paper-plane-right-duotone"></iconify-icon>
@@ -200,16 +277,16 @@ onUnmounted(() => {
         <div class="input-actions">
           <button
             class="input-action-btn"
-            :disabled="!isConnected"
+            :disabled="!isConnected || isViewingHistory"
             @click="interrupt"
-            title="Interrupt (Esc)"
+            :title="t('transcription.interruptEsc')"
           >
             <iconify-icon icon="ph:hand-palm-duotone"></iconify-icon>
-            Interrupt
+            {{ t('transcription.interrupt') }}
           </button>
-          <button class="input-action-btn" @click="clearLog" title="Clear log">
+          <button class="input-action-btn" @click="clearLog" :title="t('transcription.clearLog')">
             <iconify-icon icon="ph:trash-duotone"></iconify-icon>
-            Clear
+            {{ t('transcription.clear') }}
           </button>
         </div>
       </div>
@@ -218,6 +295,107 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+.session-history {
+  padding: 8px 12px 0;
+  border-bottom: 1px solid var(--glass-border);
+  background: var(--surface-0);
+}
+
+.session-history-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.session-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-height: 72px;
+  overflow-y: auto;
+  padding-bottom: 8px;
+}
+
+.session-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--glass-border);
+  background: var(--surface-1);
+  color: var(--text-secondary);
+  font-size: 11px;
+  cursor: pointer;
+  max-width: 100%;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.session-chip:hover {
+  border-color: var(--accent-primary);
+  color: var(--text-primary);
+}
+
+.session-chip-selected {
+  border-color: var(--accent-primary);
+  background: rgba(124, 92, 255, 0.12);
+}
+
+.session-chip-active {
+  font-weight: 600;
+}
+
+.session-live {
+  font-size: 9px;
+  text-transform: uppercase;
+  color: var(--success);
+  font-weight: 700;
+}
+
+.session-delete {
+  display: inline-flex;
+  margin-left: 2px;
+  opacity: 0.45;
+  padding: 2px;
+}
+
+.session-delete:hover {
+  opacity: 1;
+  color: var(--accent-error);
+}
+
+.history-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: rgba(124, 92, 255, 0.08);
+  border-bottom: 1px solid var(--glass-border);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.history-banner-btn {
+  margin-left: auto;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--glass-border);
+  background: var(--surface-1);
+  color: var(--accent-primary);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.history-banner-btn:hover {
+  background: var(--surface-2);
+}
+
 .transcription-body {
   display: flex;
   flex-direction: column;

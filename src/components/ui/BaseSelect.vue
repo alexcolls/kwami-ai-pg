@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
+import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 const props = defineProps<{
   modelValue: string | number;
@@ -12,11 +13,13 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits(['update:modelValue']);
+const { t } = useI18n();
 
 const isOpen = ref(false);
 const selectRef = ref<HTMLElement | null>(null);
 const triggerRef = ref<HTMLElement | null>(null);
 const highlightedIndex = ref(-1);
+const dropdownPlacement = ref<'top' | 'bottom'>('bottom');
 
 // Dropdown position (computed from trigger bounding rect)
 const dropdownStyle = ref<Record<string, string>>({});
@@ -28,13 +31,42 @@ const selectedOption = computed(() => {
 function updateDropdownPosition() {
   if (!triggerRef.value) return;
   const rect = triggerRef.value.getBoundingClientRect();
-  dropdownStyle.value = {
-    position: 'fixed',
-    top: `${rect.bottom + 6}px`,
-    left: `${rect.left}px`,
-    width: `${rect.width}px`,
-    zIndex: '10001',
-  };
+  const gap = 6;
+  const pad = 8;
+  const maxH = 252;
+  const estH = Math.min(props.options.length * 44 + 12, maxH);
+  const spaceBelow = window.innerHeight - rect.bottom - pad;
+  const spaceAbove = rect.top - pad;
+  const openUp = spaceBelow < estH && spaceAbove > spaceBelow;
+
+  dropdownPlacement.value = openUp ? 'top' : 'bottom';
+
+  const leftClamped = Math.max(pad, Math.min(rect.left, window.innerWidth - rect.width - pad));
+
+  if (openUp) {
+    const bottomFromViewport = window.innerHeight - rect.top + gap;
+    dropdownStyle.value = {
+      position: 'fixed',
+      bottom: `${bottomFromViewport}px`,
+      top: 'auto',
+      left: `${leftClamped}px`,
+      width: `${rect.width}px`,
+      maxHeight: `${Math.min(spaceAbove, maxH)}px`,
+      zIndex: '10001',
+      transformOrigin: 'bottom center',
+    };
+  } else {
+    dropdownStyle.value = {
+      position: 'fixed',
+      top: `${rect.bottom + gap}px`,
+      bottom: 'auto',
+      left: `${leftClamped}px`,
+      width: `${rect.width}px`,
+      maxHeight: `${Math.min(spaceBelow, maxH)}px`,
+      zIndex: '10001',
+      transformOrigin: 'top center',
+    };
+  }
 }
 
 function toggle() {
@@ -105,11 +137,13 @@ function handleScroll() {
 onMounted(() => {
   document.addEventListener('click', handleClickOutside, true);
   document.addEventListener('scroll', handleScroll, true);
+  window.addEventListener('resize', handleScroll);
 });
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside, true);
   document.removeEventListener('scroll', handleScroll, true);
+  window.removeEventListener('resize', handleScroll);
 });
 </script>
 
@@ -135,14 +169,19 @@ onUnmounted(() => {
     >
       <span class="select-value" :class="{ placeholder: !selectedOption }">
         <iconify-icon v-if="selectedOption?.icon" :icon="selectedOption.icon" class="option-icon"></iconify-icon>
-        {{ selectedOption?.label || placeholder || 'Select...' }}
+        {{ selectedOption?.label || placeholder || t('ui.selectPlaceholder') }}
       </span>
       <iconify-icon icon="ph:caret-up-down-bold" class="caret"></iconify-icon>
     </button>
 
     <Teleport to="body">
       <Transition name="dropdown">
-        <div v-if="isOpen" class="dropdown base-select-dropdown-portal" :style="dropdownStyle">
+        <div
+          v-if="isOpen"
+          class="dropdown base-select-dropdown-portal"
+          :style="dropdownStyle"
+          :data-placement="dropdownPlacement"
+        >
           <div class="dropdown-scroll">
             <button
               v-for="(opt, idx) in options"
@@ -277,6 +316,12 @@ onUnmounted(() => {
   overflow: hidden;
 }
 
+.base-select-dropdown-portal[data-placement="top"] {
+  box-shadow:
+    0 -12px 40px rgba(0, 0, 0, 0.28),
+    0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+}
+
 .base-select-dropdown-portal .dropdown-scroll {
   max-height: 240px;
   overflow-y: auto;
@@ -363,6 +408,14 @@ onUnmounted(() => {
   animation: dropdownOut 0.15s ease-in;
 }
 
+.base-select-dropdown-portal[data-placement="top"].dropdown-enter-active {
+  animation: dropdownInUp 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.base-select-dropdown-portal[data-placement="top"].dropdown-leave-active {
+  animation: dropdownOutUp 0.15s ease-in;
+}
+
 @keyframes dropdownIn {
   from {
     opacity: 0;
@@ -382,6 +435,28 @@ onUnmounted(() => {
   to {
     opacity: 0;
     transform: translateY(-4px) scale(0.98);
+  }
+}
+
+@keyframes dropdownInUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes dropdownOutUp {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(4px) scale(0.98);
   }
 }
 </style>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 const props = defineProps<{
   modelValue: 'standard' | 'realtime';
@@ -8,6 +9,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'update:modelValue', value: 'standard' | 'realtime'): void;
 }>();
+const { t } = useI18n();
 
 const selected = computed({
   get: () => props.modelValue,
@@ -26,8 +28,8 @@ const selected = computed({
         <iconify-icon icon="ph:flow-arrow-duotone"></iconify-icon>
       </div>
       <div class="pipeline-info">
-        <span class="pipeline-name">Standard Pipeline</span>
-        <span class="pipeline-desc">LLM + STT + TTS</span>
+        <span class="pipeline-name">{{ t('models.standardPipeline') }}</span>
+        <span class="pipeline-desc">{{ t('models.standardPipelineDesc') }}</span>
       </div>
     </button>
     
@@ -40,8 +42,8 @@ const selected = computed({
         <iconify-icon icon="ph:video-camera-duotone"></iconify-icon>
       </div>
       <div class="pipeline-info">
-        <span class="pipeline-name">Realtime Multimodal</span>
-        <span class="pipeline-desc">Audio + Video</span>
+        <span class="pipeline-name">{{ t('models.realtimeMultimodal') }}</span>
+        <span class="pipeline-desc">{{ t('models.realtimeMultimodalDesc') }}</span>
       </div>
     </button>
   </div>

@@ -4,6 +4,7 @@ import { computed, ref } from 'vue';
 const props = withDefaults(defineProps<{
   modelValue: number;
   label?: string;
+  description?: string;
   icon?: string;
   min?: number;
   max?: number;
@@ -91,6 +92,7 @@ function onEditKeydown(e: KeyboardEvent) {
       <label class="slider-label">
         <iconify-icon v-if="icon" :icon="icon"></iconify-icon>
         {{ label }}
+        <span v-if="description" class="slider-description">{{ description }}</span>
       </label>
       <template v-if="hideValue !== true">
         <input
@@ -163,11 +165,22 @@ function onEditKeydown(e: KeyboardEvent) {
 .slider-label {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 6px;
   font-size: 11px;
   font-weight: 500;
   color: var(--text-secondary);
   transition: color 0.2s ease;
+}
+
+.slider-description {
+  display: block;
+  width: 100%;
+  font-size: 9px;
+  font-weight: 400;
+  color: var(--text-tertiary);
+  line-height: 1.3;
+  margin-top: -2px;
 }
 
 .slider-control:hover .slider-label {

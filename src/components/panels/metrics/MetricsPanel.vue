@@ -1,13 +1,19 @@
 <script setup lang="ts">
-import { reactive, onMounted, onUnmounted } from 'vue';
+import { reactive, computed, onMounted, onUnmounted } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { panelIcons } from '@/constants/panel-icons';
 import { useKwami } from '@/composables/useKwami';
 import { useMetricsState } from '@/composables/useMetricsState';
 import PanelSection from '@/components/ui/PanelSection.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
+import PanelHeaderControls from '@/components/ui/PanelHeaderControls.vue';
+import { useThemeStore } from '@/stores/theme';
 import type { VoicePipelineConfig } from 'kwami';
 
 const { kwami } = useKwami();
+const { t } = useI18n();
+const themeStore = useThemeStore();
+const isRightSidebar = computed(() => themeStore.sidebarPosition === 'right');
 const {
   latency,
   stats,
@@ -83,16 +89,26 @@ onUnmounted(() => {
   <div class="panel-inner">
     <div class="panel-header">
       <iconify-icon :icon="panelIcons.metrics" class="panel-icon"></iconify-icon>
-      <h2>Metrics</h2>
-      <span class="status-pill" :class="{ active: isLive }">
-        <span class="pulse-dot"></span>
-        {{ isLive ? 'Live' : 'Waiting' }}
-      </span>
+      <h2>{{ t('metrics.title') }}</h2>
+      <template v-if="isRightSidebar">
+        <PanelHeaderControls :show-divider="true" />
+        <span class="status-pill" :class="{ active: isLive }">
+          <span class="pulse-dot"></span>
+          {{ isLive ? t('metrics.live') : t('metrics.waiting') }}
+        </span>
+      </template>
+      <template v-else>
+        <span class="status-pill" :class="{ active: isLive }">
+          <span class="pulse-dot"></span>
+          {{ isLive ? t('metrics.live') : t('metrics.waiting') }}
+        </span>
+        <PanelHeaderControls :show-divider="true" />
+      </template>
     </div>
 
     <div class="panel-body">
       <!-- Config -->
-      <PanelSection title="Agent Configuration" icon="ph:gear-duotone" collapsible>
+      <PanelSection :title="t('metrics.agentConfig')" icon="ph:gear-duotone" collapsible>
         <div class="config-summary">
           <div class="config-row">
             <span class="label">VAD</span> <span class="val">{{ config.vad }}</span>
@@ -101,46 +117,46 @@ onUnmounted(() => {
             <span class="label">STT</span> <span class="val">{{ config.stt.provider }}</span>
           </div>
           <div class="config-row sub">
-            <span class="label">Model</span> <span class="val normal">{{ config.stt.model }}</span>
+            <span class="label">{{ t('metrics.model') }}</span> <span class="val normal">{{ config.stt.model }}</span>
           </div>
           <div class="config-row">
             <span class="label">LLM</span> <span class="val">{{ config.llm.provider }}</span>
           </div>
           <div class="config-row sub">
-            <span class="label">Model</span> <span class="val normal">{{ config.llm.model }}</span>
+            <span class="label">{{ t('metrics.model') }}</span> <span class="val normal">{{ config.llm.model }}</span>
           </div>
           <div class="config-row">
             <span class="label">TTS</span> <span class="val">{{ config.tts.provider }}</span>
           </div>
           <div class="config-row sub">
-            <span class="label">Model</span> <span class="val normal">{{ config.tts.model }}</span>
+            <span class="label">{{ t('metrics.model') }}</span> <span class="val normal">{{ config.tts.model }}</span>
           </div>
           <div class="config-row sub">
-            <span class="label">Voice</span> <span class="val normal">{{ config.tts.voice }}</span>
+            <span class="label">{{ t('metrics.voice') }}</span> <span class="val normal">{{ config.tts.voice }}</span>
           </div>
         </div>
       </PanelSection>
 
       <!-- Enhancements -->
-      <PanelSection title="Enhancements" icon="ph:sliders-duotone" collapsible>
+      <PanelSection :title="t('metrics.enhancements')" icon="ph:sliders-duotone" collapsible>
         <div class="config-summary">
           <div class="config-row">
-            <span class="label">Turn Detection</span>
+            <span class="label">{{ t('metrics.turnDetection') }}</span>
             <span class="val" :class="config.enhancements.turnDetection ? 'ok' : 'no'">{{
-              config.enhancements.turnDetection ? 'ON' : 'OFF'
+              config.enhancements.turnDetection ? t('metrics.on') : t('metrics.off')
             }}</span>
           </div>
           <div class="config-row">
-            <span class="label">Noise Cancellation</span>
+            <span class="label">{{ t('metrics.noiseCancellation') }}</span>
             <span class="val" :class="config.enhancements.noiseCancellation ? 'ok' : 'no'">{{
-              config.enhancements.noiseCancellation ? 'ON' : 'OFF'
+              config.enhancements.noiseCancellation ? t('metrics.on') : t('metrics.off')
             }}</span>
           </div>
         </div>
       </PanelSection>
 
       <!-- Latency -->
-      <PanelSection title="Latency" icon="ph:timer-duotone">
+      <PanelSection :title="t('metrics.latency')" icon="ph:timer-duotone">
         <div class="latency-grid">
           <div class="lat-item">
             <span class="lat-label">STT</span>
@@ -159,40 +175,40 @@ onUnmounted(() => {
             <span class="lat-value">{{ latency.tts }}</span>
           </div>
           <div class="lat-item overall">
-            <span class="lat-label">Overall</span>
+            <span class="lat-label">{{ t('metrics.overall') }}</span>
             <span class="lat-value">{{ latency.overall }}</span>
           </div>
         </div>
       </PanelSection>
 
       <!-- Stats -->
-      <PanelSection title="Session Stats" icon="ph:activity-duotone">
+      <PanelSection :title="t('metrics.sessionStats')" icon="ph:activity-duotone">
         <div class="stats-grid">
           <div class="stat-card">
             <div class="stat-value">{{ stats.turns }}</div>
-            <div class="stat-label">Turns</div>
+            <div class="stat-label">{{ t('metrics.turns') }}</div>
           </div>
           <div class="stat-card">
             <div class="stat-value">{{ stats.interruptions }}</div>
-            <div class="stat-label">Interruptions</div>
+            <div class="stat-label">{{ t('metrics.interruptions') }}</div>
           </div>
           <div class="stat-card">
             <div class="stat-value">{{ stats.agentTime }}</div>
-            <div class="stat-label">Agent Time</div>
+            <div class="stat-label">{{ t('metrics.agentTime') }}</div>
           </div>
           <div class="stat-card">
             <div class="stat-value">{{ stats.userTime }}</div>
-            <div class="stat-label">User Time</div>
+            <div class="stat-label">{{ t('metrics.userTime') }}</div>
           </div>
         </div>
       </PanelSection>
 
       <!-- Chart (Simple history bars) -->
-      <PanelSection title="Latency History" icon="ph:chart-bar-duotone" collapsible>
+      <PanelSection :title="t('metrics.latencyHistory')" icon="ph:chart-bar-duotone" collapsible>
         <div class="chart-container">
           <div v-if="latencyHistory.length === 0" class="chart-empty">
             <iconify-icon icon="ph:chart-bar-duotone"></iconify-icon>
-            No data yet
+            {{ t('metrics.noDataYet') }}
           </div>
           <div v-else class="chart-bars">
             <div
@@ -207,7 +223,7 @@ onUnmounted(() => {
       </PanelSection>
 
       <!-- Actions -->
-      <PanelSection title="Actions" icon="ph:wrench-duotone">
+      <PanelSection :title="t('metrics.actions')" icon="ph:wrench-duotone">
         <div class="action-buttons">
           <BaseButton 
             variant="secondary" 
@@ -215,7 +231,7 @@ onUnmounted(() => {
             icon="ph:arrow-counter-clockwise-duotone"
             @click="resetMetrics"
           >
-            Reset Metrics
+            {{ t('metrics.resetMetrics') }}
           </BaseButton>
           <BaseButton 
             variant="secondary" 
@@ -223,7 +239,7 @@ onUnmounted(() => {
             icon="ph:export-duotone"
             @click="exportMetrics"
           >
-            Export JSON
+            {{ t('metrics.exportJson') }}
           </BaseButton>
         </div>
       </PanelSection>

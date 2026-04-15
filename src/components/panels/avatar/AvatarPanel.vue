@@ -1,44 +1,38 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, watch, computed, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { storeToRefs } from 'pinia';
 import { useKwami } from '@/composables/useKwami';
 import { useAvatarStore, type AvatarState } from '@/stores/avatar';
 import { useBlobXyzStore } from '@/stores/avatar.blob-xyz';
-import { useOrbitalShardsStore } from '@/stores/avatar.orbital-shards';
-import { useStarsGenesisStore } from '@/stores/avatar.stars-genesis';
-import { useCrystalBallStore } from '@/stores/avatar.crystal-ball';
 import { useBlackHoleStore } from '@/stores/avatar.black-hole';
 import BasePanel from '@/components/ui/BasePanel.vue';
 import PanelSection from '@/components/ui/PanelSection.vue';
 import { panelIcons } from '@/constants/panel-icons';
 import BlobXyzSettings from './BlobXyzSettings.vue';
-import OrbitalShardsSettings from './OrbitalShardsSettings.vue';
-import StarsGenesisSettings from './StarsGenesisSettings.vue';
-import CrystalBallSettings from './CrystalBallSettings.vue';
 import BlackHoleSettings from './BlackHoleSettings.vue';
 
 // Sync composables
 import { useBlobXyzSync } from '@/composables/avatar/sync/useBlobXyzSync';
-import { useOrbitalShardsSync } from '@/composables/avatar/sync/useOrbitalShardsSync';
-import { useStarsGenesisSync } from '@/composables/avatar/sync/useStarsGenesisSync';
-import { useCrystalBallSync } from '@/composables/avatar/sync/useCrystalBallSync';
 import { useBlackHoleSync } from '@/composables/avatar/sync/useBlackHoleSync';
+import { randomizeAvatarPanel } from '@/composables/avatar/randomizeAvatarPanel';
+import { useWorkspaceStore } from '@/stores/workspace';
+import { useKwamiConfigSync } from '@/composables/useKwamiConfigSync';
+import type { KwamiConfig } from '@/composables/useKwamiConfigSync';
 
 const { kwami, rendererType: kwamiRendererType, switchRenderer } = useKwami();
+const { t } = useI18n();
+const workspaceStore = useWorkspaceStore();
+const { getConfig } = useKwamiConfigSync();
+const panelIcon = panelIcons.avatar ?? 'ph:ghost-duotone';
 const avatarStore = useAvatarStore();
 const blobStore = useBlobXyzStore();
-const orbitalShardsStore = useOrbitalShardsStore();
-const starsGenesisStore = useStarsGenesisStore();
-const crystalBallStore = useCrystalBallStore();
 const blackHoleStore = useBlackHoleStore();
 
 // Use store state
 const {
   rendererType,
   blobXyzPresets,
-  orbitalShardsPresets,
-  starsGenesisPresets,
-  crystalBallPresets,
   blackHolePresets,
 } = storeToRefs(avatarStore);
 
@@ -49,17 +43,9 @@ const {
 function getBlob() {
   return kwami.value?.avatar.getBlob();
 }
-function getOrbitalShards() {
-  return kwami.value?.avatar.getOrbitalShards();
-}
-function getStarsGenesis() {
-  return kwami.value?.avatar.getStarsGenesis();
-}
-function getCrystalBall() {
-  return (kwami.value?.avatar as any)?.getCrystalBall?.();
-}
 function getBlackHole() {
-  return (kwami.value?.avatar as any)?.getBlackHole?.();
+  const avatar = kwami.value?.avatar as { getBlackHole?: () => unknown } | undefined;
+  return avatar?.getBlackHole?.();
 }
 
 // =====================================================
@@ -69,21 +55,6 @@ function getBlackHole() {
 const { syncFromKwami: syncBlobFromKwami, applyToKwami: applyBlobToKwami } = useBlobXyzSync({
   kwami,
   getBlob,
-});
-
-const { syncFromKwami: syncOrbitalShardsFromKwami, applyToKwami: applyOrbitalShardsToKwami } = useOrbitalShardsSync({
-  kwami,
-  getOrbitalShards,
-});
-
-const { syncFromKwami: syncStarsGenesisFromKwami, applyToKwami: applyStarsGenesisToKwami } = useStarsGenesisSync({
-  kwami,
-  getStarsGenesis,
-});
-
-const { syncFromKwami: syncCrystalBallFromKwami, applyToKwami: applyCrystalBallToKwami } = useCrystalBallSync({
-  kwami,
-  getCrystalBall,
 });
 
 const { syncFromKwami: syncBlackHoleFromKwami, applyToKwami: applyBlackHoleToKwami } = useBlackHoleSync({
@@ -99,12 +70,6 @@ const currentPresets = computed(() => {
   switch (rendererType.value) {
     case 'blob-xyz':
       return blobXyzPresets.value;
-    case 'orbital-shards':
-      return orbitalShardsPresets.value;
-    case 'stars-genesis':
-      return starsGenesisPresets.value;
-    case 'crystal-ball':
-      return crystalBallPresets.value;
     case 'black-hole':
       return blackHolePresets.value;
     default:
@@ -120,19 +85,10 @@ function syncFromKwami() {
   if (!kwami.value) return;
 
   syncBlobFromKwami();
-  syncOrbitalShardsFromKwami();
-  syncStarsGenesisFromKwami();
-  syncCrystalBallFromKwami();
   syncBlackHoleFromKwami();
 
-  // Sync renderer type from kwami
   avatarStore.setRendererType(
-    kwamiRendererType.value as
-      | 'blob-xyz'
-      | 'orbital-shards'
-      | 'stars-genesis'
-      | 'crystal-ball'
-      | 'black-hole',
+    kwamiRendererType.value as 'blob-xyz' | 'black-hole',
   );
 }
 
@@ -141,15 +97,6 @@ function applyCurrentRendererToKwami(type: string) {
   switch (type) {
     case 'blob-xyz':
       applyBlobToKwami();
-      break;
-    case 'orbital-shards':
-      applyOrbitalShardsToKwami();
-      break;
-    case 'stars-genesis':
-      applyStarsGenesisToKwami();
-      break;
-    case 'crystal-ball':
-      applyCrystalBallToKwami();
       break;
     case 'black-hole':
       applyBlackHoleToKwami();
@@ -163,7 +110,7 @@ function applyCurrentRendererToKwami(type: string) {
 
 watch(rendererType, (type) => {
   if (kwamiRendererType.value !== type) {
-    switchRenderer(type as any);
+    switchRenderer(type);
   }
 });
 
@@ -180,52 +127,6 @@ watch(
     blobStore.clickEvents,
     blobStore.cursorTouch,
     blobStore.audio,
-  ],
-  () => avatarStore.saveSettings(),
-  { deep: true }
-);
-
-watch(
-  () => [
-    orbitalShardsStore.appearance,
-    orbitalShardsStore.colors,
-    orbitalShardsStore.glow,
-    orbitalShardsStore.animation,
-    orbitalShardsStore.orientation,
-    orbitalShardsStore.audio,
-    orbitalShardsStore.clickEvents,
-    orbitalShardsStore.cursorTouch,
-  ],
-  () => avatarStore.saveSettings(),
-  { deep: true }
-);
-
-watch(
-  () => [
-    starsGenesisStore.formation,
-    starsGenesisStore.visual,
-    starsGenesisStore.transform,
-    starsGenesisStore.physics,
-    starsGenesisStore.animation,
-    starsGenesisStore.audio,
-    starsGenesisStore.clickEvents,
-    starsGenesisStore.cursorTouch,
-  ],
-  () => avatarStore.saveSettings(),
-  { deep: true }
-);
-
-watch(
-  () => [
-    crystalBallStore.style,
-    crystalBallStore.colors,
-    crystalBallStore.volume,
-    crystalBallStore.animation,
-    crystalBallStore.orientation,
-    crystalBallStore.surface,
-    crystalBallStore.audio,
-    crystalBallStore.clickEvents,
-    crystalBallStore.cursorTouch,
   ],
   () => avatarStore.saveSettings(),
   { deep: true }
@@ -258,47 +159,47 @@ watch(rendererType, () => avatarStore.saveSettings());
 // ACTIONS
 // =====================================================
 
-function handleSwitchRenderer(
-  type: 'blob-xyz' | 'orbital-shards' | 'stars-genesis' | 'crystal-ball' | 'black-hole',
-) {
+function handleSwitchRenderer(type: 'blob-xyz' | 'black-hole') {
   avatarStore.setRendererType(type);
-  switchRenderer(type as any);
-  // Apply saved config immediately after switch to avoid showing default state
+  switchRenderer(type);
   applyCurrentRendererToKwami(type);
 }
 
 function handleRandomize() {
-  kwami.value?.avatar.randomize();
-  syncFromKwami();
+  randomizeAvatarPanel({
+    applyBlob: applyBlobToKwami,
+    applyBlackHole: applyBlackHoleToKwami,
+    applyParticles: () => {},
+  });
+  window.dispatchEvent(new CustomEvent('kwami:randomized'));
 }
 
 function handleReset() {
-  // Reset store state
-  avatarStore.reset();
-  blobStore.resetAll();
-  orbitalShardsStore.resetAll();
-  starsGenesisStore.resetAll();
-  crystalBallStore.resetAll();
-  blackHoleStore.resetAll();
+  const savedAvatar = workspaceStore.getActiveSavedConfig()?.avatar;
+  const hasSavedAvatar =
+    savedAvatar &&
+    typeof savedAvatar === 'object' &&
+    Object.keys(savedAvatar as object).length > 0;
 
-  // Apply defaults to kwami instance using sync composables
-  switch (rendererType.value) {
-    case 'blob-xyz':
-      applyBlobToKwami();
-      break;
-    case 'orbital-shards':
-      applyOrbitalShardsToKwami();
-      break;
-    case 'stars-genesis':
-      applyStarsGenesisToKwami();
-      break;
-    case 'crystal-ball':
-      applyCrystalBallToKwami();
-      break;
-    case 'black-hole':
-      applyBlackHoleToKwami();
-      break;
+  if (hasSavedAvatar) {
+    avatarStore.applySnapshot(
+      savedAvatar as Parameters<typeof avatarStore.applySnapshot>[0],
+    );
+  } else {
+    avatarStore.reset();
+    blobStore.resetAll();
+    blackHoleStore.resetAll();
   }
+
+  if (kwamiRendererType.value !== rendererType.value) {
+    switchRenderer(rendererType.value as 'blob-xyz' | 'black-hole');
+  }
+  applyCurrentRendererToKwami(rendererType.value);
+
+  workspaceStore.updateActiveConfigLocal(
+    JSON.parse(JSON.stringify(getConfig())) as KwamiConfig,
+  );
+  avatarStore.saveSettings();
 }
 
 function handleApplyPreset(presetId: string) {
@@ -306,22 +207,13 @@ function handleApplyPreset(presetId: string) {
   if (success) {
     // Switch renderer if needed
     if (kwamiRendererType.value !== rendererType.value) {
-      switchRenderer(rendererType.value as any);
+      switchRenderer(rendererType.value);
     }
 
     // Apply preset to kwami instance using sync composables
     switch (rendererType.value) {
       case 'blob-xyz':
         applyBlobToKwami();
-        break;
-      case 'orbital-shards':
-        applyOrbitalShardsToKwami();
-        break;
-      case 'stars-genesis':
-        applyStarsGenesisToKwami();
-        break;
-      case 'crystal-ball':
-        applyCrystalBallToKwami();
         break;
       case 'black-hole':
         applyBlackHoleToKwami();
@@ -406,16 +298,7 @@ function onCanvasMouseMove(e: MouseEvent) {
   lastMousePosition = { x: e.clientX, y: e.clientY };
 
   // For non-blob renderers, update orientation directly from mouse delta
-  if (rendererType.value === 'orbital-shards') {
-    orbitalShardsStore.orientation.y = normalizeAngle(orbitalShardsStore.orientation.y + deltaX * 0.5);
-    orbitalShardsStore.orientation.x = normalizeAngle(orbitalShardsStore.orientation.x + deltaY * 0.5);
-  } else if (rendererType.value === 'stars-genesis') {
-    starsGenesisStore.orientation.y = normalizeAngle(starsGenesisStore.orientation.y + deltaX * 0.5);
-    starsGenesisStore.orientation.x = normalizeAngle(starsGenesisStore.orientation.x + deltaY * 0.5);
-  } else if (rendererType.value === 'crystal-ball') {
-    crystalBallStore.orientation.y = normalizeAngle(crystalBallStore.orientation.y + deltaX * 0.5);
-    crystalBallStore.orientation.x = normalizeAngle(crystalBallStore.orientation.x + deltaY * 0.5);
-  } else if (rendererType.value === 'black-hole') {
+  if (rendererType.value === 'black-hole') {
     blackHoleStore.orientation.y = normalizeAngle(blackHoleStore.orientation.y + deltaX * 0.5);
     blackHoleStore.orientation.x = normalizeAngle(blackHoleStore.orientation.x + deltaY * 0.5);
   }
@@ -462,7 +345,7 @@ onMounted(() => {
 
   if (avatarStore.isInitialized) {
     if (kwamiRendererType.value !== rendererType.value) {
-      switchRenderer(rendererType.value as any);
+      switchRenderer(rendererType.value);
     }
     applyCurrentRendererToKwami(rendererType.value);
   }
@@ -505,10 +388,10 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <BasePanel :icon="panelIcons.avatar" title="3D Avatar">
+  <BasePanel :icon="panelIcon" :title="t('avatar.title')">
     <!-- Avatar Type Selector -->
-    <PanelSection title="Avatar Type" icon="ph:swap-duotone" collapsible>
-      <p class="section-desc">Choose the visual style for your avatar</p>
+    <PanelSection :title="t('avatar.avatarType')" icon="ph:swap-duotone" collapsible>
+      <p class="section-desc">{{ t('avatar.avatarTypeDesc') }}</p>
       <div class="renderer-selector">
         <label class="renderer-option" :class="{ active: rendererType === 'blob-xyz' }">
           <input
@@ -520,50 +403,8 @@ onUnmounted(() => {
           />
           <iconify-icon icon="ph:circle-wavy-duotone" class="renderer-icon"></iconify-icon>
           <div class="renderer-content">
-            <span class="renderer-label">Blob XYZ</span>
-            <span class="renderer-desc">Organic morphing shape</span>
-          </div>
-        </label>
-        <label class="renderer-option" :class="{ active: rendererType === 'orbital-shards' }">
-          <input
-            type="radio"
-            name="renderer"
-            value="orbital-shards"
-            :checked="rendererType === 'orbital-shards'"
-            @change="handleSwitchRenderer('orbital-shards')"
-          />
-          <iconify-icon icon="ph:atom-duotone" class="renderer-icon"></iconify-icon>
-          <div class="renderer-content">
-            <span class="renderer-label">Orbital Shards</span>
-            <span class="renderer-desc">Floating fragments in orbit</span>
-          </div>
-        </label>
-        <label class="renderer-option" :class="{ active: rendererType === 'stars-genesis' }">
-          <input
-            type="radio"
-            name="renderer"
-            value="stars-genesis"
-            :checked="rendererType === 'stars-genesis'"
-            @change="handleSwitchRenderer('stars-genesis')"
-          />
-          <iconify-icon icon="ph:shooting-star-duotone" class="renderer-icon"></iconify-icon>
-          <div class="renderer-content">
-            <span class="renderer-label">Stars Genesis</span>
-            <span class="renderer-desc">Cosmic particle field</span>
-          </div>
-        </label>
-        <label class="renderer-option" :class="{ active: rendererType === 'crystal-ball' }">
-          <input
-            type="radio"
-            name="renderer"
-            value="crystal-ball"
-            :checked="rendererType === 'crystal-ball'"
-            @change="handleSwitchRenderer('crystal-ball')"
-          />
-          <iconify-icon icon="ph:planet-duotone" class="renderer-icon"></iconify-icon>
-          <div class="renderer-content">
-            <span class="renderer-label">Crystal Ball</span>
-            <span class="renderer-desc">Mystical glowing sphere</span>
+            <span class="renderer-label">{{ t('avatar.rendererBlob') }}</span>
+            <span class="renderer-desc">{{ t('avatar.rendererBlobDesc') }}</span>
           </div>
         </label>
         <label class="renderer-option" :class="{ active: rendererType === 'black-hole' }">
@@ -576,16 +417,16 @@ onUnmounted(() => {
           />
           <iconify-icon icon="ph:circle-dashed-duotone" class="renderer-icon"></iconify-icon>
           <div class="renderer-content">
-            <span class="renderer-label">Black Hole</span>
-            <span class="renderer-desc">Gravitational void effect</span>
+            <span class="renderer-label">{{ t('avatar.rendererBlackHole') }}</span>
+            <span class="renderer-desc">{{ t('avatar.rendererBlackHoleDesc') }}</span>
           </div>
         </label>
       </div>
     </PanelSection>
 
     <!-- Presets -->
-    <PanelSection title="Quick Presets" icon="ph:magic-wand-duotone" collapsible>
-      <p class="section-desc">Apply pre-configured looks or randomize</p>
+    <PanelSection :title="t('avatar.quickPresets')" icon="ph:magic-wand-duotone" collapsible>
+      <p class="section-desc">{{ t('avatar.quickPresetsDesc') }}</p>
       <div class="presets-grid">
         <button
           v-for="preset in currentPresets"
@@ -602,23 +443,20 @@ onUnmounted(() => {
         <button
           class="action-btn randomize"
           @click="handleRandomize"
-          title="Randomize all settings"
+          :title="t('avatar.randomizeAllTitle')"
         >
           <iconify-icon icon="ph:dice-five-duotone"></iconify-icon>
-          <span>Randomize</span>
+          <span>{{ t('avatar.randomize') }}</span>
         </button>
-        <button class="action-btn reset" @click="handleReset" title="Reset to defaults">
+        <button class="action-btn reset" @click="handleReset" :title="t('avatar.resetDefaultsTitle')">
           <iconify-icon icon="ph:arrow-counter-clockwise-duotone"></iconify-icon>
-          <span>Reset</span>
+          <span>{{ t('avatar.reset') }}</span>
         </button>
       </div>
     </PanelSection>
 
     <!-- Sub-components -->
     <BlobXyzSettings v-if="rendererType === 'blob-xyz'" />
-    <OrbitalShardsSettings v-if="rendererType === 'orbital-shards'" />
-    <StarsGenesisSettings v-if="rendererType === 'stars-genesis'" />
-    <CrystalBallSettings v-if="rendererType === 'crystal-ball'" />
     <BlackHoleSettings v-if="rendererType === 'black-hole'" />
   </BasePanel>
 </template>

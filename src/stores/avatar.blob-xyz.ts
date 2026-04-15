@@ -12,12 +12,18 @@
 
 import { defineStore } from 'pinia';
 import { reactive } from 'vue';
+import { randomInRange } from '@/utils/color';
+import { randomizeBlobState } from 'kwami';
 
 // =====================================================
 // TYPES
 // =====================================================
 
-export type SkinType = 'poles' | 'donut' | 'vintage';
+export type SkinType =
+  | 'radial' | 'banded' | 'striped' | 'marble' | 'fresnel' | 'iridescent' | 'spiral' | 'plasma' | 'gradient'
+  | 'matte' | 'glossy' | 'metallic' | 'subsurface'
+  | 'chrome' | 'clay' | 'jade' | 'toon-matcap' | 'hologram'
+  | 'flat' | 'stepped' | 'halftone' | 'outlined';
 
 export type InteractionAction =
   | 'none'
@@ -132,16 +138,12 @@ export interface BlobXyzAudio {
   sensitivity: number;
   responseSpeed: number;
   transientBoost: number;
+  spikeDensity: number;
+  rotateWhilePlaying: boolean;
   frequencySpikes: {
     bass: number;
     mid: number;
     high: number;
-  };
-  timeModulation: {
-    enabled: boolean;
-    mid: number;
-    high: number;
-    ultra: number;
   };
 }
 
@@ -161,7 +163,7 @@ export interface BlobXyzState {
 
 export function getDefaultSkin(): BlobXyzSkin {
   return {
-    type: 'poles',
+    type: 'radial',
     colors: {
       x: '#ff0066',
       y: '#00ff66',
@@ -256,20 +258,16 @@ export function getDefaultCursorTouch(): BlobXyzCursorTouch {
 export function getDefaultAudio(): BlobXyzAudio {
   return {
     enabled: true,
-    reactivity: 1.9,
+    reactivity: 1.8,
     sensitivity: 0.075,
-    responseSpeed: 0.75,
-    transientBoost: 0.5,
+    responseSpeed: 0.65,
+    transientBoost: 0.35,
+    spikeDensity: 1.5,
+    rotateWhilePlaying: true,
     frequencySpikes: {
-      bass: 0.65,
-      mid: 0.5,
-      high: 0.38,
-    },
-    timeModulation: {
-      enabled: false,
-      mid: 0.1,
-      high: 0.18,
-      ultra: 0.08,
+      bass: 0.55,
+      mid: 0.65,
+      high: 0.35,
     },
   };
 }
@@ -418,7 +416,7 @@ export const useBlobXyzStore = defineStore('blob-xyz', () => {
     getShininess: () => number;
     lightIntensity: number;
     getWireframe: () => boolean;
-    getCurrentSkinSubtype: () => string;
+    getCurrentSkinType: () => string;
     audioEffects?: {
       enabled?: boolean;
       reactivity?: number;
@@ -429,10 +427,8 @@ export const useBlobXyzStore = defineStore('blob-xyz', () => {
       bassSpike?: number;
       midSpike?: number;
       highSpike?: number;
-      timeEnabled?: boolean;
-      midTime?: number;
-      highTime?: number;
-      ultraTime?: number;
+      spikeDensity?: number;
+      rotateWhilePlaying?: boolean;
     };
   }) {
     // Sync skin
@@ -440,7 +436,7 @@ export const useBlobXyzStore = defineStore('blob-xyz', () => {
     skin.colors.x = colors.x;
     skin.colors.y = colors.y;
     skin.colors.z = colors.z;
-    skin.type = blob.getCurrentSkinSubtype() as SkinType;
+    skin.type = blob.getCurrentSkinType() as SkinType;
     skin.opacity = blob.getOpacity();
     skin.shininess = blob.getShininess();
     skin.lightIntensity = blob.lightIntensity;
@@ -475,13 +471,11 @@ export const useBlobXyzStore = defineStore('blob-xyz', () => {
       animation.breathing = blob.audioEffects.breathing ?? animation.breathing;
       audio.responseSpeed = blob.audioEffects.responseSpeed ?? audio.responseSpeed;
       audio.transientBoost = blob.audioEffects.transientBoost ?? audio.transientBoost;
+      audio.spikeDensity = blob.audioEffects.spikeDensity ?? audio.spikeDensity;
+      audio.rotateWhilePlaying = blob.audioEffects.rotateWhilePlaying ?? audio.rotateWhilePlaying;
       audio.frequencySpikes.bass = blob.audioEffects.bassSpike ?? audio.frequencySpikes.bass;
       audio.frequencySpikes.mid = blob.audioEffects.midSpike ?? audio.frequencySpikes.mid;
       audio.frequencySpikes.high = blob.audioEffects.highSpike ?? audio.frequencySpikes.high;
-      audio.timeModulation.enabled = blob.audioEffects.timeEnabled ?? audio.timeModulation.enabled;
-      audio.timeModulation.mid = blob.audioEffects.midTime ?? audio.timeModulation.mid;
-      audio.timeModulation.high = blob.audioEffects.highTime ?? audio.timeModulation.high;
-      audio.timeModulation.ultra = blob.audioEffects.ultraTime ?? audio.timeModulation.ultra;
     }
   }
 
@@ -536,6 +530,53 @@ export const useBlobXyzStore = defineStore('blob-xyz', () => {
     if (state.audio) deepMerge(audio, state.audio);
   }
 
+  const INTERACTION_ACTIONS: InteractionAction[] = [
+    'none',
+    'toggleListening',
+    'startListening',
+    'stopListening',
+    'randomize',
+    'switchRenderer',
+    'cycleState',
+    'pulse',
+    'moveToClick',
+  ];
+
+  const CURSOR_STYLES: CursorStyle[] = ['pointer', 'grab', 'crosshair', 'default'];
+
+  function pickAction(): InteractionAction {
+    return INTERACTION_ACTIONS[Math.floor(Math.random() * INTERACTION_ACTIONS.length)]!;
+  }
+
+  function pickCursor(): CursorStyle {
+    return CURSOR_STYLES[Math.floor(Math.random() * CURSOR_STYLES.length)]!;
+  }
+
+  function randomizeAll() {
+    randomizeBlobState({
+      skin,
+      shape,
+      animation,
+      cursorTouch,
+      audio,
+    });
+
+    clickEvents.click = { enabled: Math.random() > 0.2, action: pickAction() };
+    clickEvents.doubleClick = { enabled: Math.random() > 0.2, action: pickAction() };
+    clickEvents.rightClick = { enabled: Math.random() > 0.2, action: pickAction() };
+    clickEvents.doubleRightClick = { enabled: Math.random() > 0.2, action: pickAction() };
+
+    cursorTouch.hover = {
+      enabled: Math.random() > 0.15,
+      highlightOnHover: Math.random() > 0.5,
+      cursorStyle: pickCursor(),
+    };
+    cursorTouch.drag = {
+      enabled: Math.random() > 0.15,
+      sensitivity: randomInRange(0.1, 3, 0.1),
+    };
+  }
+
   return {
     // State sections
     skin,
@@ -576,5 +617,7 @@ export const useBlobXyzStore = defineStore('blob-xyz', () => {
     // Import/Export
     exportState,
     importState,
+
+    randomizeAll,
   };
 });

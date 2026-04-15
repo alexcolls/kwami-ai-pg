@@ -1,35 +1,89 @@
 <script setup lang="ts">
-import { onMounted } from 'vue';
+import { ref, onMounted, onUnmounted, watch } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import AuthPage from './AuthPage.vue';
+import WelcomeRings from '@/components/welcome/WelcomeRings.vue';
+
+const WELCOME_SOUND = '/aud/fx/welcome.mp3';
+const MIN_WELCOME_MS = 3500;
 
 const authStore = useAuthStore();
+const showWelcomeLayer = ref(false);
+const welcomeStartedAt = ref<number>(0);
+let hideTimeoutId: ReturnType<typeof setTimeout> | null = null;
+
+function playWelcomeSound() {
+  try {
+    const audio = new Audio(WELCOME_SOUND);
+    audio.volume = 0.6;
+    audio.play().catch(() => {});
+  } catch {
+    // ignore
+  }
+}
+
+function hideWelcomeWhenReady() {
+  if (hideTimeoutId) return;
+  const elapsed = Date.now() - welcomeStartedAt.value;
+  const remaining = Math.max(0, MIN_WELCOME_MS - elapsed);
+  hideTimeoutId = setTimeout(() => {
+    hideTimeoutId = null;
+    showWelcomeLayer.value = false;
+  }, remaining);
+}
+
+watch(
+  () => authStore.loading,
+  (loading) => {
+    if (loading) {
+      showWelcomeLayer.value = true;
+      welcomeStartedAt.value = Date.now();
+      playWelcomeSound();
+    } else {
+      hideWelcomeWhenReady();
+    }
+  },
+  { immediate: true },
+);
 
 onMounted(() => {
   authStore.initAuth();
+});
+
+onUnmounted(() => {
+  if (hideTimeoutId) clearTimeout(hideTimeoutId);
 });
 </script>
 
 <template>
   <div class="auth-guard">
-    <!-- Loading state -->
+    <!-- Welcome layer: rings + wordmark (Vue component so it always renders) -->
     <Transition name="fade">
-      <div v-if="authStore.loading" class="loading-container">
-        <div class="loading-spinner">
-          <iconify-icon icon="ph:spinner-gap-bold" class="spin"></iconify-icon>
-        </div>
-        <p class="loading-text">Loading...</p>
+      <div v-if="showWelcomeLayer" class="loading-container welcome-layer">
+        <WelcomeRings
+          :ring-count="120"
+          :ring-stroke-width="2"
+          :base-radius-ratio="0.12"
+          :cycle-seconds="6"
+          :ring-pulse-px-per-index="4"
+          :rotation-degrees-per-second="360"
+          :animate-gradient="true"
+          :include-wordmark="true"
+          :opacity="1"
+          :running="true"
+          z-index="1"
+        />
       </div>
     </Transition>
 
     <!-- App content (always rendered for canvas background) -->
-    <div class="app-content" :class="{ 'behind-auth': !authStore.isAuthenticated && !authStore.loading }">
+    <div class="app-content" :class="{ 'behind-auth': showWelcomeLayer || (!authStore.isAuthenticated && !authStore.loading) }">
       <slot />
     </div>
 
-    <!-- Auth overlay (shown when not authenticated) -->
+    <!-- Auth overlay (shown when not authenticated and welcome is done) -->
     <Transition name="fade">
-      <AuthPage v-if="!authStore.isAuthenticated && !authStore.loading" />
+      <AuthPage v-if="!authStore.isAuthenticated && !showWelcomeLayer" />
     </Transition>
   </div>
 </template>
@@ -45,42 +99,13 @@ onMounted(() => {
   height: 100vh;
 }
 
-.loading-container {
+.loading-container.welcome-layer {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
   background: linear-gradient(135deg, #050510 0%, #0a0a20 50%, #050510 100%);
-  gap: 16px;
   z-index: 2000;
-}
-
-.loading-spinner {
-  font-size: 48px;
-  color: var(--accent-primary);
-}
-
-.spin {
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.loading-text {
-  font-size: 14px;
-  color: var(--text-secondary);
-  margin: 0;
 }
 
 .app-content {

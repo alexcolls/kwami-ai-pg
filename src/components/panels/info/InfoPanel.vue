@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { panelIcons } from '@/constants/panel-icons';
 import { useKwami } from '@/composables/useKwami';
+import PanelHeaderControls from '@/components/ui/PanelHeaderControls.vue';
 
 import { Kwami } from 'kwami';
 
 const { kwami } = useKwami();
+const { t } = useI18n();
 
 // State
 const currentState = ref('idle');
@@ -49,12 +52,12 @@ function logState() {
     console.log('Spikes:', blob.getSpikes());
     console.log('Rotation:', blob.getRotation());
     console.log('Scale:', blob.getScale());
-    console.log('Skin:', blob.getCurrentSkinSubtype());
+    console.log('Skin:', blob.getCurrentSkinType());
     console.groupEnd();
   }
-  console.group('Persona');
-  console.log('Name:', kwami.value.persona.getName());
-  console.log('Config:', kwami.value.persona.getConfig());
+  console.group('Soul');
+  console.log('Name:', kwami.value.soul.getName());
+  console.log('Config:', kwami.value.soul.getConfig());
   console.groupEnd();
   console.group('Agent');
   console.log('Config:', kwami.value.agent.getConfig());
@@ -73,7 +76,7 @@ function logConfig() {
   if (!kwami.value) return;
   console.group('⚙️ Kwami Configuration');
   console.log('Agent:', kwami.value.agent.getConfig());
-  console.log('Persona:', kwami.value.persona.getConfig());
+  console.log('Soul:', kwami.value.soul.getConfig());
   console.log('Memory:', kwami.value.memory.getConfig());
   console.log('Tools:', kwami.value.tools.getAll());
   console.groupEnd();
@@ -112,24 +115,25 @@ onUnmounted(() => {
   <div class="panel-inner">
     <div class="panel-header">
       <iconify-icon :icon="panelIcons.info" class="panel-icon"></iconify-icon>
-      <h2>Info</h2>
+      <h2>{{ t('infoPanel.title') }}</h2>
+      <PanelHeaderControls />
     </div>
 
     <div class="panel-body">
       <!-- Current State -->
       <section class="panel-section">
-        <h3>Current State</h3>
+        <h3>{{ t('infoPanel.currentState') }}</h3>
         <div class="info-grid">
           <div class="info-item">
-            <span class="info-label">State</span>
+            <span class="info-label">{{ t('infoPanel.state') }}</span>
             <span class="info-value">{{ currentState }}</span>
           </div>
           <div class="info-item">
-            <span class="info-label">Connected</span>
-            <span class="info-value">{{ isConnected ? 'Yes' : 'No' }}</span>
+            <span class="info-label">{{ t('infoPanel.connected') }}</span>
+            <span class="info-value">{{ isConnected ? t('infoPanel.yes') : t('infoPanel.no') }}</span>
           </div>
           <div class="info-item">
-            <span class="info-label">FPS</span>
+            <span class="info-label">{{ t('infoPanel.fps') }}</span>
             <span class="info-value">{{ fps }}</span>
           </div>
         </div>
@@ -137,14 +141,14 @@ onUnmounted(() => {
 
       <!-- Version Info -->
       <section class="panel-section">
-        <h3>Version</h3>
+        <h3>{{ t('infoPanel.version') }}</h3>
         <div class="version-info">
           <div class="version-row">
             <span>Kwami</span>
             <span class="version-badge">{{ version }}</span>
           </div>
           <div class="version-row">
-            <span>App</span>
+            <span>{{ t('infoPanel.app') }}</span>
             <span class="version-badge">v1.0.0</span>
           </div>
         </div>
@@ -152,101 +156,100 @@ onUnmounted(() => {
 
       <!-- Keyboard Shortcuts -->
       <section class="panel-section">
-        <h3>Keyboard Shortcuts</h3>
+        <h3>{{ t('infoPanel.keyboardShortcuts') }}</h3>
         <div class="shortcuts-list">
           <div class="shortcut-group">
-            <span class="shortcut-group-title">Avatar Controls</span>
-            <div class="shortcut-item"><kbd>R</kbd> <span>Randomize blob</span></div>
-            <div class="shortcut-item"><kbd>L</kbd> <span>Listening mode</span></div>
-            <div class="shortcut-item"><kbd>T</kbd> <span>Thinking mode</span></div>
-            <div class="shortcut-item"><kbd>I</kbd> <span>Idle mode</span></div>
+            <span class="shortcut-group-title">{{ t('infoPanel.avatarControls') }}</span>
+            <div class="shortcut-item"><kbd>R</kbd> <span>{{ t('infoPanel.randomizeBlob') }}</span></div>
+            <div class="shortcut-item"><kbd>L</kbd> <span>{{ t('infoPanel.listeningMode') }}</span></div>
+            <div class="shortcut-item"><kbd>T</kbd> <span>{{ t('infoPanel.thinkingMode') }}</span></div>
+            <div class="shortcut-item"><kbd>I</kbd> <span>{{ t('infoPanel.idleMode') }}</span></div>
           </div>
           <div class="shortcut-group">
-            <span class="shortcut-group-title">Panel Navigation</span>
-            <div class="shortcut-item"><kbd>P</kbd> <span>Toggle panel</span></div>
-            <div class="shortcut-item"><kbd>1</kbd>-<kbd>8</kbd> <span>Switch panels</span></div>
+            <span class="shortcut-group-title">{{ t('infoPanel.panelNavigation') }}</span>
+            <div class="shortcut-item"><kbd>P</kbd> <span>{{ t('infoPanel.togglePanel') }}</span></div>
+            <div class="shortcut-item"><kbd>1</kbd>-<kbd>8</kbd> <span>{{ t('infoPanel.switchPanels') }}</span></div>
           </div>
         </div>
       </section>
 
       <!-- Panel Guide (Simplified list) -->
       <section class="panel-section">
-        <h3>Panel Guide</h3>
+        <h3>{{ t('infoPanel.panelGuide') }}</h3>
         <div class="panel-guide">
           <div class="guide-item">
             <iconify-icon icon="ph:ghost-duotone"></iconify-icon>
-            <div><strong>Avatar</strong> <span>Visual blob</span></div>
+            <div><strong>{{ t('sidebar.panels.avatar') }}</strong> <span>{{ t('infoPanel.visualBlob') }}</span></div>
           </div>
           <div class="guide-item">
             <iconify-icon icon="ph:mountains-duotone"></iconify-icon>
-            <div><strong>Scene</strong> <span>Environment</span></div>
+            <div><strong>{{ t('scene.title') }}</strong> <span>{{ t('infoPanel.environment') }}</span></div>
           </div>
           <div class="guide-item">
             <iconify-icon icon="ph:waveform-duotone"></iconify-icon>
-            <div><strong>Audio</strong> <span>Sound/Reactivity</span></div>
+            <div><strong>{{ t('audioPanel.title') }}</strong> <span>{{ t('infoPanel.soundReactivity') }}</span></div>
           </div>
           <div class="guide-item">
             <iconify-icon icon="ph:robot-duotone"></iconify-icon>
-            <div><strong>Agent</strong> <span>Connection</span></div>
+            <div><strong>{{ t('sidebar.panels.agent') }}</strong> <span>{{ t('infoPanel.connection') }}</span></div>
           </div>
           <div class="guide-item">
             <iconify-icon icon="ph:microphone-duotone"></iconify-icon>
-            <div><strong>Voice</strong> <span>Pipeline Config</span></div>
+            <div><strong>{{ t('voice.title') }}</strong> <span>{{ t('infoPanel.pipelineConfig') }}</span></div>
           </div>
           <div class="guide-item">
             <iconify-icon icon="ph:sliders-duotone"></iconify-icon>
-            <div><strong>Enhance</strong> <span>Audio Process</span></div>
+            <div><strong>{{ t('enhancements.title') }}</strong> <span>{{ t('infoPanel.audioProcess') }}</span></div>
           </div>
           <div class="guide-item">
             <iconify-icon icon="ph:user-circle-duotone"></iconify-icon>
-            <div><strong>Persona</strong> <span>Personality</span></div>
+            <div><strong>{{ t('soulPanel.title') }}</strong> <span>{{ t('infoPanel.personality') }}</span></div>
           </div>
           <div class="guide-item">
             <iconify-icon icon="ph:brain-duotone"></iconify-icon>
-            <div><strong>Memory</strong> <span>Long-term memory</span></div>
+            <div><strong>{{ t('memory.title') }}</strong> <span>{{ t('infoPanel.longTermMemory') }}</span></div>
           </div>
           <div class="guide-item">
             <iconify-icon icon="ph:wrench-duotone"></iconify-icon>
-            <div><strong>Tools</strong> <span>Function calling</span></div>
+            <div><strong>{{ t('tools.title') }}</strong> <span>{{ t('infoPanel.functionCalling') }}</span></div>
           </div>
         </div>
       </section>
 
       <!-- Console Access -->
       <section class="panel-section">
-        <h3>Console Access</h3>
+        <h3>{{ t('infoPanel.consoleAccess') }}</h3>
         <div class="console-info">
           <code>window.kwami</code>
-          <p class="console-hint">Access the full Kwami instance from browser console.</p>
+          <p class="console-hint">{{ t('infoPanel.consoleHint') }}</p>
         </div>
       </section>
 
       <!-- Debug Actions -->
       <section class="panel-section">
-        <h3>Debug</h3>
+        <h3>{{ t('infoPanel.debug') }}</h3>
         <div class="action-buttons">
           <button class="action-btn" @click="logState">
-            <iconify-icon icon="ph:terminal-window-duotone"></iconify-icon> Log Full State
+            <iconify-icon icon="ph:terminal-window-duotone"></iconify-icon> {{ t('infoPanel.logFullState') }}
           </button>
           <button class="action-btn" @click="logConfig">
-            <iconify-icon icon="ph:gear-duotone"></iconify-icon> Log Config
+            <iconify-icon icon="ph:gear-duotone"></iconify-icon> {{ t('infoPanel.logConfig') }}
           </button>
         </div>
       </section>
 
       <!-- About -->
       <section class="panel-section">
-        <h3>About Kwami</h3>
+        <h3>{{ t('infoPanel.aboutKwami') }}</h3>
         <p class="about-text">
-          Kwami is a 3D AI companion library featuring visual avatars, voice pipelines via LiveKit,
-          long-term memory with Zep, and extensible tools via MCP.
+          {{ t('infoPanel.aboutText') }}
         </p>
         <div class="about-links">
           <a href="#" class="about-link"
-            ><iconify-icon icon="ph:github-logo-duotone"></iconify-icon> GitHub</a
+            ><iconify-icon icon="ph:github-logo-duotone"></iconify-icon> {{ t('infoPanel.github') }}</a
           >
           <a href="#" class="about-link"
-            ><iconify-icon icon="ph:book-open-duotone"></iconify-icon> Docs</a
+            ><iconify-icon icon="ph:book-open-duotone"></iconify-icon> {{ t('infoPanel.docs') }}</a
           >
         </div>
       </section>

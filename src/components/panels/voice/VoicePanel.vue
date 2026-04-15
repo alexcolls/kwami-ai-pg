@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useVoiceStore } from '@/stores/voice';
 import { useKwami } from '@/composables/useKwami';
 import { storeToRefs } from 'pinia';
@@ -13,8 +14,10 @@ import { useVoicesApi, type Voice } from '@/composables/useVoicesApi';
 import { useLanguagesApi, type Language } from '@/composables/useLanguagesApi';
 
 const voiceStore = useVoiceStore();
+const { t } = useI18n();
 const { pipelineMode, tts, realtime, voiceUI } = storeToRefs(voiceStore);
 const { kwami, isConnected } = useKwami();
+const panelIcon = panelIcons.voice ?? 'mdi:account-voice';
 
 const { 
   fetchTTSVoicesByProvider, 
@@ -117,7 +120,7 @@ const languageOptions = computed(() => {
     });
     const voiceLangs = Array.from(langSet).sort();
     return [
-      { label: 'All Languages', value: 'all', icon: 'ph:globe-duotone' },
+      { label: t('voice.allLanguages'), value: 'all', icon: 'ph:globe-duotone' },
       ...voiceLangs.map(lang => ({ 
         label: lang, 
         value: lang, 
@@ -127,7 +130,7 @@ const languageOptions = computed(() => {
   }
   
   return [
-    { label: 'All Languages', value: 'all', icon: 'ph:globe-duotone' },
+    { label: t('voice.allLanguages'), value: 'all', icon: 'ph:globe-duotone' },
     ...langs.map(lang => ({ 
       label: lang.name + (lang.region ? ` (${lang.region})` : ''), 
       value: lang.code, 
@@ -145,7 +148,7 @@ const genderOptions = computed(() => {
   });
   const genders = Array.from(genderSet).sort();
   return [
-    { label: 'All Genders', value: 'all', icon: 'ph:users-duotone' },
+    { label: t('voice.allGenders'), value: 'all', icon: 'ph:users-duotone' },
     ...genders.map(gender => ({ 
       label: gender.charAt(0).toUpperCase() + gender.slice(1), 
       value: gender,
@@ -204,7 +207,7 @@ const groupedVoices = computed(() => {
   const groups: Record<string, Voice[]> = {};
   
   for (const voice of filteredVoices.value) {
-    const category = voice.category || 'Other';
+    const category = voice.category || t('voice.categoryOther');
     if (!groups[category]) {
       groups[category] = [];
     }
@@ -323,13 +326,13 @@ watch(() => tts.value.speed, (newSpeed) => {
 </script>
 
 <template>
-  <BasePanel :icon="panelIcons.voice" title="Voice">
+  <BasePanel :icon="panelIcon" :title="t('voice.title')">
     <!-- Current Model Context -->
     <PanelSection>
       <div class="model-context">
         <div class="context-badge" :class="pipelineMode">
           <iconify-icon :icon="pipelineMode === 'realtime' ? 'ph:lightning-duotone' : 'ph:speaker-high-duotone'"></iconify-icon>
-          <span>{{ pipelineMode === 'realtime' ? 'Realtime' : 'TTS' }}</span>
+          <span>{{ pipelineMode === 'realtime' ? t('voice.modeRealtime') : t('voice.modeTts') }}</span>
         </div>
         <div class="context-info">
           <div class="provider-row">
@@ -342,19 +345,19 @@ watch(() => tts.value.speed, (newSpeed) => {
     </PanelSection>
 
     <!-- Filters -->
-    <PanelSection title="Filter Voices" icon="ph:funnel-duotone" collapsible>
+    <PanelSection :title="t('voice.filterVoices')" icon="ph:funnel-duotone" collapsible>
       <div class="filters">
         <BaseInput
           v-model="searchQuery"
-          label="Search"
+          :label="t('voice.search')"
           icon="ph:magnifying-glass-duotone"
-          placeholder="Search voices..."
+          :placeholder="t('voice.searchPlaceholder')"
         />
         
         <BaseSelect
           v-if="languageOptions.length > 1"
           v-model="languageFilter"
-          label="Language"
+          :label="t('voice.language')"
           icon="ph:globe-duotone"
           :options="languageOptions"
         />
@@ -362,7 +365,7 @@ watch(() => tts.value.speed, (newSpeed) => {
         <BaseSelect
           v-if="genderOptions.length > 1"
           v-model="genderFilter"
-          label="Gender"
+          :label="t('voice.gender')"
           icon="ph:users-duotone"
           :options="genderOptions"
         />
@@ -374,8 +377,8 @@ watch(() => tts.value.speed, (newSpeed) => {
       <div class="multilingual-banner">
         <iconify-icon icon="ph:translate-duotone"></iconify-icon>
         <div class="banner-content">
-          <span class="banner-title">Multilingual Voices</span>
-          <span class="banner-text">All {{ currentProvider }} voices support {{ languageOptions.find(l => l.value === languageFilter)?.label || languageFilter }}</span>
+          <span class="banner-title">{{ t('voice.multilingualVoices') }}</span>
+          <span class="banner-text">{{ t('voice.multilingualSupport', { provider: currentProvider, language: languageOptions.find(l => l.value === languageFilter)?.label || languageFilter }) }}</span>
         </div>
       </div>
     </PanelSection>
@@ -420,7 +423,7 @@ watch(() => tts.value.speed, (newSpeed) => {
     <PanelSection v-if="voicesLoading">
       <div class="loading-state">
         <iconify-icon icon="ph:spinner-duotone" class="spinner"></iconify-icon>
-        <span>Loading voices...</span>
+        <span>{{ t('voice.loadingVoices') }}</span>
       </div>
     </PanelSection>
 
@@ -428,9 +431,9 @@ watch(() => tts.value.speed, (newSpeed) => {
     <PanelSection v-if="!voicesLoading && filteredVoices.length === 0">
       <div class="empty-state">
         <iconify-icon icon="ph:speaker-slash-duotone"></iconify-icon>
-        <span>No voices match your filters</span>
+        <span>{{ t('voice.noVoicesMatch') }}</span>
         <button class="reset-btn" @click="resetFilters">
-          Reset Filters
+          {{ t('voice.resetFilters') }}
         </button>
       </div>
     </PanelSection>
@@ -438,19 +441,19 @@ watch(() => tts.value.speed, (newSpeed) => {
     <!-- TTS Speed Control (only for standard pipeline) -->
     <PanelSection 
       v-if="pipelineMode !== 'realtime'" 
-      title="Voice Settings" 
+      :title="t('voice.voiceSettings')" 
       icon="ph:sliders-duotone"
     >
       <div class="settings-form">
         <BaseSlider 
-          label="Speed" 
+          :label="t('voice.speed')" 
           :min="0.5" 
           :max="2" 
           :step="0.1" 
           v-model="tts.speed"
           :showValue="true"
         />
-        <p class="setting-hint">Adjust the speaking speed (0.5x - 2x)</p>
+        <p class="setting-hint">{{ t('voice.speedHint') }}</p>
       </div>
     </PanelSection>
   </BasePanel>

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
-import { getMemoryGraph, updateMemoryNode, updateMemoryEdge, deleteMemoryEdge } from 'kwami'
+import { useI18n } from 'vue-i18n'
+import { getMemoryGraph, updateMemoryNode } from 'kwami'
 import type { UpdateNodePayload, UpdateEdgePayload } from 'kwami'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from 'vue-toastification'
@@ -12,6 +13,7 @@ import MemoryGraph2D from './MemoryGraph2D.vue'
 import MemoryNodeDetails from './MemoryNodeDetails.vue'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 import ReorganizePreview from './ReorganizePreview.vue'
+import { translateApiUserMessage } from '@/utils/translateApiMessage'
 
 const props = defineProps<{
   userId: string
@@ -20,6 +22,7 @@ const props = defineProps<{
 
 const authStore = useAuthStore()
 const toast = useToast()
+const { t } = useI18n()
 
 // State
 const graph = ref<GraphData>({ nodes: [], edges: [] })
@@ -120,7 +123,7 @@ async function handleUpdateNode(nodeUuid: string, data: UpdateNodePayload) {
   try {
     const options = await getApiOptions()
     await updateMemoryNode(baseUrl.value, props.userId, nodeUuid, data, options)
-    toast.success('Node updated', { timeout: 2000 })
+    toast.success(t('memoryGraph.toastNodeUpdated'), { timeout: 2000 })
     
     // Optimistic local update while we refresh
     if (selectedNode.value?.uuid === nodeUuid) {
@@ -132,11 +135,13 @@ async function handleUpdateNode(nodeUuid: string, data: UpdateNodePayload) {
     // Refresh graph to get updated state from backend
     await fetchGraph()
   } catch (e) {
-    toast.error('Failed to update node: ' + (e as Error).message)
+    toast.error(
+      t('memoryGraph.toastUpdateNodeFailed', { message: translateApiUserMessage((e as Error).message, t) }),
+    )
   }
 }
 
-async function handleUpdateEdge(_edgeIndex: number, edge: MemoryEdge, data: UpdateEdgePayload) {
+async function handleUpdateEdge(_edgeIndex: number, edge: MemoryEdge, _data: UpdateEdgePayload) {
   // We need to find the edge UUID from the graph data
   // The graph edges use node IDs (entity_0, entity_1), but we need the actual edge UUID from the backend
   // Since the graph visualization doesn't carry edge UUIDs, we'll use a different strategy:
@@ -145,17 +150,19 @@ async function handleUpdateEdge(_edgeIndex: number, edge: MemoryEdge, data: Upda
   const targetNode = graph.value.nodes.find(n => n.id === edge.target)
   
   if (!sourceNode?.uuid || !targetNode?.uuid) {
-    toast.error('Cannot identify edge nodes')
+    toast.error(t('memoryGraph.toastCannotIdentifyNodes'))
     return
   }
   
   try {
     // Use the backend search to find the edge, or update via nodes
     // For now, just refresh the graph after making changes through the panel
-    toast.info('Edge relation changes will be reflected after refresh', { timeout: 3000 })
+    toast.info(t('memoryGraph.toastEdgeAfterRefresh'), { timeout: 3000 })
     await fetchGraph()
   } catch (e) {
-    toast.error('Failed to update edge: ' + (e as Error).message)
+    toast.error(
+      t('memoryGraph.toastUpdateEdgeFailed', { message: translateApiUserMessage((e as Error).message, t) }),
+    )
   }
 }
 
@@ -166,7 +173,7 @@ async function handleDeleteEdge(_edgeIndex: number, edge: MemoryEdge) {
   const targetNode = graph.value.nodes.find(n => n.id === edge.target)
   
   if (!sourceNode?.uuid || !targetNode?.uuid) {
-    toast.error('Cannot identify edge nodes')
+    toast.error(t('memoryGraph.toastCannotIdentifyNodes'))
     return
   }
   
@@ -179,12 +186,14 @@ async function handleDeleteEdge(_edgeIndex: number, edge: MemoryEdge) {
       graph.value.edges.splice(edgeIdx, 1)
     }
     
-    toast.success('Connection removed', { timeout: 2000 })
+    toast.success(t('memoryGraph.toastConnectionRemoved'), { timeout: 2000 })
     
     // Refresh to sync with backend
     await fetchGraph()
   } catch (e) {
-    toast.error('Failed to delete edge: ' + (e as Error).message)
+    toast.error(
+      t('memoryGraph.toastDeleteEdgeFailed', { message: translateApiUserMessage((e as Error).message, t) }),
+    )
     await fetchGraph() // Refresh to restore state
   }
 }
@@ -210,7 +219,7 @@ function handleLinkStart(node: MemoryNode) {
   linkSource.value = node
   linkTarget.value = null
   selectedNode.value = null
-  toast.info(`Double-click target node to connect from "${node.label}"`, { timeout: 3000 })
+  toast.info(t('memoryGraph.toastLinkInstruction', { source: node.label }), { timeout: 3000 })
 }
 
 function handleLinkEnd(node: MemoryNode) {
@@ -251,13 +260,18 @@ async function confirmConnect() {
       throw new Error(err.detail || 'Failed to connect')
     }
     
-    toast.success(`Connected "${linkSource.value.label}" to "${linkTarget.value.label}"`, { timeout: 3000 })
+    toast.success(
+      t('memoryGraph.toastConnected', { source: linkSource.value.label, target: linkTarget.value.label }),
+      { timeout: 3000 },
+    )
     showConnectDialog.value = false
     linkSource.value = null
     linkTarget.value = null
     await fetchGraph()
   } catch (e) {
-    toast.error('Connection failed: ' + (e as Error).message)
+    toast.error(
+      t('memoryGraph.toastConnectFailed', { message: translateApiUserMessage((e as Error).message, t) }),
+    )
   } finally {
     isConnecting.value = false
   }
@@ -291,7 +305,7 @@ watch(() => props.userId, fetchGraph)
     <!-- Loading / Error / Empty states -->
     <div v-if="loading" class="loading">
       <iconify-icon icon="ph:spinner-gap" class="spin"></iconify-icon>
-      Loading graph data...
+      {{ t('memoryGraph.loading') }}
     </div>
     
     <div v-else-if="error" class="error">
@@ -301,10 +315,10 @@ watch(() => props.userId, fetchGraph)
     
     <div v-else-if="graph.nodes.length === 0" class="empty">
       <iconify-icon icon="ph:graph"></iconify-icon>
-      <span>No graph data found</span>
-      <small>User ID: {{ props.userId }}</small>
-      <small>API: {{ props.apiBaseUrl }}/memory/{{ props.userId }}/graph</small>
-      <small class="hint">If facts exist but graph is empty, the Zep graph API may not be available on your plan</small>
+      <span>{{ t('memoryGraph.noData') }}</span>
+      <small>{{ t('memoryGraph.userIdLine') }} {{ props.userId }}</small>
+      <small>{{ t('memoryGraph.apiLine') }} {{ props.apiBaseUrl }}/memory/{{ props.userId }}/graph</small>
+      <small class="hint">{{ t('memoryGraph.emptyHint') }}</small>
     </div>
     
     <!-- Graph visualization -->
@@ -319,10 +333,10 @@ watch(() => props.userId, fetchGraph)
       <!-- Linking status indicator -->
       <div v-if="linkSource" class="linking-indicator">
         <iconify-icon icon="ph:link-duotone"></iconify-icon>
-        <span>Linking from <strong>{{ linkSource.label }}</strong> -- click a target node</span>
+        <span>{{ t('memoryGraph.linkingFromPrefix') }} <strong>{{ linkSource.label }}</strong> {{ t('memoryGraph.linkingFromSuffix') }}</span>
         <button class="linking-cancel" @click="handleLinkCancel">
           <iconify-icon icon="ph:x-bold"></iconify-icon>
-          Cancel
+          {{ t('memoryGraph.cancel') }}
         </button>
       </div>
 
@@ -368,24 +382,28 @@ watch(() => props.userId, fetchGraph)
         <span class="footer-hint">
           <template v-if="viewMode === '3d'">
             <iconify-icon icon="ph:hand-grabbing"></iconify-icon>
-            Drag to rotate &bull; Scroll to zoom &bull; Right click to move &bull; Click nodes for details
+            {{ t('memoryGraph.footer3d') }}
           </template>
           <template v-else>
             <iconify-icon icon="ph:cursor-click"></iconify-icon>
-            Click and drag to pan &bull; Scroll to zoom &bull; Click nodes for details
+            {{ t('memoryGraph.footer2d') }}
           </template>
         </span>
-        <span class="footer-stats">{{ filteredGraph.nodes.length }} nodes</span>
-        <span class="footer-stats">{{ filteredGraph.edges.length }} edges</span>
+        <span class="footer-stats">{{
+          t('memoryGraph.nodesCount', filteredGraph.nodes.length, { n: filteredGraph.nodes.length })
+        }}</span>
+        <span class="footer-stats">{{
+          t('memoryGraph.edgesCount', filteredGraph.edges.length, { n: filteredGraph.edges.length })
+        }}</span>
         <button 
           class="reorg-btn" 
           :class="{ working: reorganizeRef?.loading || reorganizeRef?.applying }"
           :disabled="reorganizeRef?.loading || reorganizeRef?.applying"
           @click="reorganizeRef?.fetchPreview()"
-          title="Reorganize graph"
+          :title="t('memoryGraph.reorganizeTitle')"
         >
           <iconify-icon :icon="reorganizeRef?.loading || reorganizeRef?.applying ? 'ph:spinner-gap' : 'ph:broom-duotone'" :class="{ spin: reorganizeRef?.loading || reorganizeRef?.applying }"></iconify-icon>
-          {{ reorganizeRef?.loading ? 'Scanning...' : reorganizeRef?.applying ? 'Applying...' : 'Reorganize' }}
+          {{ reorganizeRef?.loading ? t('memoryGraph.scanning') : reorganizeRef?.applying ? t('memoryGraph.applying') : t('memoryGraph.reorganize') }}
         </button>
       </div>
     </div>
@@ -401,9 +419,9 @@ watch(() => props.userId, fetchGraph)
     <!-- Connect Nodes Dialog -->
     <ConfirmDialog
       :open="showConnectDialog"
-      title="Create Connection"
+      :title="t('memoryGraph.createConnection')"
       icon="ph:link-duotone"
-      confirmLabel="Connect"
+      :confirmLabel="t('memoryGraph.connect')"
       confirmIcon="ph:link-duotone"
       confirmVariant="primary"
       :loading="isConnecting"
@@ -422,18 +440,18 @@ watch(() => props.userId, fetchGraph)
         </div>
       </div>
       <div class="connect-fields">
-        <label class="connect-label">Relation name</label>
+        <label class="connect-label">{{ t('memoryGraph.relationName') }}</label>
         <input
           v-model="connectRelation"
           class="connect-input"
-          placeholder="e.g. KNOWS, LIVES_IN, WORKS_AT"
+          :placeholder="t('memoryGraph.relationPlaceholder')"
           @keydown.enter="confirmConnect"
         />
-        <label class="connect-label">Fact description (optional)</label>
+        <label class="connect-label">{{ t('memoryGraph.factOptional') }}</label>
         <input
           v-model="connectFact"
           class="connect-input"
-          placeholder="e.g. Daniel knows Maria from school"
+          :placeholder="t('memoryGraph.factPlaceholder')"
         />
       </div>
     </ConfirmDialog>

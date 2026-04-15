@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { panelIcons } from '@/constants/panel-icons';
 import { useToast } from 'vue-toastification';
 import { useKwami } from '@/composables/useKwami';
@@ -8,8 +9,11 @@ import PanelSection from '@/components/ui/PanelSection.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
 import BaseInput from '@/components/ui/BaseInput.vue';
 import BaseSelect from '@/components/ui/BaseSelect.vue';
+import PanelHeaderControls from '@/components/ui/PanelHeaderControls.vue';
+import { translateApiUserMessage } from '@/utils/translateApiMessage';
 
 const toast = useToast();
+const { t } = useI18n();
 
 const { kwami } = useKwami();
 
@@ -23,7 +27,7 @@ const exec = ref({ toolName: '', params: '', result: '', loading: false, error: 
 const templates: Record<string, any> = {
   weather: {
     name: 'get_weather',
-    description: 'Get current weather',
+    description: t('tools.templateWeatherDescription'),
     parameters: {
       location: { type: 'string' },
       units: { type: 'string', enum: ['metric', 'imperial'] },
@@ -31,12 +35,12 @@ const templates: Record<string, any> = {
   },
   search: {
     name: 'web_search',
-    description: 'Search the web',
+    description: t('tools.templateSearchDescription'),
     parameters: { query: { type: 'string' }, limit: { type: 'number' } },
   },
   calc: {
     name: 'calculate',
-    description: 'Perform math',
+    description: t('tools.templateCalcDescription'),
     parameters: { expression: { type: 'string' } },
   },
 };
@@ -46,7 +50,7 @@ function refreshTools() {
 }
 
 function removeTool(name: string) {
-  if (confirm(`Remove tool "${name}"?`)) {
+  if (confirm(t('tools.removeToolConfirm', { name }))) {
     kwami.value?.tools.unregister(name);
     refreshTools();
   }
@@ -65,14 +69,14 @@ function useTemplate(key: string) {
 
 function addTool() {
   if (!newTool.value.name || !newTool.value.description) {
-    toast.warning('Name and description are required');
+    toast.warning(t('tools.requiredNameDescription'));
     return;
   }
   let parsedParams;
   try {
     if (newTool.value.parameters) parsedParams = JSON.parse(newTool.value.parameters);
   } catch {
-    toast.error('Invalid JSON in parameters');
+    toast.error(t('tools.invalidJsonParams'));
     return;
   }
 
@@ -101,7 +105,11 @@ async function connectMCP() {
     mcp.value = { name: '', url: '', apiKey: '' };
     refreshTools();
   } catch (e) {
-    toast.error('MCP connection failed: ' + (e as Error).message);
+    toast.error(
+      t('tools.mcpConnectionFailed', {
+        message: translateApiUserMessage((e as Error).message, t),
+      }),
+    );
   }
 }
 
@@ -114,7 +122,7 @@ async function executeTool() {
   try {
     if (exec.value.params) params = JSON.parse(exec.value.params);
   } catch {
-    exec.value.error = 'Invalid JSON';
+    exec.value.error = t('tools.invalidJson');
     exec.value.loading = false;
     return;
   }
@@ -138,14 +146,15 @@ onMounted(refreshTools);
   <div class="panel-inner">
     <div class="panel-header">
       <iconify-icon :icon="panelIcons.tools" class="panel-icon"></iconify-icon>
-      <h2>Tools</h2>
+      <h2>{{ t('tools.title') }}</h2>
+      <PanelHeaderControls />
     </div>
 
     <div class="panel-body">
       <!-- Registered -->
-      <PanelSection title="Registered Tools">
+      <PanelSection :title="t('tools.registeredTools')">
         <div class="tools-list">
-          <div v-if="!tools.length" class="empty">No tools registered</div>
+          <div v-if="!tools.length" class="empty">{{ t('tools.noToolsRegistered') }}</div>
           <div v-for="t in tools" :key="t.name" class="card">
             <div class="head">
               <iconify-icon icon="ph:function-duotone"></iconify-icon>
@@ -154,7 +163,7 @@ onMounted(refreshTools);
             </div>
             <p class="desc">{{ t.description }}</p>
             <details v-if="t.parameters" class="params">
-              <summary>Params</summary>
+              <summary>{{ t('tools.params') }}</summary>
               <pre>{{ JSON.stringify(t.parameters, null, 2) }}</pre>
             </details>
           </div>
@@ -164,27 +173,27 @@ onMounted(refreshTools);
           icon="ph:arrows-clockwise-duotone"
           @click="refreshTools"
           style="margin-top: 8px"
-          >Refresh</BaseButton
+          >{{ t('tools.refresh') }}</BaseButton
         >
       </PanelSection>
 
       <!-- Add Tool -->
-      <PanelSection title="Add Custom Tool">
+      <PanelSection :title="t('tools.addCustomTool')">
         <div class="form">
-          <BaseInput label="Name" v-model="newTool.name" placeholder="my_tool" />
+          <BaseInput :label="t('tools.name')" v-model="newTool.name" placeholder="my_tool" />
           <div class="group">
-            <label>Description</label><textarea v-model="newTool.description" rows="2"></textarea>
+            <label>{{ t('tools.description') }}</label><textarea v-model="newTool.description" rows="2"></textarea>
           </div>
           <div class="group">
-            <label>Parameters (JSON)</label
+            <label>{{ t('tools.parametersJson') }}</label
             ><textarea v-model="newTool.parameters" rows="3" placeholder="{}"></textarea>
           </div>
           <BaseButton variant="primary" icon="ph:plus-duotone" @click="addTool"
-            >Add Tool</BaseButton
+            >{{ t('tools.addTool') }}</BaseButton
           >
         </div>
         <div class="tmpls">
-          <span class="tmpl-label">Templates:</span>
+          <span class="tmpl-label">{{ t('tools.templates') }}</span>
           <button v-for="(_, k) in templates" :key="k" @click="useTemplate(k as string)">
             {{ k }}
           </button>
@@ -192,40 +201,40 @@ onMounted(refreshTools);
       </PanelSection>
 
       <!-- MCP -->
-      <PanelSection title="MCP Servers">
+      <PanelSection :title="t('tools.mcpServers')">
         <div class="tools-list">
-          <div v-if="!mcps.length" class="empty">No MCP servers</div>
+          <div v-if="!mcps.length" class="empty">{{ t('tools.noMcpServers') }}</div>
           <div v-for="s in mcps" :key="s.name" class="card">
             <div class="head">
               <iconify-icon icon="ph:plugs-connected-duotone"></iconify-icon>
               <span class="name">{{ s.name }}</span>
-              <span class="badg">Connected</span>
+              <span class="badg">{{ t('tools.connected') }}</span>
             </div>
             <span class="url">{{ s.url }}</span>
           </div>
         </div>
         <div class="form" style="margin-top: 12px">
-          <BaseInput label="Name" v-model="mcp.name" placeholder="my-mcp" />
-          <BaseInput label="URL" v-model="mcp.url" placeholder="http://localhost:3001" />
-          <BaseInput label="API Key" v-model="mcp.apiKey" type="password" />
-          <BaseButton icon="ph:plugs-connected-duotone" @click="connectMCP">Connect MCP</BaseButton>
+          <BaseInput :label="t('tools.name')" v-model="mcp.name" placeholder="my-mcp" />
+          <BaseInput :label="t('tools.url')" v-model="mcp.url" placeholder="http://localhost:3001" />
+          <BaseInput :label="t('tools.apiKey')" v-model="mcp.apiKey" type="password" />
+          <BaseButton icon="ph:plugs-connected-duotone" @click="connectMCP">{{ t('tools.connectMcp') }}</BaseButton>
         </div>
       </PanelSection>
 
       <!-- Test -->
-      <PanelSection title="Test Tool Execution">
+      <PanelSection :title="t('tools.testToolExecution')">
         <div class="form">
           <BaseSelect
-            label="Tool"
+            :label="t('tools.tool')"
             v-model="exec.toolName"
             :options="tools.map((t) => ({ label: t.name, value: t.name }))"
           />
           <div class="group">
-            <label>Params (JSON)</label
+            <label>{{ t('tools.parametersJson') }}</label
             ><textarea v-model="exec.params" rows="2" placeholder="{}"></textarea>
           </div>
           <BaseButton :disabled="exec.loading" icon="ph:play-duotone" @click="executeTool">{{
-            exec.loading ? 'Running...' : 'Execute'
+            exec.loading ? t('tools.running') : t('tools.execute')
           }}</BaseButton>
 
           <div v-if="exec.result" class="res success">

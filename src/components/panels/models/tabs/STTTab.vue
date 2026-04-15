@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useModelsApi, type InferenceSTTModel } from '@/composables/useModelsApi';
 import { useVoiceStore } from '@/stores/voice';
 import { useKwami } from '@/composables/useKwami';
@@ -8,6 +9,7 @@ import PanelSection from '@/components/ui/PanelSection.vue';
 import STTModelCard from '@/components/ui/STTModelCard.vue';
 
 const { fetchSTTInferenceModels, sttInferenceModels, isLoading } = useModelsApi();
+const { t } = useI18n();
 const voiceStore = useVoiceStore();
 const { stt, modelsUI } = storeToRefs(voiceStore);
 const { kwami, isConnected } = useKwami();
@@ -160,33 +162,33 @@ watch(() => [stt.value.provider, stt.value.model], ([newProvider, newModel]) => 
     <!-- Loading State -->
     <div v-if="isLoading" class="loading-state">
       <iconify-icon icon="ph:spinner-duotone" class="spinner"></iconify-icon>
-      <span>Loading models...</span>
+      <span>{{ t('modelTabs.loadingModels') }}</span>
     </div>
 
     <template v-if="!isLoading">
       <!-- Sort Controls -->
       <div class="sort-row">
-        <span class="sort-label">Sort:</span>
+        <span class="sort-label">{{ t('modelTabs.sort') }}</span>
         <button 
           class="sort-btn" 
           :class="{ active: sortBy === 'provider' }"
           @click="sortBy = 'provider'"
-        >Provider</button>
+        >{{ t('modelTabs.provider') }}</button>
         <button 
           class="sort-btn" 
           :class="{ active: sortBy === 'price' }"
           @click="sortBy = 'price'"
-        >Price</button>
+        >{{ t('modelTabs.price') }}</button>
         <button 
           class="sort-btn" 
           :class="{ active: sortBy === 'languages' }"
           @click="sortBy = 'languages'"
-        >Languages</button>
+        >{{ t('modelTabs.languages') }}</button>
         <button 
           class="sort-btn" 
           :class="{ active: sortBy === 'speed' }"
           @click="sortBy = 'speed'"
-        >Speed</button>
+        >{{ t('modelTabs.speed') }}</button>
       </div>
 
       <!-- Models by Provider (accordion view) -->
@@ -233,7 +235,7 @@ watch(() => [stt.value.provider, stt.value.model], ([newProvider, newModel]) => 
 
       <div v-if="!hasInferenceModels" class="empty-state">
         <iconify-icon icon="ph:ear-duotone"></iconify-icon>
-        <span>No models available</span>
+        <span>{{ t('modelTabs.noModelsAvailable') }}</span>
       </div>
     </template>
   </div>

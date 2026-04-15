@@ -3,9 +3,15 @@ import { useUIStore } from '@/stores/ui';
 import { panelIcons } from '@/constants/panel-icons';
 import { usePanelShortcuts } from '@/composables/usePanelShortcuts';
 import SidebarKwamiSection from '@/components/sidebar/SidebarKwamiSection.vue';
+import { useI18n } from 'vue-i18n';
 
 const uiStore = useUIStore();
 const { handlePanelClick } = usePanelShortcuts();
+const { t } = useI18n();
+
+function panelTitle(panel: string): string {
+  return t(`sidebar.panels.${panel}`);
+}
 </script>
 
 <template>
@@ -16,14 +22,14 @@ const { handlePanelClick } = usePanelShortcuts();
 
     <!-- Visual Group -->
     <div class="nav-group">
-      <span class="switcher-label">Visual</span>
+      <span class="switcher-label">{{ t('sidebar.visual') }}</span>
       <button
-        v-for="p in ['avatar', 'scene', 'theme']"
+        v-for="p in ['avatar', 'audio', 'scene', 'theme']"
         :key="p"
         class="nav-btn"
         :class="{ active: uiStore.activePanel === p && uiStore.isPanelOpen }"
         @click="handlePanelClick(p)"
-        :title="p.charAt(0).toUpperCase() + p.slice(1)"
+        :title="panelTitle(p)"
       >
         <iconify-icon :icon="panelIcons[p]"></iconify-icon>
       </button>
@@ -33,15 +39,15 @@ const { handlePanelClick } = usePanelShortcuts();
 
     <!-- Agent Group -->
     <div class="nav-group">
-      <span class="switcher-label">Agent</span>
+      <span class="switcher-label">{{ t('sidebar.agent') }}</span>
 
       <button
-        v-for="p in ['models','voice', 'persona', 'memory', 'enhancements', 'tools']"
+        v-for="p in ['models','voice', 'soul', 'memory', 'enhancements', 'tools']"
         :key="p"
         class="nav-btn"
         :class="{ active: uiStore.activePanel === p && uiStore.isPanelOpen }"
         @click="handlePanelClick(p)"
-        :title="p.charAt(0).toUpperCase() + p.slice(1)"
+        :title="panelTitle(p)"
       >
         <iconify-icon :icon="panelIcons[p]"></iconify-icon>
       </button>
@@ -51,14 +57,14 @@ const { handlePanelClick } = usePanelShortcuts();
 
     <!-- Config Group -->
     <div class="nav-group">
-      <span class="switcher-label">Info</span>
+      <span class="switcher-label">{{ t('sidebar.info') }}</span>
       <button
-        v-for="p in ['transcription', 'metrics', 'info']"
+        v-for="p in ['transcription', 'communications', 'metrics', 'info']"
         :key="p"
         class="nav-btn"
         :class="{ active: uiStore.activePanel === p && uiStore.isPanelOpen }"
         @click="handlePanelClick(p)"
-        :title="p.charAt(0).toUpperCase() + p.slice(1)"
+        :title="panelTitle(p)"
       >
         <iconify-icon :icon="panelIcons[p]"></iconify-icon>
       </button>
@@ -71,7 +77,7 @@ const { handlePanelClick } = usePanelShortcuts();
       class="nav-btn energy-btn"
       :class="{ active: uiStore.activePanel === 'credits' && uiStore.isPanelOpen }"
       @click="handlePanelClick('credits')"
-      title="Energy"
+      :title="t('sidebar.energy')"
     >
       <iconify-icon :icon="panelIcons.credits"></iconify-icon>
     </button>
@@ -81,7 +87,7 @@ const { handlePanelClick } = usePanelShortcuts();
       class="nav-btn account-btn"
       :class="{ active: uiStore.activePanel === 'account' && uiStore.isPanelOpen }"
       @click="handlePanelClick('account')"
-      title="Account"
+      :title="t('sidebar.account')"
     >
       <iconify-icon icon="ph:user-duotone"></iconify-icon>
     </button>

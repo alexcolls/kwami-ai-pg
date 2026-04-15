@@ -16,6 +16,7 @@
 
 import { defineStore } from 'pinia';
 import { reactive } from 'vue';
+import { randomHex, randomInRange } from '@/utils/color';
 
 // =====================================================
 // TYPES
@@ -609,6 +610,98 @@ export const useBlackHoleStore = defineStore('blackHole', () => {
     if (state.cameraZoom !== undefined) cameraZoom.value = state.cameraZoom;
   }
 
+  const INTERACTION_ACTIONS: InteractionAction[] = [
+    'none',
+    'toggleListening',
+    'startListening',
+    'stopListening',
+    'randomize',
+    'switchRenderer',
+    'cycleState',
+    'pulse',
+    'moveToClick',
+  ];
+
+  const CURSOR_STYLES: CursorStyle[] = ['pointer', 'grab', 'crosshair', 'default'];
+
+  function pickAction(): InteractionAction {
+    return INTERACTION_ACTIONS[Math.floor(Math.random() * INTERACTION_ACTIONS.length)]!;
+  }
+
+  function pickCursor(): CursorStyle {
+    return CURSOR_STYLES[Math.floor(Math.random() * CURSOR_STYLES.length)]!;
+  }
+
+  function randomizeAll() {
+    const schemes: BlackHoleColorScheme[] = ['classic', 'fire', 'ice', 'nebula', 'void'];
+    setColorSchemePreset(schemes[Math.floor(Math.random() * schemes.length)]!);
+
+    colors.hot = randomHex();
+    colors.mid1 = randomHex();
+    colors.mid2 = randomHex();
+    colors.mid3 = randomHex();
+    colors.outer = randomHex();
+
+    const bhRadius = randomInRange(0.5, 3, 0.1);
+    core.blackHoleRadius = bhRadius;
+    core.eventHorizonRadius = bhRadius * randomInRange(1.02, 1.15, 0.01);
+    core.radius = bhRadius;
+    core.glowIntensity = randomInRange(0.2, 2, 0.1);
+    core.pulseSpeed = randomInRange(0.5, 5, 0.5);
+
+    disk.innerRadius = randomInRange(0, 1, 0.05);
+    disk.outerRadius = randomInRange(4, 15, 0.5);
+    disk.flowSpeed = randomInRange(0.05, 0.5, 0.01);
+    disk.noiseScale = randomInRange(1, 5, 0.5);
+    disk.density = randomInRange(0.5, 2, 0.1);
+    disk.tiltAngle = randomInRange(0.5, 1.57, 0.1);
+
+    stars.count = Math.floor(randomInRange(10000, 200000, 1000));
+    stars.fieldRadius = randomInRange(500, 3000, 50);
+    stars.twinkleSpeed = randomInRange(0.5, 5, 0.1);
+
+    effects.bloomIntensity = randomInRange(0, 2, 0.1);
+    effects.bloomThreshold = randomInRange(0.5, 1, 0.05);
+    effects.bloomRadius = randomInRange(0, 1.5, 0.1);
+    effects.lensingStrength = randomInRange(0, 0.3, 0.01);
+    effects.lensingRadius = randomInRange(0.1, 0.5, 0.02);
+    effects.chromaticAberration = randomInRange(0, 0.02, 0.001);
+
+    animation.autoRotate = Math.random() > 0.5;
+    animation.autoRotateSpeed = randomInRange(0.01, 0.3, 0.01);
+    animation.diskRotationSpeed = randomInRange(0, 0.02, 0.001);
+    animation.starsRotationSpeed = randomInRange(0, 0.01, 0.0005);
+
+    orientation.x = randomInRange(0, 360, 1);
+    orientation.y = randomInRange(0, 360, 1);
+    orientation.z = randomInRange(0, 360, 1);
+
+    scale.value = randomInRange(0.5, 2, 0.1);
+    cameraZoom.value = randomInRange(0.5, 3, 0.1);
+
+    clickEvents.click = { enabled: Math.random() > 0.2, action: pickAction() };
+    clickEvents.doubleClick = { enabled: Math.random() > 0.2, action: pickAction() };
+    clickEvents.rightClick = { enabled: Math.random() > 0.2, action: pickAction() };
+    clickEvents.doubleRightClick = { enabled: Math.random() > 0.2, action: pickAction() };
+
+    cursorTouch.hover = {
+      enabled: Math.random() > 0.15,
+      highlightOnHover: Math.random() > 0.5,
+      cursorStyle: pickCursor(),
+    };
+    cursorTouch.drag = {
+      enabled: Math.random() > 0.15,
+      sensitivity: randomInRange(0.1, 3, 0.1),
+    };
+
+    audio.enabled = Math.random() > 0.1;
+    audio.reactivity = randomInRange(0, 2, 0.1);
+    audio.smoothing = randomInRange(0.5, 0.99, 0.01);
+    audio.frequencyEffects.bassDiskGlow = randomInRange(0, 1, 0.05);
+    audio.frequencyEffects.midDiskSpeed = randomInRange(0, 1, 0.05);
+    audio.frequencyEffects.highStarTwinkle = randomInRange(0, 1, 0.05);
+  }
+
   return {
     // State sections
     colorScheme,
@@ -663,5 +756,7 @@ export const useBlackHoleStore = defineStore('blackHole', () => {
     // Import/Export
     exportState,
     importState,
+
+    randomizeAll,
   };
 });

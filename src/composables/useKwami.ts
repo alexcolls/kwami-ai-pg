@@ -1,5 +1,6 @@
 import { shallowRef, ref, computed } from 'vue';
 import { Kwami } from 'kwami';
+import type { KwamiConfig } from 'kwami';
 import { useVoiceStore } from '@/stores/voice';
 import { useAuthStore } from '@/stores/auth';
 import { useWorkspaceStore } from '@/stores/workspace';
@@ -12,7 +13,7 @@ declare global {
 
 // Singleton state
 const kwamiInstance = shallowRef<Kwami | null>(null);
-const rendererType = ref<'blob-xyz' | 'orbital-shards' | 'stars-genesis' | 'crystal-ball' | 'black-hole'>('blob-xyz');
+const rendererType = ref<'blob-xyz' | 'black-hole' | 'particles-face'>('blob-xyz');
 const isConnected = ref(false);
 
 export function useKwami() {
@@ -31,7 +32,7 @@ export function useKwami() {
 
   function init(
     canvas: HTMLCanvasElement,
-    renderer: 'blob-xyz' | 'orbital-shards' | 'stars-genesis' | 'crystal-ball' | 'black-hole' = 'blob-xyz',
+    renderer: 'blob-xyz' | 'black-hole' | 'particles-face' = 'blob-xyz',
     options?: {
       onSearchResults?: (data: { query: string; results: Array<{ title: string; url: string; content: string }>; answer: string | null }) => void;
     },
@@ -41,78 +42,13 @@ export function useKwami() {
     // Get voice config from store
     const voiceStore = useVoiceStore();
 
-    const config = {
+    const config: KwamiConfig = {
       avatar: {
         renderer: renderer,
-        blobXyz: {
+        blob: {
           colors: { x: '#ff0066', y: '#00ff66', z: '#6600ff' },
           spikes: { x: 0.3, y: 0.3, z: 0.3 },
           rotation: { x: 0.002, y: 0.003, z: 0.001 },
-        },
-        orbitalShards: {
-          formation: { formation: 'constellation' as 'constellation' | 'helix' | 'vortex' },
-          colors: {
-            primary: '#00e5ff',
-            secondary: '#7c4dff',
-            accent: '#ff4081',
-          },
-          shards: { count: 28 },
-          core: {
-            size: 0.8,
-            glowIntensity: 1.4,
-            innerColor: '#ffffff',
-            outerColor: '#00ffff',
-          },
-          scale: 1.0,
-          rotation: { x: 0, y: 0.002, z: 0 },
-        },
-        starsGenesis: {
-          starCount: 6000,
-          visual: {
-            color: '#ffffff',
-            glowColor: '#88ccff',
-            starSize: 0.6,
-            opacity: 0.95,
-            sharpness: 0.7,
-          },
-          formation: {
-            type: 'sphere' as 'sphere' | 'disc' | 'ring' | 'cube',
-            radius: 2,
-          },
-          animation: {
-            enabled: true,
-            breathing: { enabled: true, speed: 1.0, intensity: 0.15 },
-            floating: { enabled: true, speed: 0.5, amplitude: 0.08 },
-            rotation: { enabled: true, speedX: 0, speedY: 0.1, speedZ: 0 },
-            turbulence: { enabled: true, intensity: 0.02, speed: 1.0 },
-          },
-          audioEffects: {
-            enabled: true,
-            reactivity: 1.5,
-            bassInfluence: 1.0,
-            movementIntensity: 0.5,
-          },
-        },
-        crystalBall: {
-          style: { style: 'mystical' as 'mystical' | 'nebula' | 'earth' | 'fire' | 'ocean' },
-          // TUTORIAL COLORS: black + bright color = depth effect!
-          colors: { primary: '#000000', secondary: '#00ffaa' },
-          // Tutorial defaults for magical marble effect
-          volume: { iterations: 18, depth: 0.6, smoothing: 0.3, noiseScale: 1.0 },
-          animation: {
-            displacementSpeed: 0.07,
-            displacementStrength: 0.3,
-            rotationSpeed: { x: 0, y: 0.001, z: 0 },
-          },
-          scale: 3.0,
-          roughness: 0.1,
-          metalness: 0.0,
-          envMapIntensity: 0.8,
-          audioEffects: {
-            enabled: true,
-            reactivity: 1.0,
-            smoothing: 0.85,
-          },
         },
         scene: {
           enableControls: true,
@@ -128,7 +64,7 @@ export function useKwami() {
           ...(options?.onSearchResults && { onSearchResults: options.onSearchResults }),
         },
       },
-      persona: {
+      soul: {
         name: 'Kwami',
         personality: 'A friendly and helpful AI companion',
         traits: ['friendly', 'helpful', 'curious'],
@@ -145,15 +81,42 @@ export function useKwami() {
       },
     };
 
-    kwamiInstance.value = new Kwami(canvas, config as any);
+    kwamiInstance.value = new Kwami(canvas, config);
 
     // Web search runs on the LiveKit agent (server-side); results are sent via data channel
     // and displayed when the client receives the 'search_results' message (see useSearchResults).
 
+    const agent = kwamiInstance.value.agent;
+
+    // Transcription panel + other UI listen for these window events (see useTranscriptionState).
+    agent.onUserSpeech((text) => {
+      const t = text?.trim();
+      if (!t) return;
+      window.dispatchEvent(
+        new CustomEvent('kwami:message', { detail: { role: 'user' as const, content: t } }),
+      );
+    });
+    agent.onAgentText((text) => {
+      const t = text?.trim();
+      if (!t) return;
+      window.dispatchEvent(
+        new CustomEvent('kwami:message', { detail: { role: 'assistant' as const, content: t } }),
+      );
+    });
+    agent.onInterimTranscript((text) => {
+      window.dispatchEvent(new CustomEvent('kwami:interim', { detail: text ?? '' }));
+    });
+
     // Track connection state changes
-    kwamiInstance.value.agent.onStateChange((state) => {
+    agent.onStateChange((state) => {
       const wasConnected = isConnected.value;
       isConnected.value = state !== 'idle';
+
+      const panelState =
+        state === 'initializing' ? 'listening' : state;
+      window.dispatchEvent(
+        new CustomEvent('kwami:stateChanged', { detail: panelState }),
+      );
 
       if (wasConnected !== isConnected.value) {
         console.log(`🔌 Connection state: ${isConnected.value ? 'connected' : 'disconnected'}`);
@@ -169,22 +132,23 @@ export function useKwami() {
 
   /**
    * Sync all persisted panel configs to the backend agent after connecting.
-   * This ensures persona, enhancements, voice, and model settings are applied
+   * This ensures soul, enhancements, voice, and model settings are applied
    * regardless of which panel is currently mounted.
    */
   function syncAllConfigToBackend(kwami: Kwami, voiceStore: ReturnType<typeof useVoiceStore>) {
     const agent = kwami.agent;
 
-    // 1. Persona config
-    const personaConfig = kwami.persona.getConfig();
-    agent.syncConfigToBackend('persona', {
-      name: personaConfig.name,
-      personality: personaConfig.personality,
-      systemPrompt: personaConfig.systemPrompt,
-      traits: personaConfig.traits || [],
-      conversationStyle: personaConfig.conversationStyle,
-      responseLength: personaConfig.responseLength,
-      emotionalTone: personaConfig.emotionalTone,
+    // 1. Soul config
+    const soulConfig = kwami.soul.getConfig();
+    agent.syncConfigToBackend('soul', {
+      name: soulConfig.name,
+      personality: soulConfig.personality,
+      systemPrompt: soulConfig.systemPrompt,
+      traits: soulConfig.traits || [],
+      conversationStyle: soulConfig.conversationStyle,
+      responseLength: soulConfig.responseLength,
+      emotionalTone: soulConfig.emotionalTone,
+      emotionalTraits: soulConfig.emotionalTraits,
     });
 
     // 2. Enhancements + VAD config
@@ -223,6 +187,7 @@ export function useKwami() {
         provider: voiceStore.llm.provider,
         model: voiceStore.llm.model,
         temperature: voiceStore.llm.temperature,
+        maxTokens: voiceStore.llm.maxTokens,
       });
     }
 
@@ -244,13 +209,21 @@ export function useKwami() {
 
     // 5. STT model
     if ('updateSttLive' in agent && typeof agent.updateSttLive === 'function') {
-      (agent as any).updateSttLive({
+      agent.updateSttLive({
         provider: voiceStore.stt.provider,
         model: voiceStore.stt.model,
       });
     }
 
-    console.log('📤 Synced all configs to backend on connect');
+    // 6. Client tool definitions — must be synced every connect so the backend
+    //    knows which tools the frontend can execute. Tools are registered before
+    //    the session opens, so this is the only reliable sync point.
+    const toolDefs = kwami.tools.getToolDefinitions();
+    if (toolDefs.length > 0) {
+      agent.syncConfigToBackend('tools', toolDefs);
+    }
+
+    console.log('📤 Synced all configs to backend on connect (including', toolDefs.length, 'tools)');
   }
 
   /**
@@ -277,18 +250,34 @@ export function useKwami() {
         },
       });
 
-      await kwamiInstance.value.agent.connect();
+      // Open the transcription session + storage key before the room can emit messages (avoids a
+      // race where kwami:message runs before kwami:connected and beginNewLiveSession clears lines).
+      window.dispatchEvent(
+        new CustomEvent('kwami:sessionPrepare', {
+          detail: { memoryUserId: memoryUserId.value },
+        }),
+      );
+
+      // Use Kwami.connect (not agent.connect alone) so the first data payload includes
+      // kwamiId, soul, voice, and tools — the Python agent applies full config from that message.
+      await kwamiInstance.value.connect(memoryUserId.value);
       isConnected.value = true;
+      window.dispatchEvent(
+        new CustomEvent('kwami:connected', {
+          detail: { memoryUserId: memoryUserId.value },
+        }),
+      );
       console.log(`✅ Connected to agent as user: ${memoryUserId.value}`);
 
       // Sync all persisted panel configs to the backend agent after connecting
       syncAllConfigToBackend(kwamiInstance.value, voiceStore);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to connect:', error);
       isConnected.value = false;
+      window.dispatchEvent(new CustomEvent('kwami:connectFailed'));
 
       // Handle insufficient credits (402 from /token endpoint)
-      const msg = error?.message || String(error);
+      const msg = error instanceof Error ? error.message : String(error);
       if (msg.includes('402') || msg.includes('Insufficient credits')) {
         window.dispatchEvent(new CustomEvent('kwami:insufficient-credits'));
       }
@@ -335,14 +324,14 @@ export function useKwami() {
     }
   }
 
-  function switchRenderer(newRenderer: 'blob-xyz' | 'orbital-shards' | 'stars-genesis' | 'crystal-ball' | 'black-hole') {
+  function switchRenderer(newRenderer: 'blob-xyz' | 'black-hole' | 'particles-face') {
     if (!kwamiInstance.value) {
       console.warn('Cannot switch renderer: Kwami not initialized');
       return;
     }
 
     // Use the Avatar's built-in switchRenderer method
-    kwamiInstance.value.avatar.switchRenderer(newRenderer as any);
+    kwamiInstance.value.avatar.switchRenderer(newRenderer);
     rendererType.value = newRenderer;
 
     // Dispatch event for UI sync

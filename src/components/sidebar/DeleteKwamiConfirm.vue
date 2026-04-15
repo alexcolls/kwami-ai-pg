@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n';
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue';
 
 defineProps<{
@@ -10,18 +11,19 @@ const emit = defineEmits<{
   (e: 'confirm'): void;
   (e: 'cancel'): void;
 }>();
+const { t } = useI18n();
 </script>
 
 <template>
   <ConfirmDialog
     :open="open"
-    title="Delete Kwami"
+    :title="t('sidebarModals.deleteKwamiTitle')"
     icon="ph:trash-duotone"
-    confirm-label="Delete"
+    :confirm-label="t('sidebarModals.delete')"
     confirm-variant="danger"
     @confirm="emit('confirm')"
     @cancel="emit('cancel')"
   >
-    <p>Delete <strong>{{ kwamiName }}</strong>? This cannot be undone.</p>
+    <p>{{ t('sidebarModals.deleteConfirm', { name: kwamiName }) }}</p>
   </ConfirmDialog>
 </template>
