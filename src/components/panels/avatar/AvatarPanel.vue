@@ -5,18 +5,15 @@ import { useKwami } from '@/composables/useKwami';
 import { useAvatarStore, type AvatarState } from '@/stores/avatar';
 import { useBlobXyzStore } from '@/stores/avatar.blob-xyz';
 import { useBlackHoleStore } from '@/stores/avatar.black-hole';
-import { useParticlesFaceStore } from '@/stores/avatar.particles-face';
 import BasePanel from '@/components/ui/BasePanel.vue';
 import PanelSection from '@/components/ui/PanelSection.vue';
 import { panelIcons } from '@/constants/panel-icons';
 import BlobXyzSettings from './BlobXyzSettings.vue';
 import BlackHoleSettings from './BlackHoleSettings.vue';
-import ParticlesFaceSettings from './ParticlesFaceSettings.vue';
 
 // Sync composables
 import { useBlobXyzSync } from '@/composables/avatar/sync/useBlobXyzSync';
 import { useBlackHoleSync } from '@/composables/avatar/sync/useBlackHoleSync';
-import { useParticlesFaceSync } from '@/composables/avatar/sync/useParticlesFaceSync';
 import { randomizeAvatarPanel } from '@/composables/avatar/randomizeAvatarPanel';
 import { useWorkspaceStore } from '@/stores/workspace';
 import { useKwamiConfigSync } from '@/composables/useKwamiConfigSync';
@@ -29,7 +26,6 @@ const panelIcon = panelIcons.avatar ?? 'ph:ghost-duotone';
 const avatarStore = useAvatarStore();
 const blobStore = useBlobXyzStore();
 const blackHoleStore = useBlackHoleStore();
-const particlesFaceStore = useParticlesFaceStore();
 
 // Use store state
 const {
@@ -46,10 +42,8 @@ function getBlob() {
   return kwami.value?.avatar.getBlob();
 }
 function getBlackHole() {
-  return (kwami.value?.avatar as any)?.getBlackHole?.();
-}
-function getParticlesFace() {
-  return (kwami.value?.avatar as any)?.getParticlesFace?.();
+  const avatar = kwami.value?.avatar as { getBlackHole?: () => unknown } | undefined;
+  return avatar?.getBlackHole?.();
 }
 
 // =====================================================
@@ -64,11 +58,6 @@ const { syncFromKwami: syncBlobFromKwami, applyToKwami: applyBlobToKwami } = use
 const { syncFromKwami: syncBlackHoleFromKwami, applyToKwami: applyBlackHoleToKwami } = useBlackHoleSync({
   kwami,
   getBlackHole,
-});
-
-const { syncFromKwami: syncParticlesFaceFromKwami, applyToKwami: applyParticlesFaceToKwami } = useParticlesFaceSync({
-  kwami,
-  getParticlesFace,
 });
 
 // =====================================================
@@ -95,10 +84,9 @@ function syncFromKwami() {
 
   syncBlobFromKwami();
   syncBlackHoleFromKwami();
-  syncParticlesFaceFromKwami();
 
   avatarStore.setRendererType(
-    kwamiRendererType.value as 'blob-xyz' | 'black-hole' | 'particles-face',
+    kwamiRendererType.value as 'blob-xyz' | 'black-hole',
   );
 }
 
@@ -111,9 +99,6 @@ function applyCurrentRendererToKwami(type: string) {
     case 'black-hole':
       applyBlackHoleToKwami();
       break;
-    case 'particles-face':
-      applyParticlesFaceToKwami();
-      break;
   }
 }
 
@@ -123,7 +108,7 @@ function applyCurrentRendererToKwami(type: string) {
 
 watch(rendererType, (type) => {
   if (kwamiRendererType.value !== type) {
-    switchRenderer(type as any);
+    switchRenderer(type);
   }
 });
 
@@ -165,12 +150,6 @@ watch(
   { deep: true }
 );
 
-watch(
-  () => particlesFaceStore.state,
-  () => avatarStore.saveSettings(),
-  { deep: true }
-);
-
 // Save renderer type changes
 watch(rendererType, () => avatarStore.saveSettings());
 
@@ -178,9 +157,9 @@ watch(rendererType, () => avatarStore.saveSettings());
 // ACTIONS
 // =====================================================
 
-function handleSwitchRenderer(type: 'blob-xyz' | 'black-hole' | 'particles-face') {
+function handleSwitchRenderer(type: 'blob-xyz' | 'black-hole') {
   avatarStore.setRendererType(type);
-  switchRenderer(type as any);
+  switchRenderer(type);
   applyCurrentRendererToKwami(type);
 }
 
@@ -188,7 +167,7 @@ function handleRandomize() {
   randomizeAvatarPanel({
     applyBlob: applyBlobToKwami,
     applyBlackHole: applyBlackHoleToKwami,
-    applyParticles: applyParticlesFaceToKwami,
+    applyParticles: () => {},
   });
   window.dispatchEvent(new CustomEvent('kwami:randomized'));
 }
@@ -208,11 +187,10 @@ function handleReset() {
     avatarStore.reset();
     blobStore.resetAll();
     blackHoleStore.resetAll();
-    particlesFaceStore.resetAll();
   }
 
   if (kwamiRendererType.value !== rendererType.value) {
-    switchRenderer(rendererType.value as 'blob-xyz' | 'black-hole' | 'particles-face');
+    switchRenderer(rendererType.value as 'blob-xyz' | 'black-hole');
   }
   applyCurrentRendererToKwami(rendererType.value);
 
@@ -227,7 +205,7 @@ function handleApplyPreset(presetId: string) {
   if (success) {
     // Switch renderer if needed
     if (kwamiRendererType.value !== rendererType.value) {
-      switchRenderer(rendererType.value as any);
+      switchRenderer(rendererType.value);
     }
 
     // Apply preset to kwami instance using sync composables
@@ -365,7 +343,7 @@ onMounted(() => {
 
   if (avatarStore.isInitialized) {
     if (kwamiRendererType.value !== rendererType.value) {
-      switchRenderer(rendererType.value as any);
+      switchRenderer(rendererType.value);
     }
     applyCurrentRendererToKwami(rendererType.value);
   }
@@ -441,20 +419,6 @@ onUnmounted(() => {
             <span class="renderer-desc">Gravitational void effect</span>
           </div>
         </label>
-        <label class="renderer-option" :class="{ active: rendererType === 'particles-face' }">
-          <input
-            type="radio"
-            name="renderer"
-            value="particles-face"
-            :checked="rendererType === 'particles-face'"
-            @change="handleSwitchRenderer('particles-face')"
-          />
-          <iconify-icon icon="ph:smiley-duotone" class="renderer-icon"></iconify-icon>
-          <div class="renderer-content">
-            <span class="renderer-label">Particles Face</span>
-            <span class="renderer-desc">Animated face of particles</span>
-          </div>
-        </label>
       </div>
     </PanelSection>
 
@@ -492,7 +456,6 @@ onUnmounted(() => {
     <!-- Sub-components -->
     <BlobXyzSettings v-if="rendererType === 'blob-xyz'" />
     <BlackHoleSettings v-if="rendererType === 'black-hole'" />
-    <ParticlesFaceSettings v-if="rendererType === 'particles-face'" />
   </BasePanel>
 </template>
 
