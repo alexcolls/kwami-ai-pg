@@ -20,7 +20,7 @@ import { translateApiUserMessage } from '@/utils/translateApiMessage';
 const toast = useToast();
 const { t } = useI18n();
 
-const { memoryUserId } = useKwami();
+const { memoryUserId, kwami, isConnected } = useKwami();
 const authStore = useAuthStore();
 const { memoryUI } = storeToRefs(useVoiceStore());
 
@@ -42,6 +42,68 @@ const activeTab = computed({
   get: () => memoryUI.value.activeTab,
   set: (v) => { memoryUI.value.activeTab = v; }
 });
+
+const contextSize = computed({
+  get: () => memoryUI.value.contextSize,
+  set: (v: 'lean' | 'balanced' | 'rich') => { memoryUI.value.contextSize = v; },
+});
+
+const includeFacts = computed({
+  get: () => memoryUI.value.includeFacts ?? true,
+  set: (v: boolean) => { memoryUI.value.includeFacts = v; },
+});
+
+const contextSizeOptions = [
+  { label: 'Lean (faster, lower tokens)', value: 'lean' },
+  { label: 'Balanced', value: 'balanced' },
+  { label: 'Rich (more memory context)', value: 'rich' },
+];
+
+const includeFactsOptions = [
+  { label: 'On', value: 'on' },
+  { label: 'Off', value: 'off' },
+];
+
+const includeFactsValue = computed({
+  get: () => (includeFacts.value ? 'on' : 'off'),
+  set: (v: 'on' | 'off') => { includeFacts.value = v === 'on'; },
+});
+
+function getMemoryRuntimeConfig(size: 'lean' | 'balanced' | 'rich', withFacts: boolean) {
+  if (size === 'lean') {
+    return {
+      maxContextMessages: 4,
+      includeFacts: withFacts,
+      minFactRelevance: 0.7,
+    };
+  }
+  if (size === 'rich') {
+    return {
+      maxContextMessages: 16,
+      includeFacts: withFacts,
+      minFactRelevance: 0.35,
+    };
+  }
+  return {
+    maxContextMessages: 10,
+    includeFacts: withFacts,
+    minFactRelevance: 0.5,
+  };
+}
+
+function setContextSize(value: string | number) {
+  const normalized = String(value) as 'lean' | 'balanced' | 'rich';
+  if (normalized === 'lean' || normalized === 'balanced' || normalized === 'rich') {
+    contextSize.value = normalized;
+  }
+}
+
+function setIncludeFactsValue(value: string | number) {
+  const normalized = String(value) as 'on' | 'off';
+  if (normalized === 'on' || normalized === 'off') {
+    includeFactsValue.value = normalized;
+  }
+}
 
 // Memory data
 interface Edge {
@@ -764,6 +826,14 @@ watch(
   }
 );
 
+watch(
+  () => [contextSize.value, includeFacts.value] as const,
+  ([size, withFacts]) => {
+    if (!kwami.value || !isConnected.value) return;
+    kwami.value.agent.syncConfigToBackend('memory', getMemoryRuntimeConfig(size, withFacts));
+  },
+);
+
 onMounted(() => {
   if (userId.value) {
     loadMemoryData();
@@ -815,6 +885,24 @@ onMounted(() => {
             <div class="stat-sub">{{ sessionCount }} {{ sessionCount === 1 ? t('memory.session') : t('memory.sessions') }}</div>
           </div>
         </div>
+      </PanelSection>
+
+      <PanelSection title="Context Retrieval">
+        <BaseSelect
+          :modelValue="contextSize"
+          @update:modelValue="setContextSize"
+          :options="contextSizeOptions"
+          placeholder="Memory context size"
+        />
+        <BaseSelect
+          :modelValue="includeFactsValue"
+          @update:modelValue="setIncludeFactsValue"
+          :options="includeFactsOptions"
+          placeholder="Include facts"
+        />
+        <p class="memory-context-hint">
+          Controls how much memory is injected into prompts. Lean reduces token pressure; rich gives more historical context. You can also disable fact injection when you need minimal prompt load.
+        </p>
       </PanelSection>
 
       <!-- Facts with Temporal Data -->

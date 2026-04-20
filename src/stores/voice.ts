@@ -135,6 +135,8 @@ export const useVoiceStore = defineStore('voice', () => {
   const memoryUI = ref({
     activeTab: 'facts' as 'facts' | 'entities' | 'messages',
     graphModalOpen: false,
+    contextSize: 'balanced' as 'lean' | 'balanced' | 'rich',
+    includeFacts: true,
   });
 
   // Enhancements panel state (full config, not just UI)

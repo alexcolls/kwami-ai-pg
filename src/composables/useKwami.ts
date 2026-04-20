@@ -30,6 +30,30 @@ export function useKwami() {
   /** @deprecated Use memoryUserId for memory/agent. Kept for compatibility. */
   const userId = computed(() => authStore.userId || 'anonymous');
 
+  function getMemoryRuntimeConfig(memoryUI: { contextSize?: 'lean' | 'balanced' | 'rich'; includeFacts?: boolean }) {
+    const preset = memoryUI.contextSize ?? 'balanced';
+    const includeFacts = memoryUI.includeFacts ?? true;
+    if (preset === 'lean') {
+      return {
+        maxContextMessages: 4,
+        includeFacts,
+        minFactRelevance: 0.7,
+      };
+    }
+    if (preset === 'rich') {
+      return {
+        maxContextMessages: 16,
+        includeFacts,
+        minFactRelevance: 0.35,
+      };
+    }
+    return {
+      maxContextMessages: 10,
+      includeFacts,
+      minFactRelevance: 0.5,
+    };
+  }
+
   function init(
     canvas: HTMLCanvasElement,
     renderer: 'blob-xyz' | 'black-hole' | 'particles-face' = 'blob-xyz',
@@ -222,6 +246,9 @@ export function useKwami() {
     if (toolDefs.length > 0) {
       agent.syncConfigToBackend('tools', toolDefs);
     }
+
+    // 7. Memory runtime retrieval settings
+    agent.syncConfigToBackend('memory', getMemoryRuntimeConfig(voiceStore.memoryUI));
 
     console.log('📤 Synced all configs to backend on connect (including', toolDefs.length, 'tools)');
   }
