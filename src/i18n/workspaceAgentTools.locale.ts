@@ -213,10 +213,11 @@ export const workspaceAgentToolsEn = {
   "toolDescResetUiDomain": "Reset an app UI domain to defaults. Supports avatar, theme, or scene and requires confirmation.",
   "toolDescListUiControls": "List the available structured UI controls that the app supports.",
   "toolDescShowWorkspaceStatus": "Get a short summary of the current workspace state, including panel, renderer, theme, and search visibility.",
-  "toolDescReadEmails": "Read the user's recent emails, optionally filtered by category (travel, bills, events, newsletters, personal, notifications, shopping, work). Returns a list of email summaries.",
-  "toolDescReadEmailDetail": "Read the full content of a specific email by its message ID.",
-  "toolDescReplyToEmail": "Reply to a specific email. Requires message_id, the reply body text, and confirm=true to actually send.",
-  "toolDescArchiveEmail": "Archive an email by its message ID, removing it from the inbox view.",
+  "toolDescReadEmails": "Read the user's recent emails, optionally filtered by category. Returns a numbered list (1, 2, 3...). Use these numbers in other email tools to reference specific emails.",
+  "toolDescReadEmailDetail": "Read the full content of a specific email. Pass email_ref as a number from the last listing (e.g. '1' for the first email) or a UUID message ID.",
+  "toolDescReplyToEmail": "Reply to a specific email. Pass email_ref as a number from the last listing (e.g. '1') or a UUID. Requires the reply body text and confirm=true to actually send.",
+  "toolDescSendEmail": "Compose and send a new email (not a reply). Requires: to (email address), subject, body text, and confirm=true to send. The email is sent from the user's kwami.io address.",
+  "toolDescArchiveEmail": "Archive an email, removing it from the inbox. Pass email_ref as a number from the last listing or a UUID.",
   "toolDescCheckEmailStatus": "Check the user's unread email count, broken down by category.",
   "confirmRequired": "Confirmation required. Set confirm=true to proceed."
 } as const;
@@ -436,10 +437,11 @@ export const workspaceAgentToolsEs = {
   "toolDescResetUiDomain": "Restablece un dominio de UI (avatar, tema o escena) a valores por defecto; requiere confirmacion.",
   "toolDescListUiControls": "Lista los controles de UI estructurados disponibles en la app.",
   "toolDescShowWorkspaceStatus": "Resume el estado del espacio de trabajo: panel, renderizador, tema y visibilidad de busqueda.",
-  "toolDescReadEmails": "Lee los emails recientes del usuario, opcionalmente filtrados por categoria (travel, bills, events, newsletters, personal, notifications, shopping, work). Devuelve una lista de resumenes.",
-  "toolDescReadEmailDetail": "Lee el contenido completo de un email especifico por su ID de mensaje.",
-  "toolDescReplyToEmail": "Responde a un email especifico. Requiere message_id, el texto de respuesta y confirm=true para enviar.",
-  "toolDescArchiveEmail": "Archiva un email por su ID de mensaje, removiendolo de la bandeja de entrada.",
+  "toolDescReadEmails": "Lee los emails recientes del usuario, opcionalmente filtrados por categoria. Devuelve una lista numerada (1, 2, 3...). Usa estos numeros en otras herramientas de email para referenciar emails.",
+  "toolDescReadEmailDetail": "Lee el contenido completo de un email. Pasa email_ref como numero de la ultima lista (ej. '1' para el primero) o un UUID.",
+  "toolDescReplyToEmail": "Responde a un email. Pasa email_ref como numero de la ultima lista (ej. '1') o UUID. Requiere texto de respuesta y confirm=true para enviar.",
+  "toolDescSendEmail": "Compone y envia un email nuevo (no una respuesta). Requiere: to (direccion), subject, body y confirm=true para enviar. Se envia desde la direccion kwami.io del usuario.",
+  "toolDescArchiveEmail": "Archiva un email, removiendolo de la bandeja. Pasa email_ref como numero de la ultima lista o UUID.",
   "toolDescCheckEmailStatus": "Verifica el conteo de emails no leidos del usuario, desglosado por categoria.",
   "confirmRequired": "Se requiere confirmacion. Establece confirm=true para continuar."
 } as const;

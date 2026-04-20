@@ -1516,6 +1516,16 @@ export function useWorkspaceAgentTools() {
 
     // ---- Email Smart Hub tools ----
     const emailStore = useEmailStore();
+    let _lastEmailListing: string[] = [];
+
+    function _resolveMessageId(ref: string): string | null {
+      const num = parseInt(ref, 10);
+      if (!isNaN(num) && num >= 1 && num <= _lastEmailListing.length) {
+        return _lastEmailListing[num - 1];
+      }
+      if (ref.includes('-')) return ref;
+      return null;
+    }
 
     instance.registerTool({
       name: 'read_emails',
@@ -1530,10 +1540,11 @@ export function useWorkspaceAgentTools() {
         if (!emailStore.isActivated) return 'Email is not activated for this kwami.';
         await emailStore.fetchInbox(category ?? 'all');
         const msgs = emailStore.messages.slice(0, 10);
+        _lastEmailListing = msgs.map((m) => m.id);
         if (msgs.length === 0) return `No ${category && category !== 'all' ? category + ' ' : ''}emails found.`;
         return msgs
-          .map((m) => `[${m.is_read ? ' ' : '*'}] ${m.from_address}: ${m.subject || '(no subject)'} (${m.category})`)
-          .join('\n');
+          .map((m, i) => `${i + 1}. [${m.is_read ? 'read' : 'UNREAD'}] From: ${m.from_address} | Subject: ${m.subject || '(no subject)'} | Category: ${m.category}`)
+          .join('\n') + '\n\nUse the number (1, 2, 3...) to reference an email in other tools.';
       },
     });
 
@@ -1541,12 +1552,15 @@ export function useWorkspaceAgentTools() {
       name: 'read_email_detail',
       description: t('workspaceAgentTools.toolDescReadEmailDetail'),
       parameters: {
-        message_id: { type: 'string' },
+        email_ref: { type: 'string' },
       },
-      handler: async ({ message_id }) => {
+      handler: async ({ email_ref }) => {
+        const id = _resolveMessageId(email_ref);
+        if (!id) return 'Invalid email reference. Use a number from the last listing (e.g. "1") or a message ID.';
         try {
-          const msg = await emailStore.fetchMessage(message_id);
-          return `From: ${msg.from_address}\nSubject: ${msg.subject}\nDate: ${msg.received_at}\n\n${msg.body_text.slice(0, 2000)}`;
+          const msg = await emailStore.fetchMessage(id);
+          emailStore.markRead(id);
+          return `ID: ${msg.id}\nFrom: ${msg.from_address}\nTo: ${msg.to_addresses.join(', ')}\nSubject: ${msg.subject}\nDate: ${msg.received_at}\nCategory: ${msg.category}\n\n${msg.body_text.slice(0, 2000)}`;
         } catch {
           return 'Message not found.';
         }
@@ -1557,23 +1571,48 @@ export function useWorkspaceAgentTools() {
       name: 'reply_to_email',
       description: t('workspaceAgentTools.toolDescReplyToEmail'),
       parameters: {
-        message_id: { type: 'string' },
+        email_ref: { type: 'string' },
         body: { type: 'string' },
         confirm: { type: 'boolean' },
       },
-      handler: async ({ message_id, body, confirm }) => {
+      handler: async ({ email_ref, body, confirm }) => {
         if (!confirm) return t('workspaceAgentTools.confirmRequired');
-        const msg = emailStore.messages.find((m) => m.id === message_id);
-        if (!msg) return 'Message not found.';
+        const id = _resolveMessageId(email_ref);
+        if (!id) return 'Invalid email reference. Use a number from the last listing (e.g. "1") or a message ID.';
+        const msg = emailStore.messages.find((m) => m.id === id);
+        if (!msg) return 'Message not found. Try calling read_emails first.';
         try {
           await emailStore.sendEmail({
             to: [msg.from_address],
             subject: msg.subject.startsWith('Re:') ? msg.subject : `Re: ${msg.subject}`,
             bodyText: body,
           });
-          return 'Reply sent.';
+          return `Reply sent to ${msg.from_address}.`;
         } catch (e: any) {
           return `Failed to send reply: ${e.message}`;
+        }
+      },
+    });
+
+    instance.registerTool({
+      name: 'send_email',
+      description: t('workspaceAgentTools.toolDescSendEmail'),
+      parameters: {
+        to: { type: 'string' },
+        subject: { type: 'string' },
+        body: { type: 'string' },
+        confirm: { type: 'boolean' },
+      },
+      handler: async ({ to, subject, body, confirm }) => {
+        if (!emailStore.isActivated) return 'Email is not activated for this kwami.';
+        if (!confirm) return t('workspaceAgentTools.confirmRequired');
+        const toList = to.split(/[,;]\s*/).map((a: string) => a.trim()).filter(Boolean);
+        if (toList.length === 0) return 'No recipient provided.';
+        try {
+          await emailStore.sendEmail({ to: toList, subject: subject || '', bodyText: body });
+          return `Email sent to ${toList.join(', ')}.`;
+        } catch (e: any) {
+          return `Failed to send email: ${e.message}`;
         }
       },
     });
@@ -1582,11 +1621,13 @@ export function useWorkspaceAgentTools() {
       name: 'archive_email',
       description: t('workspaceAgentTools.toolDescArchiveEmail'),
       parameters: {
-        message_id: { type: 'string' },
+        email_ref: { type: 'string' },
       },
-      handler: async ({ message_id }) => {
+      handler: async ({ email_ref }) => {
+        const id = _resolveMessageId(email_ref);
+        if (!id) return 'Invalid email reference. Use a number from the last listing (e.g. "1") or a message ID.';
         try {
-          await emailStore.archiveMessage(message_id);
+          await emailStore.archiveMessage(id);
           return 'Email archived.';
         } catch {
           return 'Failed to archive email.';
