@@ -22,6 +22,7 @@ import { useParticlesFaceStore } from '@/stores/avatar.particles-face';
 import { useTranscriptionState } from '@/composables/useTranscriptionState';
 import { useAgentActionState } from '@/composables/useAgentActionState';
 import { avatarPresets } from '@/presets/avatar/avatar-presets';
+import { useEmailStore } from '@/stores/email';
 
 const WORKSPACE_PANELS = [
   'avatar',
@@ -39,6 +40,7 @@ const WORKSPACE_PANELS = [
   'theme',
   'models',
   'credits',
+  'email',
 ] as const;
 
 type WorkspacePanel = (typeof WORKSPACE_PANELS)[number];
@@ -69,6 +71,9 @@ const PANEL_ALIASES: Record<string, WorkspacePanel> = {
   phone: 'communications',
   calls: 'communications',
   voice: 'voice',
+  email: 'email',
+  mail: 'email',
+  inbox: 'email',
 };
 
 const ADVANCED_VOICE_CONTROLS = new Set([
@@ -1507,6 +1512,103 @@ export function useWorkspaceAgentTools() {
       name: 'show_workspace_status',
       description: t('workspaceAgentTools.toolDescShowWorkspaceStatus'),
       handler: async () => showWorkspaceStatus(),
+    });
+
+    // ---- Email Smart Hub tools ----
+    const emailStore = useEmailStore();
+
+    instance.registerTool({
+      name: 'read_emails',
+      description: t('workspaceAgentTools.toolDescReadEmails'),
+      parameters: {
+        category: {
+          type: 'string',
+          enum: ['all', 'travel', 'bills', 'events', 'newsletters', 'personal', 'notifications', 'shopping', 'work'],
+        },
+      },
+      handler: async ({ category }) => {
+        if (!emailStore.isActivated) return 'Email is not activated for this kwami.';
+        await emailStore.fetchInbox(category ?? 'all');
+        const msgs = emailStore.messages.slice(0, 10);
+        if (msgs.length === 0) return `No ${category && category !== 'all' ? category + ' ' : ''}emails found.`;
+        return msgs
+          .map((m) => `[${m.is_read ? ' ' : '*'}] ${m.from_address}: ${m.subject || '(no subject)'} (${m.category})`)
+          .join('\n');
+      },
+    });
+
+    instance.registerTool({
+      name: 'read_email_detail',
+      description: t('workspaceAgentTools.toolDescReadEmailDetail'),
+      parameters: {
+        message_id: { type: 'string' },
+      },
+      handler: async ({ message_id }) => {
+        try {
+          const msg = await emailStore.fetchMessage(message_id);
+          return `From: ${msg.from_address}\nSubject: ${msg.subject}\nDate: ${msg.received_at}\n\n${msg.body_text.slice(0, 2000)}`;
+        } catch {
+          return 'Message not found.';
+        }
+      },
+    });
+
+    instance.registerTool({
+      name: 'reply_to_email',
+      description: t('workspaceAgentTools.toolDescReplyToEmail'),
+      parameters: {
+        message_id: { type: 'string' },
+        body: { type: 'string' },
+        confirm: { type: 'boolean' },
+      },
+      handler: async ({ message_id, body, confirm }) => {
+        if (!confirm) return t('workspaceAgentTools.confirmRequired');
+        const msg = emailStore.messages.find((m) => m.id === message_id);
+        if (!msg) return 'Message not found.';
+        try {
+          await emailStore.sendEmail({
+            to: [msg.from_address],
+            subject: msg.subject.startsWith('Re:') ? msg.subject : `Re: ${msg.subject}`,
+            bodyText: body,
+          });
+          return 'Reply sent.';
+        } catch (e: any) {
+          return `Failed to send reply: ${e.message}`;
+        }
+      },
+    });
+
+    instance.registerTool({
+      name: 'archive_email',
+      description: t('workspaceAgentTools.toolDescArchiveEmail'),
+      parameters: {
+        message_id: { type: 'string' },
+      },
+      handler: async ({ message_id }) => {
+        try {
+          await emailStore.archiveMessage(message_id);
+          return 'Email archived.';
+        } catch {
+          return 'Failed to archive email.';
+        }
+      },
+    });
+
+    instance.registerTool({
+      name: 'check_email_status',
+      description: t('workspaceAgentTools.toolDescCheckEmailStatus'),
+      handler: async () => {
+        if (!emailStore.isActivated) return 'Email is not activated for this kwami.';
+        await emailStore.fetchUnreadCounts();
+        const counts = emailStore.unreadCounts;
+        const total = emailStore.totalUnread;
+        if (total === 0) return 'No unread emails.';
+        const breakdown = Object.entries(counts)
+          .filter(([, c]) => c > 0)
+          .map(([cat, c]) => `${cat}: ${c}`)
+          .join(', ');
+        return `${total} unread email(s). ${breakdown}`;
+      },
     });
   }
 

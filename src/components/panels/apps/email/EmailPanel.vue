@@ -1,48 +1,135 @@
 <script setup lang="ts">
+import { ref, onMounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import BasePanel from '@/components/ui/BasePanel.vue';
 import { panelIcons } from '@/constants/panel-icons';
+import { useEmailStore } from '@/stores/email';
+import { useWorkspaceStore } from '@/stores/workspace';
+import EmailActivation from './EmailActivation.vue';
+import SmartHubInbox from './SmartHubInbox.vue';
+import EmailDetail from './EmailDetail.vue';
+import EmailCompose from './EmailCompose.vue';
 
 const { t } = useI18n();
+const emailStore = useEmailStore();
+const workspaceStore = useWorkspaceStore();
+
+type View = 'loading' | 'activation' | 'inbox' | 'detail' | 'compose';
+const currentView = ref<View>('loading');
+const replyContext = ref<{ to: string; subject: string } | null>(null);
+
+async function loadAccount() {
+  currentView.value = 'loading';
+  try {
+    await emailStore.fetchAccount();
+  } catch {
+    // API unreachable — fall through to activation view
+  }
+  currentView.value = emailStore.isActivated ? 'inbox' : 'activation';
+}
+
+function handleSelectMessage(id: string) {
+  emailStore.selectMessage(id);
+  currentView.value = 'detail';
+}
+
+function handleCompose() {
+  replyContext.value = null;
+  currentView.value = 'compose';
+}
+
+function handleReply(messageId: string) {
+  const msg = emailStore.messages.find((m) => m.id === messageId);
+  if (msg) {
+    replyContext.value = {
+      to: msg.from_address,
+      subject: msg.subject.startsWith('Re:') ? msg.subject : `Re: ${msg.subject}`,
+    };
+  }
+  currentView.value = 'compose';
+}
+
+function handleBack() {
+  emailStore.selectMessage(null);
+  replyContext.value = null;
+  currentView.value = 'inbox';
+}
+
+function handleDeactivated() {
+  currentView.value = 'activation';
+}
+
+watch(() => workspaceStore.activeWorkspaceId, () => {
+  loadAccount();
+});
+
+watch(() => emailStore.isActivated, (activated) => {
+  if (activated && currentView.value === 'activation') {
+    currentView.value = 'inbox';
+  }
+});
+
+onMounted(() => {
+  loadAccount();
+});
 </script>
 
 <template>
-  <BasePanel :title="t('sidebar.panels.email')" :icon="panelIcons.email">
-    <div class="coming-soon">
-      <iconify-icon :icon="panelIcons.email" class="coming-soon-icon"></iconify-icon>
-      <h3>{{ t('sidebar.panels.email') }}</h3>
-      <p>{{ t('apps.comingSoon') }}</p>
+  <BasePanel
+    :title="t('sidebar.panels.email')"
+    :icon="panelIcons.email"
+    :no-padding="currentView !== 'loading' && currentView !== 'activation'"
+  >
+    <div v-if="currentView === 'loading'" key="loading" class="center-state">
+      <iconify-icon icon="ph:spinner-gap-bold" class="spin loading-icon"></iconify-icon>
     </div>
+
+    <EmailActivation v-if="currentView === 'activation'" key="activation" />
+
+    <SmartHubInbox
+      v-if="currentView === 'inbox'"
+      key="inbox"
+      @select-message="handleSelectMessage"
+      @compose="handleCompose"
+      @deactivated="handleDeactivated"
+    />
+
+    <EmailDetail
+      v-if="currentView === 'detail'"
+      key="detail"
+      @back="handleBack"
+      @reply="handleReply"
+    />
+
+    <EmailCompose
+      v-if="currentView === 'compose'"
+      key="compose"
+      :reply-to="replyContext"
+      @back="handleBack"
+    />
   </BasePanel>
 </template>
 
 <style scoped>
-.coming-soon {
+.center-state {
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 12px;
-  padding: 60px 24px;
-  text-align: center;
-  color: var(--text-muted);
+  padding: 60px;
+  grid-column: 1 / -1;
 }
 
-.coming-soon-icon {
-  font-size: 48px;
+.loading-icon {
+  font-size: 28px;
   color: var(--accent-primary);
-  opacity: 0.5;
 }
 
-.coming-soon h3 {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  margin: 0;
+.spin {
+  animation: spin 1s linear infinite;
 }
 
-.coming-soon p {
-  font-size: 13px;
-  margin: 0;
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 </style>
