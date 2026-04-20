@@ -1,74 +1,227 @@
 <script setup lang="ts">
+import { computed, ref, onMounted, onUnmounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import AuthForm from './AuthForm.vue';
 import GoogleButton from './GoogleButton.vue';
 import KwamiLogo from '@/components/ui/KwamiLogo.vue';
-import BackgroundRings from '@/components/ui/BackgroundRings.vue';
+import WelcomeHero from './WelcomeHero.vue';
+import WelcomeBlob from './WelcomeBlob.vue';
 
 const { t } = useI18n();
+
+const overlayRef = ref<HTMLElement | null>(null);
+const scrollY = ref(0);
+const viewportH = ref(window.innerHeight || 1);
+
+function clamp(v: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, v));
+}
+
+function onScroll() {
+  scrollY.value = overlayRef.value?.scrollTop ?? 0;
+}
+
+function onResize() {
+  viewportH.value = window.innerHeight || 1;
+}
+
+onMounted(() => {
+  window.addEventListener('resize', onResize, { passive: true });
+});
+
+onUnmounted(() => {
+  window.removeEventListener('resize', onResize);
+});
+
+const heroProgress = computed(() =>
+  clamp(scrollY.value / (viewportH.value * 0.85), 0, 1),
+);
+
+const eased = computed(() => {
+  const t = heroProgress.value;
+  return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+});
+
+const titleOpacity = computed(() => 1 - clamp(heroProgress.value / 0.6, 0, 1));
+const subtitleOpacity = computed(() => 1 - clamp(heroProgress.value / 0.45, 0, 1));
+
+const blobStyle = computed(() => {
+  const p = eased.value;
+  const shiftX = -28 * p;
+  const shiftY = -4 * p;
+  const scale = 1 - 0.15 * p;
+  return {
+    transform: `translate3d(${shiftX}vw, ${shiftY}vh, 0) scale(${scale})`,
+  };
+});
+
+const loginPanelStyle = computed(() => {
+  const p = eased.value;
+  const translateX = 80 * (1 - p);
+  const opacity = clamp((heroProgress.value - 0.3) / 0.5, 0, 1);
+  return {
+    transform: `translate3d(${translateX}px, 0, 0)`,
+    opacity: String(opacity),
+    pointerEvents: (opacity > 0.5 ? 'auto' : 'none') as 'auto' | 'none',
+  };
+});
 </script>
 
 <template>
-  <div class="auth-overlay">
-    <!-- Subtle background rings from corner -->
-    <BackgroundRings
-      :ring-count="80"
-      :stroke-width="1.5"
-      :max-ring-opacity="0.2"
-      :expansion-factor="0.012"
-      :center-offset="{ x: 0.15, y: -0.15 }"
-      z-index="0"
-    />
-    
-    <div class="auth-container">
-      <div class="auth-header">
-        <div class="logo">
-          <KwamiLogo width="160" :stroke-width="3" />
+  <div ref="overlayRef" class="page" @scroll.passive="onScroll">
+    <div class="ambient" aria-hidden="true" />
+
+    <!-- Fixed hero title -->
+    <h1
+      class="hero-title"
+      :style="{ opacity: titleOpacity }"
+      aria-label="kwami"
+    >
+      <span class="title-main">KWAMI</span>
+    </h1>
+
+    <!-- Fixed subtitle -->
+    <p
+      class="title-sub"
+      :style="{ opacity: subtitleOpacity }"
+    >
+      THE AI THAT FEELS ALIVE
+    </p>
+
+    <!-- Blob: fixed, centered, shifts left on scroll -->
+    <div class="blob-zone" :style="blobStyle">
+      <WelcomeBlob />
+    </div>
+
+    <!-- Login panel: slides in from right on scroll -->
+    <div class="login-panel-wrapper" :style="loginPanelStyle">
+      <div class="auth-container">
+        <div class="auth-header">
+          <div class="logo">
+            <KwamiLogo width="160" :stroke-width="3" />
+          </div>
+          <h2 class="panel-title">{{ t('auth.welcome') }}</h2>
+          <p class="panel-subtitle">{{ t('auth.signInContinue') }}</p>
         </div>
-        <h1 class="title">{{ t('auth.welcome') }}</h1>
-        <p class="subtitle">{{ t('auth.signInContinue') }}</p>
-      </div>
 
-      <div class="auth-content">
-        <GoogleButton />
+        <div class="auth-content">
+          <GoogleButton />
 
-        <div class="divider">
-          <span>{{ t('auth.orContinueWithEmail') }}</span>
+          <div class="divider">
+            <span>{{ t('auth.orContinueWithEmail') }}</span>
+          </div>
+
+          <AuthForm />
         </div>
-
-        <AuthForm />
       </div>
     </div>
 
+    <!-- Scroll track -->
+    <main class="scroll-main">
+      <WelcomeHero />
+      <div class="scroll-spacer" aria-hidden="true" />
+    </main>
+
     <div class="auth-footer">
-      <p>{{ t('auth.poweredBySupabase') }}</p>
+      <p>{{ t('auth.footer') }}</p>
     </div>
   </div>
 </template>
 
 <style scoped>
-.auth-overlay {
+.page {
   position: absolute;
   inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
+  overflow-y: auto;
+  overflow-x: hidden;
   z-index: 1000;
-  
-  /* Lighter overlay to show more of the canvas */
-  background: rgba(5, 5, 16, 0.4);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  background:
+    radial-gradient(ellipse 120% 82% at 50% -20%, rgba(53, 158, 238, 0.1), transparent 55%),
+    radial-gradient(ellipse 76% 55% at 82% 32%, rgba(239, 71, 111, 0.08), transparent 52%),
+    radial-gradient(ellipse 76% 55% at 10% 70%, rgba(3, 206, 164, 0.08), transparent 50%),
+    #06070a;
+}
+
+.ambient {
+  position: fixed;
+  top: -20%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 1000px;
+  height: 52%;
+  background: radial-gradient(ellipse at center, rgba(53, 158, 238, 0.1) 0%, transparent 72%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── KWAMI title ─────────────────────────────────── */
+
+.hero-title {
+  position: fixed;
+  left: 50%;
+  top: 42%;
+  transform: translate(-50%, -50%);
+  z-index: 31;
+  margin: 0;
+  text-align: center;
+  white-space: nowrap;
+  pointer-events: none;
+  transition: opacity 180ms ease;
+}
+
+.title-main {
+  display: block;
+  font-size: clamp(3.2rem, 17vw, 10.2rem);
+  font-weight: 900;
+  line-height: 0.84;
+  letter-spacing: 0.03em;
+  color: #f6f8ff;
+  text-shadow: 0 0 34px rgba(53, 158, 238, 0.22);
+}
+
+.title-sub {
+  position: fixed;
+  left: 50%;
+  top: 52%;
+  transform: translateX(-50%);
+  z-index: 31;
+  margin: 0;
+  font-size: clamp(0.75rem, 1.9vw, 1.1rem);
+  letter-spacing: 0.42em;
+  font-weight: 700;
+  color: rgba(180, 188, 210, 0.9);
+  text-align: center;
+  white-space: nowrap;
+  pointer-events: none;
+  transition: opacity 180ms ease;
+}
+
+/* ── Blob zone ───────────────────────────────────── */
+
+.blob-zone {
+  position: fixed;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  transition: transform 120ms linear;
+}
+
+/* ── Login panel (right side) ────────────────────── */
+
+.login-panel-wrapper {
+  position: fixed;
+  right: 5vw;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 40;
+  width: min(420px, 88vw);
+  transition: transform 120ms linear, opacity 180ms ease;
 }
 
 .auth-container {
   position: relative;
   width: 100%;
-  max-width: 400px;
-  
-  /* Glassmorphism effect */
   background: linear-gradient(
     135deg,
     rgba(255, 255, 255, 0.1) 0%,
@@ -77,34 +230,25 @@ const { t } = useI18n();
   );
   backdrop-filter: blur(24px) saturate(180%);
   -webkit-backdrop-filter: blur(24px) saturate(180%);
-  
-  /* Glass border with gradient */
   border: 1px solid transparent;
-  border-radius: var(--radius-xl);
+  border-radius: var(--radius-xl, 16px);
   background-clip: padding-box;
-  
-  /* Multi-layer shadow for depth */
-  box-shadow: 
+  box-shadow:
     0 8px 32px rgba(0, 0, 0, 0.3),
     0 2px 8px rgba(0, 0, 0, 0.2),
     inset 0 1px 1px rgba(255, 255, 255, 0.1),
     inset 0 -1px 1px rgba(0, 0, 0, 0.1),
     0 0 60px rgba(124, 77, 255, 0.15),
     0 0 100px rgba(0, 229, 255, 0.1);
-  
   padding: 32px;
   overflow: hidden;
-  
-  /* Subtle animation */
-  animation: containerFadeIn 0.5s ease-out;
 }
 
-/* Gradient border overlay */
 .auth-container::before {
   content: '';
   position: absolute;
   inset: 0;
-  border-radius: var(--radius-xl);
+  border-radius: var(--radius-xl, 16px);
   padding: 1px;
   background: linear-gradient(
     135deg,
@@ -112,18 +256,17 @@ const { t } = useI18n();
     rgba(126, 243, 17, 0.267) 50%,
     rgba(124, 77, 255, 0.2) 100%
   );
-  -webkit-mask: 
-    linear-gradient(#fff 0 0) content-box, 
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
     linear-gradient(#fff 0 0);
-  mask: 
-    linear-gradient(#fff 0 0) content-box, 
+  mask:
+    linear-gradient(#fff 0 0) content-box,
     linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
   pointer-events: none;
 }
 
-/* Subtle light reflection at top */
 .auth-container::after {
   content: '';
   position: absolute;
@@ -131,26 +274,8 @@ const { t } = useI18n();
   left: 20%;
   right: 20%;
   height: 1px;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 255, 255, 0.4),
-    transparent
-  );
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
   pointer-events: none;
-}
-
-@keyframes containerFadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(20px) scale(0.96);
-    backdrop-filter: blur(0px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-    backdrop-filter: blur(24px);
-  }
 }
 
 .auth-header {
@@ -164,23 +289,23 @@ const { t } = useI18n();
   align-items: center;
   justify-content: center;
   margin-bottom: 28px;
-  filter: drop-shadow(0 0 20px rgba(239, 71, 111, 0.4)) 
+  filter: drop-shadow(0 0 20px rgba(239, 71, 111, 0.4))
           drop-shadow(0 0 40px rgba(53, 158, 238, 0.3));
   animation: logoGlow 4s ease-in-out infinite alternate;
 }
 
 @keyframes logoGlow {
   from {
-    filter: drop-shadow(0 0 20px rgba(239, 71, 111, 0.4)) 
+    filter: drop-shadow(0 0 20px rgba(239, 71, 111, 0.4))
             drop-shadow(0 0 40px rgba(53, 158, 238, 0.3));
   }
   to {
-    filter: drop-shadow(0 0 30px rgba(3, 206, 164, 0.5)) 
+    filter: drop-shadow(0 0 30px rgba(3, 206, 164, 0.5))
             drop-shadow(0 0 50px rgba(255, 196, 61, 0.4));
   }
 }
 
-.title {
+.panel-title {
   font-size: 26px;
   font-weight: 600;
   background: linear-gradient(135deg, #fff 0%, rgba(255, 255, 255, 0.9) 100%);
@@ -190,7 +315,7 @@ const { t } = useI18n();
   margin: 0 0 8px 0;
 }
 
-.subtitle {
+.panel-subtitle {
   font-size: 14px;
   color: rgba(255, 255, 255, 0.6);
   margin: 0;
@@ -218,17 +343,30 @@ const { t } = useI18n();
   content: '';
   flex: 1;
   height: 1px;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 255, 255, 0.15),
-    transparent
-  );
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
 }
 
+/* ── Scroll track ────────────────────────────────── */
+
+.scroll-main {
+  position: relative;
+  z-index: 10;
+}
+
+.scroll-spacer {
+  height: 100dvh;
+}
+
+/* ── Footer ──────────────────────────────────────── */
+
 .auth-footer {
-  margin-top: 24px;
+  position: fixed;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
   text-align: center;
+  z-index: 6;
+  pointer-events: none;
 }
 
 .auth-footer p {
@@ -238,26 +376,34 @@ const { t } = useI18n();
   letter-spacing: 0.5px;
 }
 
-/* Responsive adjustments */
-@media (max-width: 480px) {
-  .auth-overlay {
-    padding: 16px;
+/* ── Responsive ──────────────────────────────────── */
+
+@media (max-width: 900px) {
+  .login-panel-wrapper {
+    right: 50%;
+    transform: translate(50%, -50%);
   }
-  
+
+  .hero-title {
+    top: 28%;
+  }
+
+  .title-sub {
+    top: 38%;
+  }
+}
+
+@media (max-width: 480px) {
   .auth-container {
     padding: 24px;
   }
-  
-  .logo-icon {
-    font-size: 28px;
-  }
-  
-  .logo-text {
+
+  .panel-title {
     font-size: 20px;
   }
-  
-  .title {
-    font-size: 20px;
+
+  .scroll-spacer {
+    height: 80dvh;
   }
 }
 </style>

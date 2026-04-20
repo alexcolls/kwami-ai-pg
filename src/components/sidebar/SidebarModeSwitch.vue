@@ -188,16 +188,11 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside));
 }
 
 .mode-btn:hover:not(:disabled) {
-  background: var(--surface-2);
+  background: color-mix(in srgb, var(--accent-primary) 12%, var(--glass-bg));
+  border-color: color-mix(in srgb, var(--accent-primary) 24%, var(--glass-border));
+  box-shadow: 0 0 14px color-mix(in srgb, var(--accent-primary) 16%, transparent), var(--glass-shadow);
   color: var(--text-primary);
   transform: scale(1.08);
-}
-
-.mode-btn.apps-mode {
-  background: var(--accent-glow);
-  border-color: var(--accent-primary);
-  color: var(--accent-primary);
-  box-shadow: 0 0 20px var(--accent-glow), var(--glass-shadow);
 }
 
 .mode-btn:disabled {
