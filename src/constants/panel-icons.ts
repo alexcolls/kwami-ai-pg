@@ -23,4 +23,5 @@ export const panelIcons: Record<string, string> = {
   contacts: 'ph:address-book-duotone',
   email: 'ph:envelope-duotone',
   wallet: 'ph:wallet-duotone',
+  calendar: 'ph:calendar-duotone',
 };

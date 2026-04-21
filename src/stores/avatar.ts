@@ -4,12 +4,14 @@ import {
   avatarPresets,
   getBlobXyzPresets,
   getBlackHolePresets,
+  getEyeIrisPresets,
   getPresetById,
   type AvatarPreset,
 } from '@/presets/avatar/avatar-presets';
 import { useBlobXyzStore } from './avatar.blob-xyz';
 import { useBlackHoleStore } from './avatar.black-hole';
 import { useParticlesFaceStore } from './avatar.particles-face';
+import { useEyeIrisStore } from './avatar.eye-iris';
 
 // Re-export AvatarPreset for backwards compatibility
 export type { AvatarPreset };
@@ -21,7 +23,7 @@ export type SkinType =
   | 'chrome' | 'clay' | 'jade' | 'toon-matcap' | 'hologram'
   | 'flat' | 'stepped' | 'halftone' | 'outlined';
 export type AvatarState = 'idle' | 'listening' | 'thinking' | 'speaking';
-export type RendererType = 'blob-xyz' | 'black-hole' | 'particles-face';
+export type RendererType = 'blob-xyz' | 'black-hole' | 'particles-face' | 'eye-iris';
 
 // Interaction Types
 export type InteractionAction =
@@ -303,6 +305,7 @@ export const useAvatarStore = defineStore('avatar', () => {
 
   const blobXyzPresets = computed(() => getBlobXyzPresets());
   const blackHolePresets = computed(() => getBlackHolePresets());
+  const eyeIrisPresets = computed(() => getEyeIrisPresets());
 
   // Actions
   function setRendererType(type: RendererType) {
@@ -341,6 +344,8 @@ export const useAvatarStore = defineStore('avatar', () => {
       resetBlackHole();
     } else if (rendererType.value === 'particles-face') {
       resetParticlesFace();
+    } else if (rendererType.value === 'eye-iris') {
+      useEyeIrisStore().resetAll();
     }
   }
 
@@ -358,6 +363,8 @@ export const useAvatarStore = defineStore('avatar', () => {
       // Use the new black hole store for presets
       const blackHoleStore = useBlackHoleStore();
       blackHoleStore.importState(preset.blackHole as Parameters<typeof blackHoleStore.importState>[0]);
+    } else if (preset.renderer === 'eye-iris' && preset.eyeIris) {
+      useEyeIrisStore().importState(preset.eyeIris as Parameters<ReturnType<typeof useEyeIrisStore>['importState']>[0]);
     }
 
     return true;
@@ -437,11 +444,13 @@ export const useAvatarStore = defineStore('avatar', () => {
     const blobStore = useBlobXyzStore();
     const blackHoleStore = useBlackHoleStore();
     const pfStore = useParticlesFaceStore();
+    const eyeIrisStore = useEyeIrisStore();
     return {
       rendererType: rendererType.value,
       blobXyz: blobStore.exportState(),
       blackHole: blackHoleStore.exportState(),
       particlesFace: pfStore.exportState(),
+      eyeIris: eyeIrisStore.exportState(),
     };
   }
 
@@ -450,6 +459,7 @@ export const useAvatarStore = defineStore('avatar', () => {
     blobXyz?: unknown;
     blackHole?: unknown;
     particlesFace?: unknown;
+    eyeIris?: unknown;
   }) {
     if (!settings) return;
     isLoading.value = true;
@@ -460,9 +470,11 @@ export const useAvatarStore = defineStore('avatar', () => {
       const blobStore = useBlobXyzStore();
       const blackHoleStore = useBlackHoleStore();
       const pfStore = useParticlesFaceStore();
+      const eyeIrisStore = useEyeIrisStore();
       if (settings.blobXyz) blobStore.importState(settings.blobXyz as Parameters<typeof blobStore.importState>[0]);
       if (settings.blackHole) blackHoleStore.importState(settings.blackHole as Parameters<typeof blackHoleStore.importState>[0]);
       if (settings.particlesFace) pfStore.importState(settings.particlesFace as Parameters<typeof pfStore.importState>[0]);
+      if (settings.eyeIris) eyeIrisStore.importState(settings.eyeIris as Parameters<typeof eyeIrisStore.importState>[0]);
     } catch (e) {
       console.warn('Failed to apply avatar snapshot:', e);
     }
@@ -509,6 +521,7 @@ export const useAvatarStore = defineStore('avatar', () => {
     avatarPresets,
     blobXyzPresets,
     blackHolePresets,
+    eyeIrisPresets,
     // Actions
     setRendererType,
     setActiveState,

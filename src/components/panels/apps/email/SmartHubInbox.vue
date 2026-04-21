@@ -2,12 +2,12 @@
 import { ref, onMounted, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useEmailStore, type EmailCategory } from '@/stores/email';
-import ActionCard from './ActionCard.vue';
+import ConversationCard from './ConversationCard.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue';
 
 const emit = defineEmits<{
-  (e: 'selectMessage', id: string): void;
+  (e: 'selectConversation', address: string): void;
   (e: 'compose'): void;
   (e: 'deactivated'): void;
 }>();
@@ -57,7 +57,11 @@ const categories: { id: EmailCategory; icon: string }[] = [
   { id: 'notifications',  icon: 'ph:bell-ringing-duotone' },
 ];
 
-const filteredMessages = computed(() => emailStore.messages);
+const filteredConversations = computed(() => {
+  const cat = emailStore.activeCategory;
+  if (!cat || cat === 'all') return emailStore.conversations;
+  return emailStore.conversations.filter((c) => c.category === cat);
+});
 
 function selectCategory(cat: EmailCategory) {
   emailStore.setCategory(cat);
@@ -68,9 +72,8 @@ function badgeCount(cat: EmailCategory): number {
   return emailStore.unreadCounts[cat] ?? 0;
 }
 
-function handleSelect(id: string) {
-  emailStore.markRead(id);
-  emit('selectMessage', id);
+function handleSelect(address: string) {
+  emit('selectConversation', address);
 }
 
 onMounted(async () => {
@@ -99,7 +102,7 @@ onMounted(async () => {
             </button>
             <Transition name="popover">
               <div v-if="showMenu" class="menu-popover">
-                <button class="menu-item" @click="emailStore.refreshInbox()">
+                <button class="menu-item" @click="emailStore.refreshInbox(); closeMenu()">
                   <iconify-icon icon="ph:arrow-clockwise"></iconify-icon>
                   {{ t('email.inbox.refresh') }}
                 </button>
@@ -147,21 +150,21 @@ onMounted(async () => {
       <p class="warning-text">{{ t('email.release.permanent') }}</p>
     </ConfirmDialog>
 
-    <!-- Messages grid -->
-    <div class="message-grid">
-      <ActionCard
-        v-for="msg in filteredMessages"
-        :key="msg.id"
-        :message="msg"
+    <!-- Conversations list -->
+    <div class="conversation-list">
+      <ConversationCard
+        v-for="conv in filteredConversations"
+        :key="conv.address"
+        :conversation="conv"
         @select="handleSelect"
       />
 
-      <div v-if="!emailStore.isLoading && filteredMessages.length === 0" class="empty-state">
-        <iconify-icon icon="ph:tray-duotone" class="empty-icon"></iconify-icon>
+      <div v-if="!emailStore.isLoading && filteredConversations.length === 0" class="empty-state">
+        <iconify-icon icon="ph:chat-circle-dots-duotone" class="empty-icon"></iconify-icon>
         <p>{{ t('email.inbox.empty') }}</p>
       </div>
 
-      <div v-if="emailStore.isLoading && filteredMessages.length === 0" class="loading-state">
+      <div v-if="emailStore.isLoading && filteredConversations.length === 0" class="loading-state">
         <iconify-icon icon="ph:spinner-gap-bold" class="spin"></iconify-icon>
       </div>
     </div>
@@ -206,9 +209,7 @@ onMounted(async () => {
 }
 
 /* --- Popover menu --- */
-.menu-anchor {
-  position: relative;
-}
+.menu-anchor { position: relative; }
 
 .menu-trigger {
   display: flex;
@@ -262,37 +263,14 @@ onMounted(async () => {
   white-space: nowrap;
 }
 
-.menu-item iconify-icon {
-  font-size: 16px;
-  flex-shrink: 0;
-}
+.menu-item iconify-icon { font-size: 16px; flex-shrink: 0; }
+.menu-item:hover { background: var(--surface-2); color: var(--text-primary); }
+.menu-item.danger { color: var(--error); }
+.menu-item.danger:hover { background: var(--error-glow, rgba(248, 113, 113, 0.1)); }
+.menu-divider { height: 1px; margin: 4px 8px; background: var(--glass-border); }
 
-.menu-item:hover {
-  background: var(--surface-2);
-  color: var(--text-primary);
-}
-
-.menu-item.danger {
-  color: var(--error);
-}
-
-.menu-item.danger:hover {
-  background: var(--error-glow, rgba(248, 113, 113, 0.1));
-}
-
-.menu-divider {
-  height: 1px;
-  margin: 4px 8px;
-  background: var(--glass-border);
-}
-
-.popover-enter-active {
-  animation: popIn 0.15s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.popover-leave-active {
-  animation: popOut 0.1s ease-in;
-}
+.popover-enter-active { animation: popIn 0.15s cubic-bezier(0.16, 1, 0.3, 1); }
+.popover-leave-active { animation: popOut 0.1s ease-in; }
 
 @keyframes popIn {
   from { opacity: 0; transform: scale(0.92) translateY(-4px); }
@@ -314,9 +292,7 @@ onMounted(async () => {
   border-bottom: 1px solid var(--glass-border);
 }
 
-.category-bar::-webkit-scrollbar {
-  display: none;
-}
+.category-bar::-webkit-scrollbar { display: none; }
 
 .cat-pill {
   display: flex;
@@ -335,10 +311,7 @@ onMounted(async () => {
   font-family: inherit;
 }
 
-.cat-pill:hover {
-  background: var(--surface-2);
-  color: var(--text-primary);
-}
+.cat-pill:hover { background: var(--surface-2); color: var(--text-primary); }
 
 .cat-pill.active {
   background: var(--accent-glow);
@@ -346,13 +319,8 @@ onMounted(async () => {
   color: var(--accent-primary);
 }
 
-.cat-icon {
-  font-size: 14px;
-}
-
-.cat-label {
-  font-size: 11px;
-}
+.cat-icon { font-size: 14px; }
+.cat-label { font-size: 11px; }
 
 .cat-badge {
   display: inline-flex;
@@ -368,17 +336,15 @@ onMounted(async () => {
   font-weight: 700;
 }
 
-/* --- Messages --- */
-.message-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 10px;
-  padding: 12px 20px 20px;
-  align-content: start;
+/* --- Conversation list --- */
+.conversation-list {
+  flex: 1;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--surface-3) transparent;
 }
 
 .empty-state {
-  grid-column: 1 / -1;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -387,18 +353,10 @@ onMounted(async () => {
   color: var(--text-muted);
 }
 
-.empty-icon {
-  font-size: 40px;
-  opacity: 0.5;
-}
-
-.empty-state p {
-  font-size: 13px;
-  margin: 0;
-}
+.empty-icon { font-size: 40px; opacity: 0.5; }
+.empty-state p { font-size: 13px; margin: 0; }
 
 .loading-state {
-  grid-column: 1 / -1;
   display: flex;
   justify-content: center;
   padding: 40px;
@@ -409,9 +367,7 @@ onMounted(async () => {
   color: var(--accent-primary);
 }
 
-.spin {
-  animation: spin 1s linear infinite;
-}
+.spin { animation: spin 1s linear infinite; }
 
 @keyframes spin {
   from { transform: rotate(0deg); }

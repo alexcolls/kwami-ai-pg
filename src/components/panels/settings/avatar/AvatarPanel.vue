@@ -6,15 +6,18 @@ import { useKwami } from '@/composables/useKwami';
 import { useAvatarStore, type AvatarState } from '@/stores/avatar';
 import { useBlobXyzStore } from '@/stores/avatar.blob-xyz';
 import { useBlackHoleStore } from '@/stores/avatar.black-hole';
+import { useEyeIrisStore } from '@/stores/avatar.eye-iris';
 import BasePanel from '@/components/ui/BasePanel.vue';
 import PanelSection from '@/components/ui/PanelSection.vue';
 import { panelIcons } from '@/constants/panel-icons';
 import BlobXyzSettings from './BlobXyzSettings.vue';
 import BlackHoleSettings from './BlackHoleSettings.vue';
+import EyeIrisSettings from './EyeIrisSettings.vue';
 
 // Sync composables
 import { useBlobXyzSync } from '@/composables/avatar/sync/useBlobXyzSync';
 import { useBlackHoleSync } from '@/composables/avatar/sync/useBlackHoleSync';
+import { useEyeIrisSync } from '@/composables/avatar/sync/useEyeIrisSync';
 import { randomizeAvatarPanel } from '@/composables/avatar/randomizeAvatarPanel';
 import { useWorkspaceStore } from '@/stores/workspace';
 import { useKwamiConfigSync } from '@/composables/useKwamiConfigSync';
@@ -28,12 +31,14 @@ const panelIcon = panelIcons.avatar ?? 'ph:ghost-duotone';
 const avatarStore = useAvatarStore();
 const blobStore = useBlobXyzStore();
 const blackHoleStore = useBlackHoleStore();
+const eyeIrisStore = useEyeIrisStore();
 
 // Use store state
 const {
   rendererType,
   blobXyzPresets,
   blackHolePresets,
+  eyeIrisPresets,
 } = storeToRefs(avatarStore);
 
 // =====================================================
@@ -46,6 +51,10 @@ function getBlob() {
 function getBlackHole() {
   const avatar = kwami.value?.avatar as { getBlackHole?: () => unknown } | undefined;
   return avatar?.getBlackHole?.();
+}
+function getEyeIris() {
+  const avatar = kwami.value?.avatar as { getEyeIris?: () => unknown } | undefined;
+  return avatar?.getEyeIris?.();
 }
 
 // =====================================================
@@ -61,6 +70,10 @@ const { syncFromKwami: syncBlackHoleFromKwami, applyToKwami: applyBlackHoleToKwa
   kwami,
   getBlackHole,
 });
+const { syncFromKwami: syncEyeIrisFromKwami, applyToKwami: applyEyeIrisToKwami } = useEyeIrisSync({
+  kwami,
+  getEyeIris,
+});
 
 // =====================================================
 // COMPUTED
@@ -72,6 +85,8 @@ const currentPresets = computed(() => {
       return blobXyzPresets.value;
     case 'black-hole':
       return blackHolePresets.value;
+    case 'eye-iris':
+      return eyeIrisPresets.value;
     default:
       return blobXyzPresets.value;
   }
@@ -86,9 +101,10 @@ function syncFromKwami() {
 
   syncBlobFromKwami();
   syncBlackHoleFromKwami();
+  syncEyeIrisFromKwami();
 
   avatarStore.setRendererType(
-    kwamiRendererType.value as 'blob-xyz' | 'black-hole',
+    kwamiRendererType.value as 'blob-xyz' | 'black-hole' | 'particles-face' | 'eye-iris',
   );
 }
 
@@ -100,6 +116,9 @@ function applyCurrentRendererToKwami(type: string) {
       break;
     case 'black-hole':
       applyBlackHoleToKwami();
+      break;
+    case 'eye-iris':
+      applyEyeIrisToKwami();
       break;
   }
 }
@@ -152,6 +171,12 @@ watch(
   { deep: true }
 );
 
+watch(
+  () => eyeIrisStore.state,
+  () => avatarStore.saveSettings(),
+  { deep: true }
+);
+
 // Save renderer type changes
 watch(rendererType, () => avatarStore.saveSettings());
 
@@ -159,7 +184,7 @@ watch(rendererType, () => avatarStore.saveSettings());
 // ACTIONS
 // =====================================================
 
-function handleSwitchRenderer(type: 'blob-xyz' | 'black-hole') {
+function handleSwitchRenderer(type: 'blob-xyz' | 'black-hole' | 'eye-iris') {
   avatarStore.setRendererType(type);
   switchRenderer(type);
   applyCurrentRendererToKwami(type);
@@ -170,6 +195,7 @@ function handleRandomize() {
     applyBlob: applyBlobToKwami,
     applyBlackHole: applyBlackHoleToKwami,
     applyParticles: () => {},
+    applyEyeIris: applyEyeIrisToKwami,
   });
   window.dispatchEvent(new CustomEvent('kwami:randomized'));
 }
@@ -192,7 +218,7 @@ function handleReset() {
   }
 
   if (kwamiRendererType.value !== rendererType.value) {
-    switchRenderer(rendererType.value as 'blob-xyz' | 'black-hole');
+    switchRenderer(rendererType.value as 'blob-xyz' | 'black-hole' | 'particles-face' | 'eye-iris');
   }
   applyCurrentRendererToKwami(rendererType.value);
 
@@ -217,6 +243,9 @@ function handleApplyPreset(presetId: string) {
         break;
       case 'black-hole':
         applyBlackHoleToKwami();
+        break;
+      case 'eye-iris':
+        applyEyeIrisToKwami();
         break;
     }
   }
@@ -421,6 +450,20 @@ onUnmounted(() => {
             <span class="renderer-desc">{{ t('avatar.rendererBlackHoleDesc') }}</span>
           </div>
         </label>
+        <label class="renderer-option" :class="{ active: rendererType === 'eye-iris' }">
+          <input
+            type="radio"
+            name="renderer"
+            value="eye-iris"
+            :checked="rendererType === 'eye-iris'"
+            @change="handleSwitchRenderer('eye-iris')"
+          />
+          <iconify-icon icon="ph:eye-duotone" class="renderer-icon"></iconify-icon>
+          <div class="renderer-content">
+            <span class="renderer-label">{{ t('avatar.rendererEyeIris') }}</span>
+            <span class="renderer-desc">{{ t('avatar.rendererEyeIrisDesc') }}</span>
+          </div>
+        </label>
       </div>
     </PanelSection>
 
@@ -458,6 +501,7 @@ onUnmounted(() => {
     <!-- Sub-components -->
     <BlobXyzSettings v-if="rendererType === 'blob-xyz'" />
     <BlackHoleSettings v-if="rendererType === 'black-hole'" />
+    <EyeIrisSettings v-if="rendererType === 'eye-iris'" />
   </BasePanel>
 </template>
 

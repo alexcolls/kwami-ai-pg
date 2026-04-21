@@ -28,6 +28,7 @@ import EnergyPanel from '@/components/panels/settings/energy/EnergyPanel.vue';
 import ContactsPanel from '@/components/panels/apps/contacts/ContactsPanel.vue';
 import EmailPanel from '@/components/panels/apps/email/EmailPanel.vue';
 import WalletPanel from '@/components/panels/apps/wallet/WalletPanel.vue';
+import CalendarPanel from '@/components/panels/apps/calendar/CalendarPanel.vue';
 import EnergyBadge from '@/components/energy/EnergyBadge.vue';
 import SearchOrbitCards from '@/components/search/SearchOrbitCards.vue';
 import SidebarModeSwitch from '@/components/sidebar/SidebarModeSwitch.vue';
@@ -41,6 +42,7 @@ import { useAvatarStore } from '@/stores/avatar';
 import { useBlobXyzSync } from '@/composables/avatar/sync/useBlobXyzSync';
 import { useBlackHoleSync } from '@/composables/avatar/sync/useBlackHoleSync';
 import { useParticlesFaceSync } from '@/composables/avatar/sync/useParticlesFaceSync';
+import { useEyeIrisSync } from '@/composables/avatar/sync/useEyeIrisSync';
 import { randomizeAvatarPanel } from '@/composables/avatar/randomizeAvatarPanel';
 
 const { kwami, init, switchRenderer, rendererType: kwamiRendererType, isConnected } = useKwami();
@@ -85,6 +87,10 @@ const { applyToKwami: applyParticlesFaceToKwami } = useParticlesFaceSync({
   kwami,
   getParticlesFace: () => (kwami.value?.avatar as any)?.getParticlesFace?.(),
 });
+const { applyToKwami: applyEyeIrisToKwami } = useEyeIrisSync({
+  kwami,
+  getEyeIris: () => (kwami.value?.avatar as any)?.getEyeIris?.(),
+});
 
 const canvasRef = ref<HTMLCanvasElement | null>(null);
 
@@ -120,6 +126,7 @@ function onRandomizeAvatarPanel() {
     applyBlob: applyBlobToKwami,
     applyBlackHole: applyBlackHoleToKwami,
     applyParticles: applyParticlesFaceToKwami,
+    applyEyeIris: applyEyeIrisToKwami,
   });
   window.dispatchEvent(new CustomEvent('kwami:randomized'));
 }
@@ -155,6 +162,7 @@ function applySavedAvatarState() {
     case 'blob-xyz': applyBlobToKwami(); break;
     case 'black-hole': applyBlackHoleToKwami(); break;
     case 'particles-face': applyParticlesFaceToKwami(); break;
+    case 'eye-iris': applyEyeIrisToKwami(); break;
   }
 }
 
@@ -340,6 +348,7 @@ onUnmounted(() => {
           <ContactsPanel v-if="uiStore.activePanel === 'contacts'" />
           <EmailPanel v-if="uiStore.activePanel === 'email'" />
           <WalletPanel v-if="uiStore.activePanel === 'wallet'" />
+          <CalendarPanel v-if="uiStore.activePanel === 'calendar'" />
         </TheSidebar>
         <SidebarModeSwitch />
       </template>

@@ -10,6 +10,7 @@ import { storeToRefs } from 'pinia';
 import PanelSection from '@/components/ui/PanelSection.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
 import BaseSelect from '@/components/ui/BaseSelect.vue';
+import BaseToggle from '@/components/ui/BaseToggle.vue';
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue';
 import PanelHeaderControls from '@/components/ui/PanelHeaderControls.vue';
 import ReorganizePreview from '@/components/memory/ReorganizePreview.vue';
@@ -53,21 +54,11 @@ const includeFacts = computed({
   set: (v: boolean) => { memoryUI.value.includeFacts = v; },
 });
 
-const contextSizeOptions = [
-  { label: 'Lean (faster, lower tokens)', value: 'lean' },
-  { label: 'Balanced', value: 'balanced' },
-  { label: 'Rich (more memory context)', value: 'rich' },
-];
-
-const includeFactsOptions = [
-  { label: 'On', value: 'on' },
-  { label: 'Off', value: 'off' },
-];
-
-const includeFactsValue = computed({
-  get: () => (includeFacts.value ? 'on' : 'off'),
-  set: (v: 'on' | 'off') => { includeFacts.value = v === 'on'; },
-});
+const contextSizeOptions = computed(() => [
+  { label: t('memory.contextSizeLean'), value: 'lean' },
+  { label: t('memory.contextSizeBalanced'), value: 'balanced' },
+  { label: t('memory.contextSizeRich'), value: 'rich' },
+]);
 
 function getMemoryRuntimeConfig(size: 'lean' | 'balanced' | 'rich', withFacts: boolean) {
   if (size === 'lean') {
@@ -95,13 +86,6 @@ function setContextSize(value: string | number) {
   const normalized = String(value) as 'lean' | 'balanced' | 'rich';
   if (normalized === 'lean' || normalized === 'balanced' || normalized === 'rich') {
     contextSize.value = normalized;
-  }
-}
-
-function setIncludeFactsValue(value: string | number) {
-  const normalized = String(value) as 'on' | 'off';
-  if (normalized === 'on' || normalized === 'off') {
-    includeFactsValue.value = normalized;
   }
 }
 
@@ -887,22 +871,23 @@ onMounted(() => {
         </div>
       </PanelSection>
 
-      <PanelSection title="Context Retrieval">
-        <BaseSelect
-          :modelValue="contextSize"
-          @update:modelValue="setContextSize"
-          :options="contextSizeOptions"
-          placeholder="Memory context size"
-        />
-        <BaseSelect
-          :modelValue="includeFactsValue"
-          @update:modelValue="setIncludeFactsValue"
-          :options="includeFactsOptions"
-          placeholder="Include facts"
-        />
-        <p class="memory-context-hint">
-          Controls how much memory is injected into prompts. Lean reduces token pressure; rich gives more historical context. You can also disable fact injection when you need minimal prompt load.
-        </p>
+      <PanelSection :title="t('memory.contextRetrieval')">
+        <div class="memory-context-settings">
+          <BaseSelect
+            :modelValue="contextSize"
+            @update:modelValue="setContextSize"
+            :options="contextSizeOptions"
+            :placeholder="t('memory.contextSizePlaceholder')"
+          />
+          <BaseToggle
+            v-model="includeFacts"
+            :label="t('memory.includeFacts')"
+            :description="t('memory.includeFactsHint')"
+          />
+          <p class="memory-context-hint">
+            {{ t('memory.contextRetrievalHint') }}
+          </p>
+        </div>
       </PanelSection>
 
       <!-- Facts with Temporal Data -->
@@ -1368,6 +1353,18 @@ onMounted(() => {
 </template>
 
 <style scoped>
+.memory-context-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.memory-context-hint {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin: 0;
+  line-height: 1.45;
+}
+
 /* Stats Grid */
 .stats-grid {
   display: grid;

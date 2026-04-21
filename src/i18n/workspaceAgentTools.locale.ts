@@ -14,7 +14,8 @@ export const workspaceAgentToolsEn = {
     "account": "Account",
     "theme": "Theme",
     "models": "Models",
-    "credits": "Energy"
+    "credits": "Energy",
+    "calendar": "Calendar"
   },
   "unknownPanel": "Unknown panel \"{panel}\". Available panels: {allowed}.",
   "openedPanel": "Opened the {panel} panel.",
@@ -219,6 +220,19 @@ export const workspaceAgentToolsEn = {
   "toolDescSendEmail": "Compose and send a new email (not a reply). Requires: to (email address), subject, body text, and confirm=true to send. The email is sent from the user's kwami.io address.",
   "toolDescArchiveEmail": "Archive an email, removing it from the inbox. Pass email_ref as a number from the last listing or a UUID.",
   "toolDescCheckEmailStatus": "Check the user's unread email count, broken down by category.",
+  "toolDescListCalendarEvents": "List calendar events for a date range. Use range_start and range_end in ISO format.",
+  "toolDescCreateCalendarEvent": "Create a calendar event. Requires title, starts_at, ends_at, and confirm=true.",
+  "toolDescUpdateCalendarEvent": "Update a calendar event by id. Provide event_id, changed fields, and confirm=true.",
+  "toolDescDeleteCalendarEvent": "Delete a calendar event by id. Requires event_id and confirm=true.",
+  "calendarNoEvents": "No calendar events found for that period.",
+  "calendarListFailed": "Failed to list calendar events",
+  "calendarCreated": "Created event \"{title}\" ({id}).",
+  "calendarCreateFailed": "Failed to create calendar event",
+  "calendarEventIdRequired": "event_id is required.",
+  "calendarUpdated": "Updated event \"{title}\" ({id}).",
+  "calendarUpdateFailed": "Failed to update calendar event",
+  "calendarDeleted": "Deleted event {id}.",
+  "calendarDeleteFailed": "Failed to delete calendar event",
   "confirmRequired": "Confirmation required. Set confirm=true to proceed."
 } as const;
 
@@ -238,7 +252,8 @@ export const workspaceAgentToolsEs = {
     "account": "Cuenta",
     "theme": "Tema",
     "models": "Modelos",
-    "credits": "Energia"
+    "credits": "Energia",
+    "calendar": "Calendario"
   },
   "unknownPanel": "Panel desconocido \"{panel}\". Paneles: {allowed}.",
   "openedPanel": "Se abrio el panel {panel}.",
@@ -443,5 +458,18 @@ export const workspaceAgentToolsEs = {
   "toolDescSendEmail": "Compone y envia un email nuevo (no una respuesta). Requiere: to (direccion), subject, body y confirm=true para enviar. Se envia desde la direccion kwami.io del usuario.",
   "toolDescArchiveEmail": "Archiva un email, removiendolo de la bandeja. Pasa email_ref como numero de la ultima lista o UUID.",
   "toolDescCheckEmailStatus": "Verifica el conteo de emails no leidos del usuario, desglosado por categoria.",
+  "toolDescListCalendarEvents": "Lista eventos de calendario por rango de fechas. Usa range_start y range_end en formato ISO.",
+  "toolDescCreateCalendarEvent": "Crea un evento de calendario. Requiere title, starts_at, ends_at y confirm=true.",
+  "toolDescUpdateCalendarEvent": "Actualiza un evento de calendario por id. Incluye event_id, campos a cambiar y confirm=true.",
+  "toolDescDeleteCalendarEvent": "Elimina un evento de calendario por id. Requiere event_id y confirm=true.",
+  "calendarNoEvents": "No se encontraron eventos de calendario para ese periodo.",
+  "calendarListFailed": "No se pudieron listar los eventos de calendario",
+  "calendarCreated": "Evento \"{title}\" creado ({id}).",
+  "calendarCreateFailed": "No se pudo crear el evento de calendario",
+  "calendarEventIdRequired": "event_id es obligatorio.",
+  "calendarUpdated": "Evento \"{title}\" actualizado ({id}).",
+  "calendarUpdateFailed": "No se pudo actualizar el evento de calendario",
+  "calendarDeleted": "Evento {id} eliminado.",
+  "calendarDeleteFailed": "No se pudo eliminar el evento de calendario",
   "confirmRequired": "Se requiere confirmacion. Establece confirm=true para continuar."
 } as const;

@@ -8,7 +8,6 @@ const containerRef = ref<HTMLDivElement | null>(null);
 const kwamiRef = shallowRef<Kwami | null>(null);
 let rafId: number | null = null;
 let randomizeTimer: ReturnType<typeof setInterval> | null = null;
-let removePointerHandlers: (() => void) | null = null;
 let removeClickProxyHandler: (() => void) | null = null;
 
 const PALETTE = ['#359EEE', '#FFC43D', '#EF476F', '#03CEA4'] as const;
@@ -35,10 +34,6 @@ function shuffleColors(): { x: string; y: string; z: string } {
   return { x: a[0]!, y: a[1]!, z: a[2]! };
 }
 
-function clamp(v: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, v));
-}
-
 onMounted(async () => {
   if (!containerRef.value) return;
 
@@ -62,6 +57,7 @@ onMounted(async () => {
         shininess: rand(10, 120),
         colors: shuffleColors(),
         skin: { skin: 'tricolor', subtype: 'poles' } as any,
+        cursorFollow: { enabled: true, sensitivity: 1.0 },
       },
       scene: { enableControls: false },
     },
@@ -84,34 +80,12 @@ onMounted(async () => {
   }
 
   if (blobMesh) {
-    let targetY = Math.PI / 2;
-    let targetX = 0;
-    let hasPointerInput = false;
     let burstRemaining = 0;
     let accumulatedYawOffset = 0;
     let accumulatedPitchOffset = 0;
     let randomizeCount = 0;
 
-    const onPointerMove = (e: PointerEvent) => {
-      const nx = (e.clientX / window.innerWidth) * 2 - 1;
-      const ny = (e.clientY / window.innerHeight) * 2 - 1;
-      targetY = Math.PI / 2 + clamp(nx, -1, 1) * 1.1;
-      targetX = clamp(ny, -1, 1) * 0.55;
-      hasPointerInput = true;
-    };
-    const onPointerLeave = () => { hasPointerInput = false; };
-
-    window.addEventListener('pointermove', onPointerMove, { passive: true });
-    window.addEventListener('pointerleave', onPointerLeave, { passive: true });
-    removePointerHandlers = () => {
-      window.removeEventListener('pointermove', onPointerMove);
-      window.removeEventListener('pointerleave', onPointerLeave);
-    };
-
     const animate = () => {
-      const driftY = Math.sin(performance.now() * 0.00025) * 0.08;
-      const driftX = Math.cos(performance.now() * 0.0002) * 0.04;
-
       if (burstRemaining > 0.0001) {
         const spinStep = Math.min(0.12, Math.max(0.01, burstRemaining * 0.055));
         accumulatedYawOffset += spinStep;
@@ -119,11 +93,10 @@ onMounted(async () => {
         burstRemaining = Math.max(0, burstRemaining - spinStep);
       }
 
-      const desiredY = (hasPointerInput ? targetY : Math.PI / 2 + driftY) + accumulatedYawOffset;
-      const desiredX = (hasPointerInput ? targetX : driftX) + accumulatedPitchOffset;
-
-      blobMesh.rotation.y += (desiredY - blobMesh.rotation.y) * 0.08;
-      blobMesh.rotation.x += (desiredX - blobMesh.rotation.x) * 0.08;
+      blobMesh.rotation.y += accumulatedYawOffset;
+      blobMesh.rotation.x += accumulatedPitchOffset;
+      accumulatedYawOffset *= 0.92;
+      accumulatedPitchOffset *= 0.92;
 
       rafId = requestAnimationFrame(animate);
     };
@@ -178,7 +151,6 @@ onMounted(async () => {
 onUnmounted(async () => {
   if (randomizeTimer !== null) { clearInterval(randomizeTimer); randomizeTimer = null; }
   if (rafId !== null) { cancelAnimationFrame(rafId); rafId = null; }
-  if (removePointerHandlers) { removePointerHandlers(); removePointerHandlers = null; }
   if (removeClickProxyHandler) { removeClickProxyHandler(); removeClickProxyHandler = null; }
   const k = kwamiRef.value;
   if (k) { await k.dispose(); kwamiRef.value = null; }

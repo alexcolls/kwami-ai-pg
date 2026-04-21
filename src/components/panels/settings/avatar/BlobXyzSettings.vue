@@ -193,6 +193,11 @@ function randomizeTouch() {
   cursorTouch.value.touch = randomBlobTouch();
 }
 
+function randomizeCursorFollow() {
+  cursorTouch.value.cursorFollow.enabled = Math.random() > 0.35;
+  cursorTouch.value.cursorFollow.sensitivity = Number((0.6 + Math.random() * 1.1).toFixed(2));
+}
+
 // =====================================================
 // COLOR PALETTE HANDLER
 // =====================================================
@@ -637,6 +642,26 @@ const skinGradient = computed(() => {
       <BaseSlider :label="t('blobAvatar.strength')" :min="0.1" :max="3" :step="0.1" v-model="cursorTouch.touch.strength" />
       <BaseSlider :label="t('blobAvatar.durationMs')" :min="100" :max="3000" :step="100" v-model="cursorTouch.touch.duration" />
       <BaseSlider :label="t('blobAvatar.maxPoints')" :min="1" :max="20" :step="1" v-model="cursorTouch.touch.maxPoints" />
+    </div>
+  </PanelSection>
+
+  <!-- ==================== CURSOR FOLLOW ==================== -->
+  <PanelSection :title="t('blobAvatar.cursorFollow')" icon="ph:cursor-click-duotone" collapsible>
+    <template #actions>
+      <button class="dice-btn" @click="randomizeCursorFollow" :title="t('blobAvatar.randomizeCursorFollow')">
+        <iconify-icon icon="ph:dice-three-duotone"></iconify-icon>
+      </button>
+    </template>
+    <p class="section-desc">{{ t('blobAvatar.cursorFollowDesc') }}</p>
+    <div class="interaction-row">
+      <div class="interaction-header">
+        <iconify-icon icon="ph:cursor-click-duotone"></iconify-icon>
+        <span>{{ t('blobAvatar.enableCursorFollow') }}</span>
+        <BaseToggle v-model="cursorTouch.cursorFollow.enabled" size="sm" />
+      </div>
+    </div>
+    <div class="slider-group" v-if="cursorTouch.cursorFollow.enabled">
+      <BaseSlider :label="t('blobAvatar.cursorFollowSensitivity')" :min="0.1" :max="2.5" :step="0.05" v-model="cursorTouch.cursorFollow.sensitivity" />
     </div>
   </PanelSection>
 

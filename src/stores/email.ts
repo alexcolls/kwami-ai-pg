@@ -43,6 +43,15 @@ export interface EmailMessage {
   created_at: string;
 }
 
+export interface EmailConversation {
+  address: string;
+  displayName: string;
+  lastMessage: EmailMessage;
+  unreadCount: number;
+  messageCount: number;
+  category: EmailCategory;
+}
+
 async function authHeaders(): Promise<HeadersInit> {
   const authStore = useAuthStore();
   const token = await authStore.getAccessToken();
@@ -63,6 +72,35 @@ async function parseJson<T>(res: Response): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+/** Bare email for grouping and sending; handles `Name <a@b.com>`, mailto:, etc. */
+export function normalizeEmail(raw: string): string {
+  if (!raw || typeof raw !== 'string') return '';
+  const s = raw.trim().replace(/^mailto:/i, '');
+  const angle = s.match(/<([^<>]+@[^<>]+)>/);
+  if (angle) return angle[1].trim().toLowerCase();
+  const at = /\b[^\s<>]+@[^\s<>]+\b/.exec(s);
+  if (at) return at[0].toLowerCase();
+  return s.toLowerCase();
+}
+
+/** Display name for a peer, using From headers when available. */
+export function peerDisplayName(msgs: EmailMessage[], canonical: string): string {
+  for (const msg of msgs) {
+    if (msg.direction !== 'inbound') continue;
+    const raw = msg.from_address;
+    if (normalizeEmail(raw) !== canonical) continue;
+    const quoted = /^"([^"]+)"\s*</.exec(raw);
+    if (quoted?.[1]?.trim()) return quoted[1].trim();
+    const unquoted = /^([^<]+)<[^>]+>/.exec(raw);
+    if (unquoted?.[1]?.trim()) {
+      return unquoted[1].replace(/^['"]|['"]$/g, '').trim();
+    }
+    break;
+  }
+  const local = canonical.split('@')[0];
+  return local || canonical;
+}
+
 export const useEmailStore = defineStore('email', () => {
   const account = ref<EmailAccount | null>(null);
   const messages = ref<EmailMessage[]>([]);
@@ -75,6 +113,8 @@ export const useEmailStore = defineStore('email', () => {
   const isCheckingUsername = ref(false);
   const isSending = ref(false);
 
+  const selectedConversationAddress = ref<string | null>(null);
+
   const isActivated = computed(() => !!account.value?.is_active);
   const totalUnread = computed(() =>
     Object.values(unreadCounts.value).reduce((a, b) => a + b, 0),
@@ -82,6 +122,56 @@ export const useEmailStore = defineStore('email', () => {
   const selectedMessage = computed(() =>
     messages.value.find((m) => m.id === selectedMessageId.value) ?? null,
   );
+
+  function _counterparty(msg: EmailMessage): string {
+    const own = account.value?.email_address
+      ? normalizeEmail(account.value.email_address)
+      : '';
+    if (msg.direction === 'inbound') return normalizeEmail(msg.from_address);
+    for (const raw of msg.to_addresses) {
+      const c = normalizeEmail(raw);
+      if (c && c !== own) return c;
+    }
+    const fallback = msg.to_addresses[0] ? normalizeEmail(msg.to_addresses[0]) : '';
+    return fallback || own;
+  }
+
+  const conversations = computed<EmailConversation[]>(() => {
+    const map = new Map<string, EmailMessage[]>();
+    for (const msg of messages.value) {
+      const key = _counterparty(msg);
+      const list = map.get(key);
+      if (list) list.push(msg);
+      else map.set(key, [msg]);
+    }
+
+    const result: EmailConversation[] = [];
+    for (const [address, msgs] of map) {
+      msgs.sort((a, b) => new Date(b.received_at).getTime() - new Date(a.received_at).getTime());
+      const last = msgs[0];
+      result.push({
+        address,
+        displayName: peerDisplayName(msgs, address),
+        lastMessage: last,
+        unreadCount: msgs.filter((m) => !m.is_read).length,
+        messageCount: msgs.length,
+        category: last.category,
+      });
+    }
+
+    result.sort((a, b) =>
+      new Date(b.lastMessage.received_at).getTime() - new Date(a.lastMessage.received_at).getTime(),
+    );
+    return result;
+  });
+
+  const conversationMessages = computed<EmailMessage[]>(() => {
+    if (!selectedConversationAddress.value) return [];
+    const addr = selectedConversationAddress.value;
+    return messages.value
+      .filter((m) => _counterparty(m) === addr)
+      .sort((a, b) => new Date(a.received_at).getTime() - new Date(b.received_at).getTime());
+  });
 
   function _kwamiId(): string {
     const ws = useWorkspaceStore();
@@ -271,6 +361,10 @@ export const useEmailStore = defineStore('email', () => {
     selectedMessageId.value = id;
   }
 
+  function selectConversation(address: string | null) {
+    selectedConversationAddress.value = address;
+  }
+
   function setCategory(cat: EmailCategory) {
     activeCategory.value = cat;
     messages.value = [];
@@ -284,6 +378,9 @@ export const useEmailStore = defineStore('email', () => {
     unreadCounts,
     selectedMessageId,
     selectedMessage,
+    selectedConversationAddress,
+    conversations,
+    conversationMessages,
     isLoading,
     isActivating,
     isCheckingUsername,
@@ -303,6 +400,7 @@ export const useEmailStore = defineStore('email', () => {
     archiveMessage,
     sendEmail,
     selectMessage,
+    selectConversation,
     setCategory,
   };
 });

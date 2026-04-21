@@ -159,6 +159,16 @@ export function useBlobXyzSync(options: UseBlobXyzSyncOptions) {
         (v) => getBlob()?.setMaxTouchPoints(v)
     );
 
+    watch(
+        () => cursorTouch.value.cursorFollow.enabled,
+        (v) => getBlob()?.setCursorFollowEnabled(v)
+    );
+
+    watch(
+        () => cursorTouch.value.cursorFollow.sensitivity,
+        (v) => getBlob()?.setCursorFollowSensitivity(v)
+    );
+
     // =====================================================
     // AUDIO WATCHERS
     // =====================================================
@@ -255,6 +265,8 @@ export function useBlobXyzSync(options: UseBlobXyzSyncOptions) {
         b.setTouchStrength(cursorTouch.value.touch.strength);
         b.setTouchDuration(cursorTouch.value.touch.duration);
         b.setMaxTouchPoints(cursorTouch.value.touch.maxPoints);
+        b.setCursorFollowEnabled(cursorTouch.value.cursorFollow.enabled);
+        b.setCursorFollowSensitivity(cursorTouch.value.cursorFollow.sensitivity);
 
         // Audio
         if (b.audioEffects) {

@@ -13,7 +13,7 @@ declare global {
 
 // Singleton state
 const kwamiInstance = shallowRef<Kwami | null>(null);
-const rendererType = ref<'blob-xyz' | 'black-hole' | 'particles-face'>('blob-xyz');
+const rendererType = ref<'blob-xyz' | 'black-hole' | 'particles-face' | 'eye-iris'>('blob-xyz');
 const isConnected = ref(false);
 
 export function useKwami() {
@@ -56,7 +56,7 @@ export function useKwami() {
 
   function init(
     canvas: HTMLCanvasElement,
-    renderer: 'blob-xyz' | 'black-hole' | 'particles-face' = 'blob-xyz',
+    renderer: 'blob-xyz' | 'black-hole' | 'particles-face' | 'eye-iris' = 'blob-xyz',
     options?: {
       onSearchResults?: (data: { query: string; results: Array<{ title: string; url: string; content: string }>; answer: string | null }) => void;
     },
@@ -351,7 +351,7 @@ export function useKwami() {
     }
   }
 
-  function switchRenderer(newRenderer: 'blob-xyz' | 'black-hole' | 'particles-face') {
+  function switchRenderer(newRenderer: 'blob-xyz' | 'black-hole' | 'particles-face' | 'eye-iris') {
     if (!kwamiInstance.value) {
       console.warn('Cannot switch renderer: Kwami not initialized');
       return;

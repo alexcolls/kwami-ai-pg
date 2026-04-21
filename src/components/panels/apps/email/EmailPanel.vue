@@ -7,14 +7,14 @@ import { useEmailStore } from '@/stores/email';
 import { useWorkspaceStore } from '@/stores/workspace';
 import EmailActivation from './EmailActivation.vue';
 import SmartHubInbox from './SmartHubInbox.vue';
-import EmailDetail from './EmailDetail.vue';
+import EmailThread from './EmailThread.vue';
 import EmailCompose from './EmailCompose.vue';
 
 const { t } = useI18n();
 const emailStore = useEmailStore();
 const workspaceStore = useWorkspaceStore();
 
-type View = 'loading' | 'activation' | 'inbox' | 'detail' | 'compose';
+type View = 'loading' | 'activation' | 'inbox' | 'thread' | 'compose';
 const currentView = ref<View>('loading');
 const replyContext = ref<{ to: string; subject: string } | null>(null);
 
@@ -23,14 +23,14 @@ async function loadAccount() {
   try {
     await emailStore.fetchAccount();
   } catch {
-    // API unreachable — fall through to activation view
+    // API unreachable
   }
   currentView.value = emailStore.isActivated ? 'inbox' : 'activation';
 }
 
-function handleSelectMessage(id: string) {
-  emailStore.selectMessage(id);
-  currentView.value = 'detail';
+function handleSelectConversation(address: string) {
+  emailStore.selectConversation(address);
+  currentView.value = 'thread';
 }
 
 function handleCompose() {
@@ -38,18 +38,8 @@ function handleCompose() {
   currentView.value = 'compose';
 }
 
-function handleReply(messageId: string) {
-  const msg = emailStore.messages.find((m) => m.id === messageId);
-  if (msg) {
-    replyContext.value = {
-      to: msg.from_address,
-      subject: msg.subject.startsWith('Re:') ? msg.subject : `Re: ${msg.subject}`,
-    };
-  }
-  currentView.value = 'compose';
-}
-
 function handleBack() {
+  emailStore.selectConversation(null);
   emailStore.selectMessage(null);
   replyContext.value = null;
   currentView.value = 'inbox';
@@ -89,16 +79,15 @@ onMounted(() => {
     <SmartHubInbox
       v-if="currentView === 'inbox'"
       key="inbox"
-      @select-message="handleSelectMessage"
+      @select-conversation="handleSelectConversation"
       @compose="handleCompose"
       @deactivated="handleDeactivated"
     />
 
-    <EmailDetail
-      v-if="currentView === 'detail'"
-      key="detail"
+    <EmailThread
+      v-if="currentView === 'thread'"
+      key="thread"
       @back="handleBack"
-      @reply="handleReply"
     />
 
     <EmailCompose
