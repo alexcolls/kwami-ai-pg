@@ -3,12 +3,18 @@ import { ref, onMounted, onUnmounted, shallowRef } from 'vue';
 import type { Kwami, KwamiConfig } from 'kwami';
 
 const RANDOMIZE_INTERVAL_MS = 2_000;
+const WELCOME_RENDERER_WEIGHTS = {
+  blobXyz: 7,
+  eyeIris: 2,
+  blackHole: 1,
+} as const;
 
 const containerRef = ref<HTMLDivElement | null>(null);
 const kwamiRef = shallowRef<Kwami | null>(null);
 let rafId: number | null = null;
 let randomizeTimer: ReturnType<typeof setInterval> | null = null;
 let removeClickProxyHandler: (() => void) | null = null;
+let removePointerMoveHandler: (() => void) | null = null;
 
 const PALETTE = ['#359EEE', '#FFC43D', '#EF476F', '#03CEA4'] as const;
 
@@ -20,6 +26,28 @@ const ALL_SUBTYPES = [
 ] as const;
 
 type Subtype = typeof ALL_SUBTYPES[number];
+type WelcomeRenderer = 'blob-xyz' | 'eye-iris' | 'black-hole';
+
+type BlackHoleLike = {
+  randomize: () => void;
+  setCameraZoom?: (value: number) => void;
+  setScale?: (value: number) => void;
+  setOrientation?: (x: number, y: number, z: number) => void;
+  setCoreRadius?: (value: number) => void;
+  setDiskOuterRadius?: (value: number) => void;
+  setDiskInnerRadius?: (value: number) => void;
+  setDiskFlowSpeed?: (value: number) => void;
+  setDiskNoiseScale?: (value: number) => void;
+  setDiskDensity?: (value: number) => void;
+  setDiskRotationSpeed?: (value: number) => void;
+  setGlowIntensity?: (value: number) => void;
+  setPulseSpeed?: (value: number) => void;
+  setBloomIntensity?: (value: number) => void;
+  setBloomRadius?: (value: number) => void;
+  setLensingStrength?: (value: number) => void;
+  setChromaticAberration?: (value: number) => void;
+  getGroup?: () => { position: { set: (x: number, y: number, z: number) => void } };
+};
 
 function rand(min: number, max: number) {
   return min + Math.random() * (max - min);
@@ -32,6 +60,14 @@ function randColor() {
 function shuffleColors(): { x: string; y: string; z: string } {
   const a = [...PALETTE].sort(() => Math.random() - 0.5);
   return { x: a[0]!, y: a[1]!, z: a[2]! };
+}
+
+function pickRendererByProbability(): WelcomeRenderer {
+  const totalWeight = WELCOME_RENDERER_WEIGHTS.blobXyz + WELCOME_RENDERER_WEIGHTS.eyeIris + WELCOME_RENDERER_WEIGHTS.blackHole;
+  const roll = Math.random() * totalWeight;
+  if (roll < WELCOME_RENDERER_WEIGHTS.blobXyz) return 'blob-xyz';
+  if (roll < WELCOME_RENDERER_WEIGHTS.blobXyz + WELCOME_RENDERER_WEIGHTS.eyeIris) return 'eye-iris';
+  return 'black-hole';
 }
 
 onMounted(async () => {
@@ -84,19 +120,58 @@ onMounted(async () => {
     let accumulatedYawOffset = 0;
     let accumulatedPitchOffset = 0;
     let randomizeCount = 0;
-
+    let pointerTargetX = 0;
+    let pointerTargetY = 0;
+    let pointerCurrentX = 0;
+    let pointerCurrentY = 0;
+    let lastPointerNormX = 0;
+    let lastPointerNormY = 0;
+    let pupilMotionTarget = 0;
+    let pupilMotionCurrent = 0;
+    let eyeBasePupilRadius: number | null = null;
+    const eyeFollowRange = 0.35;
+    const eyeFollowSmoothing = 0.1;
+    const pupilMaxBoost = 0.18;
+    const pupilMotionDecay = 0.88;
+    const pupilSmoothing = 0.12;
     const animate = () => {
-      if (burstRemaining > 0.0001) {
-        const spinStep = Math.min(0.12, Math.max(0.01, burstRemaining * 0.055));
-        accumulatedYawOffset += spinStep;
-        accumulatedPitchOffset += spinStep * 0.04;
-        burstRemaining = Math.max(0, burstRemaining - spinStep);
+      const activeBlobMesh = kwami.avatar.getBlob()?.getMesh();
+      if (activeBlobMesh) {
+        if (burstRemaining > 0.0001) {
+          const spinStep = Math.min(0.12, Math.max(0.01, burstRemaining * 0.055));
+          accumulatedYawOffset += spinStep;
+          accumulatedPitchOffset += spinStep * 0.04;
+          burstRemaining = Math.max(0, burstRemaining - spinStep);
+        }
+
+        activeBlobMesh.rotation.y += accumulatedYawOffset;
+        activeBlobMesh.rotation.x += accumulatedPitchOffset;
+        accumulatedYawOffset *= 0.92;
+        accumulatedPitchOffset *= 0.92;
       }
 
-      blobMesh.rotation.y += accumulatedYawOffset;
-      blobMesh.rotation.x += accumulatedPitchOffset;
-      accumulatedYawOffset *= 0.92;
-      accumulatedPitchOffset *= 0.92;
+      const eye = (kwami.avatar as unknown as {
+        getEyeIris?: () => { getMesh: () => { rotation: { x: number; y: number } } } | null;
+      }).getEyeIris?.();
+      if (eye) {
+        const eyeMesh = eye.getMesh();
+        if (eyeBasePupilRadius == null) {
+          const base = (eye as unknown as { getConfig?: () => { geometry?: { pupilRadius?: number } } }).getConfig?.()?.geometry?.pupilRadius;
+          eyeBasePupilRadius = typeof base === 'number' ? base : 0.26;
+        }
+
+        pointerCurrentX += (pointerTargetX - pointerCurrentX) * eyeFollowSmoothing;
+        pointerCurrentY += (pointerTargetY - pointerCurrentY) * eyeFollowSmoothing;
+        eyeMesh.rotation.y = pointerCurrentX;
+        eyeMesh.rotation.x = -pointerCurrentY;
+
+        pupilMotionTarget *= pupilMotionDecay;
+        pupilMotionCurrent += (pupilMotionTarget - pupilMotionCurrent) * pupilSmoothing;
+        const pupilRadius = (eyeBasePupilRadius ?? 0.26) + (pupilMotionCurrent * pupilMaxBoost);
+        (eye as unknown as { setPupilRadius?: (value: number) => void }).setPupilRadius?.(pupilRadius);
+      } else {
+        eyeBasePupilRadius = null;
+      }
 
       rafId = requestAnimationFrame(animate);
     };
@@ -123,19 +198,74 @@ onMounted(async () => {
       window.removeEventListener('click', proxyClickToCanvas);
     };
 
+    const onPointerMove = (event: MouseEvent) => {
+      const x = (event.clientX / window.innerWidth) * 2 - 1;
+      const y = (event.clientY / window.innerHeight) * 2 - 1;
+      const movement = Math.hypot(x - lastPointerNormX, y - lastPointerNormY);
+      const movementBoost = Math.min(1, movement * 4.2);
+      pupilMotionTarget = Math.max(pupilMotionTarget, movementBoost);
+      lastPointerNormX = x;
+      lastPointerNormY = y;
+      pointerTargetX = x * eyeFollowRange;
+      pointerTargetY = y * eyeFollowRange;
+    };
+    window.addEventListener('mousemove', onPointerMove, { passive: true });
+    removePointerMoveHandler = () => {
+      window.removeEventListener('mousemove', onPointerMove);
+    };
+
     const { randomBlobSkinType, blobSkinSelectionFromSubtype } = await import('kwami') as any;
 
     const doRandomize = () => {
-      if (!blob) return;
+      const nextRenderer = pickRendererByProbability();
 
-      const subtype: Subtype = randomBlobSkinType?.() ?? ALL_SUBTYPES[Math.floor(Math.random() * ALL_SUBTYPES.length)]!;
-      try { kwami.avatar.setSkin(blobSkinSelectionFromSubtype(subtype)); } catch {}
-      try { blob.setColors(randColor(), randColor(), randColor()); } catch {}
-      try { kwami.avatar.setShininess(rand(10, 180)); } catch {}
-      try { kwami.avatar.setWireframe(Math.random() > 0.85); } catch {}
-      try { blob.setSpikes(rand(0.1, 3), rand(0.1, 3), rand(0.1, 3)); } catch {}
-      try { blob.setAmplitude(rand(0.3, 1.5), rand(0.3, 1.5), rand(0.3, 1.5)); } catch {}
-      try { blob.setTime(rand(0.5, 8), rand(0.5, 8), rand(0.5, 8)); } catch {}
+      try { kwami.avatar.switchRenderer(nextRenderer as unknown as Parameters<typeof kwami.avatar.switchRenderer>[0]); } catch {}
+
+      if (nextRenderer === 'blob-xyz') {
+        const activeBlob = kwami.avatar.getBlob();
+        if (activeBlob) {
+          const subtype: Subtype = randomBlobSkinType?.() ?? ALL_SUBTYPES[Math.floor(Math.random() * ALL_SUBTYPES.length)]!;
+          try { kwami.avatar.setSkin(blobSkinSelectionFromSubtype(subtype)); } catch {}
+          try { activeBlob.setColors(randColor(), randColor(), randColor()); } catch {}
+          try { kwami.avatar.setShininess(rand(10, 180)); } catch {}
+          try { kwami.avatar.setWireframe(Math.random() > 0.85); } catch {}
+          try { activeBlob.setSpikes(rand(0.1, 3), rand(0.1, 3), rand(0.1, 3)); } catch {}
+          try { activeBlob.setAmplitude(rand(0.3, 1.5), rand(0.3, 1.5), rand(0.3, 1.5)); } catch {}
+          try { activeBlob.setTime(rand(0.5, 8), rand(0.5, 8), rand(0.5, 8)); } catch {}
+        }
+      } else if (nextRenderer === 'black-hole') {
+        const blackHole = (kwami.avatar as unknown as { getBlackHole?: () => BlackHoleLike | null }).getBlackHole?.();
+        if (blackHole) {
+          try { blackHole.randomize(); } catch {}
+          try { blackHole.setScale?.(3.6); } catch {}
+          try { blackHole.setCameraZoom?.(1); } catch {}
+          try { blackHole.setOrientation?.(rand(-0.9, 0.9), rand(0, Math.PI * 2), rand(-0.5, 0.5)); } catch {}
+          try { blackHole.setCoreRadius?.(rand(0.3, 1.15)); } catch {}
+          try { blackHole.setDiskOuterRadius?.(rand(2.3, 6.2)); } catch {}
+          try { blackHole.setDiskInnerRadius?.(rand(0.05, 0.95)); } catch {}
+          try { blackHole.setDiskFlowSpeed?.(rand(0.45, 2.2)); } catch {}
+          try { blackHole.setDiskNoiseScale?.(rand(1.1, 6.5)); } catch {}
+          try { blackHole.setDiskDensity?.(rand(0.35, 1.6)); } catch {}
+          try { blackHole.setDiskRotationSpeed?.(rand(0.002, 0.035)); } catch {}
+          try { blackHole.setGlowIntensity?.(rand(0.6, 2.6)); } catch {}
+          try { blackHole.setPulseSpeed?.(rand(0.08, 1.25)); } catch {}
+          try { blackHole.setBloomIntensity?.(rand(0.35, 2.4)); } catch {}
+          try { blackHole.setBloomRadius?.(rand(0.05, 1.1)); } catch {}
+          try { blackHole.setLensingStrength?.(rand(0.2, 1.6)); } catch {}
+          try { blackHole.setChromaticAberration?.(rand(0, 0.22)); } catch {}
+          try { blackHole.getGroup?.().position.set(0, 0, 0); } catch {}
+        } else {
+          try { kwami.avatar.randomize(); } catch {}
+        }
+      } else {
+        try { kwami.avatar.randomize(); } catch {}
+      }
+
+      if (nextRenderer !== 'eye-iris') {
+        pointerTargetX = 0;
+        pointerTargetY = 0;
+        pupilMotionTarget = 0;
+      }
 
       randomizeCount += 1;
       if (randomizeCount % 5 === 0) {
@@ -152,6 +282,7 @@ onUnmounted(async () => {
   if (randomizeTimer !== null) { clearInterval(randomizeTimer); randomizeTimer = null; }
   if (rafId !== null) { cancelAnimationFrame(rafId); rafId = null; }
   if (removeClickProxyHandler) { removeClickProxyHandler(); removeClickProxyHandler = null; }
+  if (removePointerMoveHandler) { removePointerMoveHandler(); removePointerMoveHandler = null; }
   const k = kwamiRef.value;
   if (k) { await k.dispose(); kwamiRef.value = null; }
 });
