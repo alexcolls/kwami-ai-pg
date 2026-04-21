@@ -30,6 +30,7 @@ function randomizeProcedural() {
   state.value.geometry.pupilRadius = randomInRange(0.16, 0.36, 0.01);
   state.value.geometry.limbalRingWidth = randomInRange(0.03, 0.14, 0.01);
   state.value.detail.fiberDensity = randomInRange(80, 1000, 1);
+  state.value.detail.fiberSharpness = randomInRange(0.2, 1.4, 0.01);
   state.value.detail.radialStreakStrength = randomInRange(0.2, 1.1, 0.01);
   state.value.detail.collaretteStrength = randomInRange(0.1, 1.0, 0.01);
   state.value.detail.limbalIntensity = randomInRange(0.2, 1.2, 0.01);
@@ -38,6 +39,9 @@ function randomizeProcedural() {
   state.value.detail.furrowStrength = randomInRange(0.1, 1.2, 0.01);
   state.value.detail.ringContrast = randomInRange(0.1, 1.2, 0.01);
   state.value.detail.sectorMix = randomInRange(0, 1, 0.01);
+  state.value.detail.pigmentMottleStrength = randomInRange(0.1, 1.4, 0.01);
+  state.value.detail.spokesStrength = randomInRange(0.1, 1.4, 0.01);
+  state.value.detail.innerRingStrength = randomInRange(0.1, 1.4, 0.01);
   state.value.animation.shimmerSpeed = randomInRange(0, 0.8, 0.01);
   state.value.animation.shimmerStrength = randomInRange(0, 0.6, 0.01);
   state.value.animation.patternFlow = randomInRange(0, 0.35, 0.01);
@@ -84,6 +88,7 @@ function randomizeProcedural() {
       <BaseSlider :label="t('eyeIrisAvatar.pupilRadius')" :min="0.12" :max="0.5" :step="0.01" v-model="state.geometry.pupilRadius" />
       <BaseSlider :label="t('eyeIrisAvatar.limbalRingWidth')" :min="0.02" :max="0.16" :step="0.01" v-model="state.geometry.limbalRingWidth" />
       <BaseSlider :label="t('eyeIrisAvatar.fiberDensity')" :min="40" :max="1000" :step="1" v-model="state.detail.fiberDensity" />
+      <BaseSlider :label="t('eyeIrisAvatar.fiberSharpness')" :min="0" :max="1.5" :step="0.01" v-model="state.detail.fiberSharpness" />
       <BaseSlider :label="t('eyeIrisAvatar.radialStreaks')" :min="0" :max="1.2" :step="0.01" v-model="state.detail.radialStreakStrength" />
       <BaseSlider :label="t('eyeIrisAvatar.collarette')" :min="0" :max="1.2" :step="0.01" v-model="state.detail.collaretteStrength" />
       <BaseSlider :label="t('eyeIrisAvatar.limbalIntensity')" :min="0" :max="1.4" :step="0.01" v-model="state.detail.limbalIntensity" />
@@ -92,10 +97,15 @@ function randomizeProcedural() {
       <BaseSlider :label="t('eyeIrisAvatar.furrowStrength')" :min="0" :max="1.4" :step="0.01" v-model="state.detail.furrowStrength" />
       <BaseSlider :label="t('eyeIrisAvatar.ringContrast')" :min="0" :max="1.4" :step="0.01" v-model="state.detail.ringContrast" />
       <BaseSlider :label="t('eyeIrisAvatar.sectorMix')" :min="0" :max="1" :step="0.01" v-model="state.detail.sectorMix" />
+      <BaseSlider :label="t('eyeIrisAvatar.pigmentMottleStrength')" :min="0" :max="1.5" :step="0.01" v-model="state.detail.pigmentMottleStrength" />
+      <BaseSlider :label="t('eyeIrisAvatar.spokesStrength')" :min="0" :max="1.5" :step="0.01" v-model="state.detail.spokesStrength" />
+      <BaseSlider :label="t('eyeIrisAvatar.innerRingStrength')" :min="0" :max="1.5" :step="0.01" v-model="state.detail.innerRingStrength" />
       <BaseSlider :label="t('eyeIrisAvatar.shimmerSpeed')" :min="0" :max="0.8" :step="0.01" v-model="state.animation.shimmerSpeed" />
       <BaseSlider :label="t('eyeIrisAvatar.shimmerStrength')" :min="0" :max="0.7" :step="0.01" v-model="state.animation.shimmerStrength" />
       <BaseSlider :label="t('eyeIrisAvatar.patternFlow')" :min="0" :max="0.5" :step="0.01" v-model="state.animation.patternFlow" />
       <BaseSlider :label="t('eyeIrisAvatar.patternRotation')" :min="-0.2" :max="0.2" :step="0.01" v-model="state.animation.patternRotation" />
+      <BaseToggle :label="t('eyeIrisAvatar.followEnabled')" v-model="state.follow.enabled" />
+      <BaseSlider :label="t('eyeIrisAvatar.followSensitivity')" :min="0.2" :max="2" :step="0.01" v-model="state.follow.sensitivity" />
       <BaseSlider :label="t('eyeIrisAvatar.scale')" :min="3.5" :max="8" :step="0.01" v-model="state.scale" />
     </div>
   </PanelSection>

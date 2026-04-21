@@ -713,4 +713,5 @@ const skinGradient = computed(() => {
   width: 100%;
   flex: unset;
 }
+
 </style>

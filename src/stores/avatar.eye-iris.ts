@@ -24,6 +24,7 @@ export interface EyeIrisState {
   };
   detail: {
     fiberDensity: number;
+    fiberSharpness: number;
     radialStreakStrength: number;
     collaretteStrength: number;
     limbalIntensity: number;
@@ -32,6 +33,9 @@ export interface EyeIrisState {
     furrowStrength: number;
     ringContrast: number;
     sectorMix: number;
+    pigmentMottleStrength: number;
+    spokesStrength: number;
+    innerRingStrength: number;
   };
   color: {
     base: string;
@@ -55,6 +59,10 @@ export interface EyeIrisState {
     shimmerResponse: number;
     smoothing: number;
   };
+  follow: {
+    enabled: boolean;
+    sensitivity: number;
+  };
   clickEvents: {
     click: { enabled: boolean; action: InteractionAction };
     doubleClick: { enabled: boolean; action: InteractionAction };
@@ -74,6 +82,7 @@ export function getDefaultEyeIrisState(): EyeIrisState {
     geometry: { irisRadius: 0.94, pupilRadius: 0.22, limbalRingWidth: 0.06 },
     detail: {
       fiberDensity: 168,
+      fiberSharpness: 1.0,
       radialStreakStrength: 0.98,
       collaretteStrength: 0.72,
       limbalIntensity: 1.02,
@@ -82,6 +91,9 @@ export function getDefaultEyeIrisState(): EyeIrisState {
       furrowStrength: 0.72,
       ringContrast: 0.82,
       sectorMix: 0.56,
+      pigmentMottleStrength: 0.95,
+      spokesStrength: 0.9,
+      innerRingStrength: 0.92,
     },
     color: {
       base: '#6b4b23',
@@ -94,6 +106,7 @@ export function getDefaultEyeIrisState(): EyeIrisState {
     },
     animation: { shimmerSpeed: 0.16, shimmerStrength: 0.1, patternFlow: 0.24, patternRotation: 0.08 },
     audio: { enabled: true, reactivity: 1.0, pupilResponse: 0.22, shimmerResponse: 0.35, smoothing: 0.82 },
+    follow: { enabled: true, sensitivity: 1.0 },
     clickEvents: {
       click: { enabled: true, action: 'pulse' },
       doubleClick: { enabled: true, action: 'toggleListening' },
@@ -162,7 +175,8 @@ export const useEyeIrisStore = defineStore('eyeIris', () => {
     state.geometry.irisRadius = randomInRange(0.82, 0.98, 0.01);
     state.geometry.pupilRadius = randomInRange(0.16, 0.36, 0.01);
     state.geometry.limbalRingWidth = randomInRange(0.03, 0.14, 0.01);
-    state.detail.fiberDensity = randomInRange(80, 180, 1);
+    state.detail.fiberDensity = randomInRange(80, 1000, 1);
+    state.detail.fiberSharpness = randomInRange(0.2, 1.4, 0.01);
     state.detail.radialStreakStrength = randomInRange(0.2, 1.1, 0.01);
     state.detail.collaretteStrength = randomInRange(0.1, 1.0, 0.01);
     state.detail.limbalIntensity = randomInRange(0.2, 1.2, 0.01);
@@ -171,6 +185,9 @@ export const useEyeIrisStore = defineStore('eyeIris', () => {
     state.detail.furrowStrength = randomInRange(0.1, 1.2, 0.01);
     state.detail.ringContrast = randomInRange(0.1, 1.2, 0.01);
     state.detail.sectorMix = randomInRange(0, 1, 0.01);
+    state.detail.pigmentMottleStrength = randomInRange(0.1, 1.4, 0.01);
+    state.detail.spokesStrength = randomInRange(0.1, 1.4, 0.01);
+    state.detail.innerRingStrength = randomInRange(0.1, 1.4, 0.01);
     state.animation.shimmerSpeed = randomInRange(0, 0.8, 0.01);
     state.animation.shimmerStrength = randomInRange(0, 0.6, 0.01);
     state.animation.patternFlow = randomInRange(0, 0.35, 0.01);
@@ -184,6 +201,7 @@ export const useEyeIrisStore = defineStore('eyeIris', () => {
     state.audio.pupilResponse = randomInRange(0, 0.5, 0.01);
     state.audio.shimmerResponse = randomInRange(0, 0.7, 0.01);
     state.audio.smoothing = randomInRange(0.6, 0.98, 0.01);
+    state.follow.sensitivity = randomInRange(0.4, 1.6, 0.01);
     // Keep user scale untouched on randomize.
 
     if (Math.random() > 0.65) {

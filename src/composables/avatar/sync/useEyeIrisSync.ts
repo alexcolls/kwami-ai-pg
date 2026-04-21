@@ -17,6 +17,7 @@ export function useEyeIrisSync(options: UseEyeIrisSyncOptions) {
   watch(() => eyeIrisStore.state.geometry.pupilRadius, (v) => getEyeIris()?.setPupilRadius(v));
   watch(() => eyeIrisStore.state.geometry.limbalRingWidth, (v) => getEyeIris()?.setLimbalRingWidth(v));
   watch(() => eyeIrisStore.state.detail.fiberDensity, (v) => getEyeIris()?.setFiberDensity(v));
+  watch(() => eyeIrisStore.state.detail.fiberSharpness, (v) => getEyeIris()?.setFiberSharpness(v));
   watch(() => eyeIrisStore.state.detail.radialStreakStrength, (v) => getEyeIris()?.setRadialStreakStrength(v));
   watch(() => eyeIrisStore.state.detail.collaretteStrength, (v) => getEyeIris()?.setCollaretteStrength(v));
   watch(() => eyeIrisStore.state.detail.limbalIntensity, (v) => getEyeIris()?.setLimbalIntensity(v));
@@ -25,10 +26,15 @@ export function useEyeIrisSync(options: UseEyeIrisSyncOptions) {
   watch(() => eyeIrisStore.state.detail.furrowStrength, (v) => getEyeIris()?.setFurrowStrength(v));
   watch(() => eyeIrisStore.state.detail.ringContrast, (v) => getEyeIris()?.setRingContrast(v));
   watch(() => eyeIrisStore.state.detail.sectorMix, (v) => getEyeIris()?.setSectorMix(v));
+  watch(() => eyeIrisStore.state.detail.pigmentMottleStrength, (v) => getEyeIris()?.setPigmentMottleStrength(v));
+  watch(() => eyeIrisStore.state.detail.spokesStrength, (v) => getEyeIris()?.setSpokesStrength(v));
+  watch(() => eyeIrisStore.state.detail.innerRingStrength, (v) => getEyeIris()?.setInnerRingStrength(v));
   watch(() => eyeIrisStore.state.animation.shimmerSpeed, (v) => getEyeIris()?.setShimmerSpeed(v));
   watch(() => eyeIrisStore.state.animation.shimmerStrength, (v) => getEyeIris()?.setShimmerStrength(v));
   watch(() => eyeIrisStore.state.animation.patternFlow, (v) => getEyeIris()?.setPatternFlow(v));
   watch(() => eyeIrisStore.state.animation.patternRotation, (v) => getEyeIris()?.setPatternRotation(v));
+  watch(() => eyeIrisStore.state.follow.enabled, (v) => getEyeIris()?.setFollowEnabled(v));
+  watch(() => eyeIrisStore.state.follow.sensitivity, (v) => getEyeIris()?.setFollowSensitivity(v));
   watch(() => eyeIrisStore.state.scale, (v) => getEyeIris()?.setScale(v));
 
   watch(
@@ -44,6 +50,9 @@ export function useEyeIrisSync(options: UseEyeIrisSyncOptions) {
       if (!iris) return;
       iris.setAudioEnabled(v.enabled);
       iris.setAudioReactivity(v.reactivity);
+      iris.setPupilResponse(v.pupilResponse);
+      iris.setShimmerResponse(v.shimmerResponse);
+      iris.setAudioSmoothing(v.smoothing);
     },
     { deep: true },
   );
@@ -63,6 +72,7 @@ export function useEyeIrisSync(options: UseEyeIrisSyncOptions) {
     renderer.setPupilRadius(state.geometry.pupilRadius);
     renderer.setLimbalRingWidth(state.geometry.limbalRingWidth);
     renderer.setFiberDensity(state.detail.fiberDensity);
+    renderer.setFiberSharpness(state.detail.fiberSharpness);
     renderer.setRadialStreakStrength(state.detail.radialStreakStrength);
     renderer.setCollaretteStrength(state.detail.collaretteStrength);
     renderer.setLimbalIntensity(state.detail.limbalIntensity);
@@ -71,14 +81,22 @@ export function useEyeIrisSync(options: UseEyeIrisSyncOptions) {
     renderer.setFurrowStrength(state.detail.furrowStrength);
     renderer.setRingContrast(state.detail.ringContrast);
     renderer.setSectorMix(state.detail.sectorMix);
+    renderer.setPigmentMottleStrength(state.detail.pigmentMottleStrength);
+    renderer.setSpokesStrength(state.detail.spokesStrength);
+    renderer.setInnerRingStrength(state.detail.innerRingStrength);
     renderer.setColors(state.color);
     renderer.setShimmerSpeed(state.animation.shimmerSpeed);
     renderer.setShimmerStrength(state.animation.shimmerStrength);
     renderer.setPatternFlow(state.animation.patternFlow);
     renderer.setPatternRotation(state.animation.patternRotation);
+    renderer.setFollowEnabled(state.follow.enabled);
+    renderer.setFollowSensitivity(state.follow.sensitivity);
     renderer.setScale(state.scale);
     renderer.setAudioEnabled(state.audio.enabled);
     renderer.setAudioReactivity(state.audio.reactivity);
+    renderer.setPupilResponse(state.audio.pupilResponse);
+    renderer.setShimmerResponse(state.audio.shimmerResponse);
+    renderer.setAudioSmoothing(state.audio.smoothing);
   }
 
   return { syncFromKwami, applyToKwami };
