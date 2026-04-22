@@ -32,6 +32,7 @@ import CalendarPanel from '@/components/panels/apps/calendar/CalendarPanel.vue';
 import EnergyBadge from '@/components/energy/EnergyBadge.vue';
 import SearchOrbitCards from '@/components/search/SearchOrbitCards.vue';
 import SidebarModeSwitch from '@/components/sidebar/SidebarModeSwitch.vue';
+import BrowserPanel from '@/components/panels/BrowserPanel.vue';
 
 import { useWorkspaceStore } from '@/stores/workspace';
 import { useKwamiConfigWatchers } from '@/composables/useKwamiConfigSync';
@@ -352,6 +353,9 @@ onUnmounted(() => {
         </TheSidebar>
         <SidebarModeSwitch />
       </template>
+
+      <!-- Cloud browser iframe panel (floats via Teleport) -->
+      <BrowserPanel />
     </div>
   </AuthGuard>
 </template>
