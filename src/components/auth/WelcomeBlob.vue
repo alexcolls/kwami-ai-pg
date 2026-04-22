@@ -4,9 +4,8 @@ import type { Kwami, KwamiConfig } from 'kwami';
 
 const RANDOMIZE_INTERVAL_MS = 2_000;
 const WELCOME_RENDERER_WEIGHTS = {
-  blobXyz: 7,
+  blobXyz: 8,
   eyeIris: 2,
-  blackHole: 1,
 } as const;
 
 const containerRef = ref<HTMLDivElement | null>(null);
@@ -26,28 +25,7 @@ const ALL_SUBTYPES = [
 ] as const;
 
 type Subtype = typeof ALL_SUBTYPES[number];
-type WelcomeRenderer = 'blob-xyz' | 'eye-iris' | 'black-hole';
-
-type BlackHoleLike = {
-  randomize: () => void;
-  setCameraZoom?: (value: number) => void;
-  setScale?: (value: number) => void;
-  setOrientation?: (x: number, y: number, z: number) => void;
-  setCoreRadius?: (value: number) => void;
-  setDiskOuterRadius?: (value: number) => void;
-  setDiskInnerRadius?: (value: number) => void;
-  setDiskFlowSpeed?: (value: number) => void;
-  setDiskNoiseScale?: (value: number) => void;
-  setDiskDensity?: (value: number) => void;
-  setDiskRotationSpeed?: (value: number) => void;
-  setGlowIntensity?: (value: number) => void;
-  setPulseSpeed?: (value: number) => void;
-  setBloomIntensity?: (value: number) => void;
-  setBloomRadius?: (value: number) => void;
-  setLensingStrength?: (value: number) => void;
-  setChromaticAberration?: (value: number) => void;
-  getGroup?: () => { position: { set: (x: number, y: number, z: number) => void } };
-};
+type WelcomeRenderer = 'blob-xyz' | 'eye-iris';
 
 function rand(min: number, max: number) {
   return min + Math.random() * (max - min);
@@ -63,11 +41,10 @@ function shuffleColors(): { x: string; y: string; z: string } {
 }
 
 function pickRendererByProbability(): WelcomeRenderer {
-  const totalWeight = WELCOME_RENDERER_WEIGHTS.blobXyz + WELCOME_RENDERER_WEIGHTS.eyeIris + WELCOME_RENDERER_WEIGHTS.blackHole;
+  const totalWeight = WELCOME_RENDERER_WEIGHTS.blobXyz + WELCOME_RENDERER_WEIGHTS.eyeIris;
   const roll = Math.random() * totalWeight;
   if (roll < WELCOME_RENDERER_WEIGHTS.blobXyz) return 'blob-xyz';
-  if (roll < WELCOME_RENDERER_WEIGHTS.blobXyz + WELCOME_RENDERER_WEIGHTS.eyeIris) return 'eye-iris';
-  return 'black-hole';
+  return 'eye-iris';
 }
 
 onMounted(async () => {
@@ -129,6 +106,7 @@ onMounted(async () => {
     let pupilMotionTarget = 0;
     let pupilMotionCurrent = 0;
     let eyeBasePupilRadius: number | null = null;
+    let lastBlobSubtype: Subtype | null = null;
     const eyeFollowRange = 0.35;
     const eyeFollowSmoothing = 0.1;
     const pupilMaxBoost = 0.18;
@@ -214,7 +192,7 @@ onMounted(async () => {
       window.removeEventListener('mousemove', onPointerMove);
     };
 
-    const { randomBlobSkinType, blobSkinSelectionFromSubtype } = await import('kwami') as any;
+    const { randomBlobSkinType } = await import('kwami') as { randomBlobSkinType?: () => Subtype };
 
     const doRandomize = () => {
       const nextRenderer = pickRendererByProbability();
@@ -224,38 +202,26 @@ onMounted(async () => {
       if (nextRenderer === 'blob-xyz') {
         const activeBlob = kwami.avatar.getBlob();
         if (activeBlob) {
-          const subtype: Subtype = randomBlobSkinType?.() ?? ALL_SUBTYPES[Math.floor(Math.random() * ALL_SUBTYPES.length)]!;
-          try { kwami.avatar.setSkin(blobSkinSelectionFromSubtype(subtype)); } catch {}
+          let subtype: Subtype = randomBlobSkinType?.() ?? ALL_SUBTYPES[Math.floor(Math.random() * ALL_SUBTYPES.length)]!;
+          if (!ALL_SUBTYPES.includes(subtype as typeof ALL_SUBTYPES[number])) {
+            subtype = ALL_SUBTYPES[Math.floor(Math.random() * ALL_SUBTYPES.length)]!;
+          }
+          if (lastBlobSubtype && ALL_SUBTYPES.length > 1) {
+            let guard = 0;
+            while (subtype === lastBlobSubtype && guard < 8) {
+              subtype = ALL_SUBTYPES[Math.floor(Math.random() * ALL_SUBTYPES.length)]!;
+              guard += 1;
+            }
+          }
+          lastBlobSubtype = subtype;
+          try { kwami.avatar.randomize(); } catch {}
+          try { kwami.avatar.setSkin(subtype as Parameters<typeof kwami.avatar.setSkin>[0]); } catch {}
           try { activeBlob.setColors(randColor(), randColor(), randColor()); } catch {}
           try { kwami.avatar.setShininess(rand(10, 180)); } catch {}
           try { kwami.avatar.setWireframe(Math.random() > 0.85); } catch {}
-          try { activeBlob.setSpikes(rand(0.1, 3), rand(0.1, 3), rand(0.1, 3)); } catch {}
+          try { activeBlob.setSpikes(rand(0.2, 3.3), rand(0.2, 3.3), rand(0.2, 3.3)); } catch {}
           try { activeBlob.setAmplitude(rand(0.3, 1.5), rand(0.3, 1.5), rand(0.3, 1.5)); } catch {}
           try { activeBlob.setTime(rand(0.5, 8), rand(0.5, 8), rand(0.5, 8)); } catch {}
-        }
-      } else if (nextRenderer === 'black-hole') {
-        const blackHole = (kwami.avatar as unknown as { getBlackHole?: () => BlackHoleLike | null }).getBlackHole?.();
-        if (blackHole) {
-          try { blackHole.randomize(); } catch {}
-          try { blackHole.setScale?.(3.6); } catch {}
-          try { blackHole.setCameraZoom?.(1); } catch {}
-          try { blackHole.setOrientation?.(rand(-0.9, 0.9), rand(0, Math.PI * 2), rand(-0.5, 0.5)); } catch {}
-          try { blackHole.setCoreRadius?.(rand(0.3, 1.15)); } catch {}
-          try { blackHole.setDiskOuterRadius?.(rand(2.3, 6.2)); } catch {}
-          try { blackHole.setDiskInnerRadius?.(rand(0.05, 0.95)); } catch {}
-          try { blackHole.setDiskFlowSpeed?.(rand(0.45, 2.2)); } catch {}
-          try { blackHole.setDiskNoiseScale?.(rand(1.1, 6.5)); } catch {}
-          try { blackHole.setDiskDensity?.(rand(0.35, 1.6)); } catch {}
-          try { blackHole.setDiskRotationSpeed?.(rand(0.002, 0.035)); } catch {}
-          try { blackHole.setGlowIntensity?.(rand(0.6, 2.6)); } catch {}
-          try { blackHole.setPulseSpeed?.(rand(0.08, 1.25)); } catch {}
-          try { blackHole.setBloomIntensity?.(rand(0.35, 2.4)); } catch {}
-          try { blackHole.setBloomRadius?.(rand(0.05, 1.1)); } catch {}
-          try { blackHole.setLensingStrength?.(rand(0.2, 1.6)); } catch {}
-          try { blackHole.setChromaticAberration?.(rand(0, 0.22)); } catch {}
-          try { blackHole.getGroup?.().position.set(0, 0, 0); } catch {}
-        } else {
-          try { kwami.avatar.randomize(); } catch {}
         }
       } else {
         try { kwami.avatar.randomize(); } catch {}
