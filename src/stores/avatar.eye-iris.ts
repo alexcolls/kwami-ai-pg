@@ -62,6 +62,8 @@ export interface EyeIrisState {
   follow: {
     enabled: boolean;
     sensitivity: number;
+    pupilMotion: boolean;
+    pupilMotionStrength: number;
   };
   clickEvents: {
     click: { enabled: boolean; action: InteractionAction };
@@ -106,7 +108,7 @@ export function getDefaultEyeIrisState(): EyeIrisState {
     },
     animation: { shimmerSpeed: 0.16, shimmerStrength: 0.1, patternFlow: 0.24, patternRotation: 0.08 },
     audio: { enabled: true, reactivity: 1.0, pupilResponse: 0.22, shimmerResponse: 0.35, smoothing: 0.82 },
-    follow: { enabled: true, sensitivity: 1.0 },
+    follow: { enabled: true, sensitivity: 1.0, pupilMotion: true, pupilMotionStrength: 0.12 },
     clickEvents: {
       click: { enabled: true, action: 'pulse' },
       doubleClick: { enabled: true, action: 'toggleListening' },
@@ -202,6 +204,8 @@ export const useEyeIrisStore = defineStore('eyeIris', () => {
     state.audio.shimmerResponse = randomInRange(0, 0.7, 0.01);
     state.audio.smoothing = randomInRange(0.6, 0.98, 0.01);
     state.follow.sensitivity = randomInRange(0.4, 1.6, 0.01);
+    state.follow.pupilMotion = Math.random() > 0.15;
+    state.follow.pupilMotionStrength = randomInRange(0.04, 0.22, 0.01);
     // Keep user scale untouched on randomize.
 
     if (Math.random() > 0.65) {

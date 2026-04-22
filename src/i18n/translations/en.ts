@@ -1179,6 +1179,8 @@ export const en = {
     patternRotation: 'Pattern Rotation',
     followEnabled: 'Follow Cursor',
     followSensitivity: 'Follow Sensitivity',
+    pupilMotion: 'Pupil motion on cursor',
+    pupilMotionStrength: 'Pupil motion strength',
     scale: 'Scale',
     audio: 'Audio Reactivity',
     audioEnabled: 'Enable Audio Effects',

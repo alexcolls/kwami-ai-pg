@@ -1179,6 +1179,8 @@ export const es = {
     patternRotation: 'Rotacion del patron',
     followEnabled: 'Seguir cursor',
     followSensitivity: 'Sensibilidad de seguimiento',
+    pupilMotion: 'Pupila reacciona al cursor',
+    pupilMotionStrength: 'Intensidad de movimiento pupilar',
     scale: 'Escala',
     audio: 'Reactividad de audio',
     audioEnabled: 'Activar efectos de audio',

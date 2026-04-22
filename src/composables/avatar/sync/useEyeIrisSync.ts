@@ -35,6 +35,8 @@ export function useEyeIrisSync(options: UseEyeIrisSyncOptions) {
   watch(() => eyeIrisStore.state.animation.patternRotation, (v) => getEyeIris()?.setPatternRotation(v));
   watch(() => eyeIrisStore.state.follow.enabled, (v) => getEyeIris()?.setFollowEnabled(v));
   watch(() => eyeIrisStore.state.follow.sensitivity, (v) => getEyeIris()?.setFollowSensitivity(v));
+  watch(() => eyeIrisStore.state.follow.pupilMotion, (v) => getEyeIris()?.setFollowPupilMotion(v));
+  watch(() => eyeIrisStore.state.follow.pupilMotionStrength, (v) => getEyeIris()?.setFollowPupilMotionStrength(v));
   watch(() => eyeIrisStore.state.scale, (v) => getEyeIris()?.setScale(v));
 
   watch(
@@ -91,6 +93,8 @@ export function useEyeIrisSync(options: UseEyeIrisSyncOptions) {
     renderer.setPatternRotation(state.animation.patternRotation);
     renderer.setFollowEnabled(state.follow.enabled);
     renderer.setFollowSensitivity(state.follow.sensitivity);
+    renderer.setFollowPupilMotion(state.follow.pupilMotion);
+    renderer.setFollowPupilMotionStrength(state.follow.pupilMotionStrength);
     renderer.setScale(state.scale);
     renderer.setAudioEnabled(state.audio.enabled);
     renderer.setAudioReactivity(state.audio.reactivity);

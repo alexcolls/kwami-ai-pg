@@ -129,6 +129,15 @@ function randomizeProcedural() {
         <p class="group-title">Follow</p>
         <BaseToggle :label="t('eyeIrisAvatar.followEnabled')" v-model="state.follow.enabled" />
         <BaseSlider :label="t('eyeIrisAvatar.followSensitivity')" :min="0.2" :max="2" :step="0.01" v-model="state.follow.sensitivity" />
+        <BaseToggle :label="t('eyeIrisAvatar.pupilMotion')" v-model="state.follow.pupilMotion" />
+        <BaseSlider
+          v-if="state.follow.pupilMotion"
+          :label="t('eyeIrisAvatar.pupilMotionStrength')"
+          :min="0"
+          :max="0.3"
+          :step="0.01"
+          v-model="state.follow.pupilMotionStrength"
+        />
       </div>
     </div>
   </PanelSection>
