@@ -203,9 +203,6 @@ onMounted(async () => {
         const activeBlob = kwami.avatar.getBlob();
         if (activeBlob) {
           let subtype: Subtype = randomBlobSkinType?.() ?? ALL_SUBTYPES[Math.floor(Math.random() * ALL_SUBTYPES.length)]!;
-          if (!ALL_SUBTYPES.includes(subtype as typeof ALL_SUBTYPES[number])) {
-            subtype = ALL_SUBTYPES[Math.floor(Math.random() * ALL_SUBTYPES.length)]!;
-          }
           if (lastBlobSubtype && ALL_SUBTYPES.length > 1) {
             let guard = 0;
             while (subtype === lastBlobSubtype && guard < 8) {
