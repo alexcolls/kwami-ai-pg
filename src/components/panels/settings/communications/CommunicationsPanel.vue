@@ -23,6 +23,17 @@ import {
   type NumberSearchResult,
 } from '@/composables/useCommunicationsApi';
 
+type CommunicationsPanelMode = 'all' | 'phone' | 'whatsapp';
+
+const props = withDefaults(
+  defineProps<{
+    mode?: CommunicationsPanelMode;
+  }>(),
+  {
+    mode: 'all',
+  },
+);
+
 const workspaceStore = useWorkspaceStore();
 const communicationsStore = useCommunicationsStore();
 const { t } = useI18n();
@@ -43,6 +54,19 @@ const whatsappSender = ref('');
 
 const activeKwamiId = computed(() => workspaceStore.activeWorkspaceId);
 const activeKwamiName = computed(() => workspaceStore.getActiveWorkspace()?.name || 'Kwami');
+const panelTitle = computed(() => {
+  if (props.mode === 'phone') return t('sidebar.panels.phone');
+  if (props.mode === 'whatsapp') return t('sidebar.panels.whatsapp');
+  return t('communications.title');
+});
+const panelIcon = computed(() => {
+  if (props.mode === 'phone') return panelIcons.phone;
+  if (props.mode === 'whatsapp') return panelIcons.whatsapp;
+  return panelIcons.communications;
+});
+const showOverview = computed(() => props.mode === 'all');
+const showPhoneSections = computed(() => props.mode === 'all' || props.mode === 'phone');
+const showWhatsappSections = computed(() => props.mode === 'all' || props.mode === 'whatsapp');
 
 const voiceChannels = computed(() =>
   (snapshot.value?.channels || []).filter((channel) => channel.kind === 'voice_phone'),
@@ -302,13 +326,13 @@ const anyCallInProgress = computed(() => callingTwilioDirect.value || callingWit
 <template>
   <div class="panel-inner">
     <div class="panel-header">
-      <iconify-icon :icon="panelIcons.communications" class="panel-icon"></iconify-icon>
-      <h2>{{ t('communications.title') }}</h2>
+      <iconify-icon :icon="panelIcon" class="panel-icon"></iconify-icon>
+      <h2>{{ panelTitle }}</h2>
       <PanelHeaderControls />
     </div>
 
     <div class="panel-body">
-      <PanelSection :title="t('communications.overview')" icon="ph:phone-call-duotone">
+      <PanelSection v-if="showOverview" :title="t('communications.overview')" icon="ph:phone-call-duotone">
         <div class="summary-grid">
           <div class="summary-card">
             <span class="summary-label">{{ t('communications.voiceNumbers') }}</span>
@@ -330,7 +354,7 @@ const anyCallInProgress = computed(() => callingTwilioDirect.value || callingWit
         <p v-if="error" class="error-text">{{ error }}</p>
       </PanelSection>
 
-      <PanelSection :title="t('communications.createNumber')" icon="ph:sim-card-duotone" collapsible>
+      <PanelSection v-if="showPhoneSections" :title="t('communications.createNumber')" icon="ph:sim-card-duotone" collapsible>
         <p class="muted-text infra-text">
           {{ t('communications.createNumberHelp') }}
         </p>
@@ -392,7 +416,7 @@ const anyCallInProgress = computed(() => callingTwilioDirect.value || callingWit
         </BaseButton>
       </PanelSection>
 
-      <PanelSection :title="t('communications.phoneChannel')" icon="ph:phone-duotone" collapsible>
+      <PanelSection v-if="showPhoneSections" :title="t('communications.phoneChannel')" icon="ph:phone-duotone" collapsible>
         <div v-if="selectedVoiceChannel" class="channel-card">
           <div class="channel-row">
             <span>{{ t('communications.assignedNumber') }}</span>
@@ -462,7 +486,7 @@ const anyCallInProgress = computed(() => callingTwilioDirect.value || callingWit
         </BaseButton>
       </PanelSection>
 
-      <PanelSection :title="t('communications.whatsapp')" icon="ph:chat-teardrop-text-duotone" collapsible>
+      <PanelSection v-if="showWhatsappSections" :title="t('communications.whatsapp')" icon="ph:chat-teardrop-text-duotone" collapsible>
         <div v-if="selectedWhatsappChannel" class="channel-card">
           <div class="channel-row">
             <span>{{ t('communications.sender') }}</span>
@@ -514,7 +538,13 @@ const anyCallInProgress = computed(() => callingTwilioDirect.value || callingWit
         </BaseButton>
       </PanelSection>
 
-      <PanelSection :title="t('communications.recentCalls')" icon="ph:phone-incoming-duotone" collapsible default-collapsed>
+      <PanelSection
+        v-if="showPhoneSections"
+        :title="t('communications.recentCalls')"
+        icon="ph:phone-incoming-duotone"
+        collapsible
+        default-collapsed
+      >
         <div v-if="recentCalls.length === 0" class="muted-text">{{ t('communications.noCallEvents') }}</div>
         <div v-for="call in recentCalls" :key="call.id" class="event-card">
           <strong>{{ call.to_number || call.from_number || t('communications.callFallback') }}</strong>
@@ -523,7 +553,13 @@ const anyCallInProgress = computed(() => callingTwilioDirect.value || callingWit
         </div>
       </PanelSection>
 
-      <PanelSection :title="t('communications.recentMessages')" icon="ph:chats-circle-duotone" collapsible default-collapsed>
+      <PanelSection
+        v-if="showWhatsappSections"
+        :title="t('communications.recentMessages')"
+        icon="ph:chats-circle-duotone"
+        collapsible
+        default-collapsed
+      >
         <div v-if="recentMessages.length === 0" class="muted-text">{{ t('communications.noMessageEvents') }}</div>
         <div v-for="message in recentMessages" :key="message.id" class="event-card">
           <strong>{{ message.to_address || message.from_address || t('communications.messageFallback') }}</strong>

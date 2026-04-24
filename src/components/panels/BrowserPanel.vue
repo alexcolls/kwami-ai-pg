@@ -48,10 +48,9 @@ const iframeSrc = computed(() => liveUrl.value || '');
 </script>
 
 <template>
-  <Teleport to="body">
-    <Transition name="browser-panel">
-      <div
-        v-if="showPanel && liveUrl"
+  <Transition name="browser-panel">
+    <div
+      v-if="showPanel && liveUrl"
         id="kwami-browser-panel"
         class="browser-panel"
       >
@@ -96,32 +95,20 @@ const iframeSrc = computed(() => liveUrl.value || '');
           />
         </div>
       </div>
-    </Transition>
-  </Teleport>
+  </Transition>
 </template>
 
 <style scoped>
 .browser-panel {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  width: min(520px, calc(100vw - 40px));
-  height: min(420px, calc(100vh - 100px));
-  z-index: 9000;
   display: flex;
   flex-direction: column;
-  border-radius: 16px;
+  flex: 1; /* Takes 50% of the screen */
+  height: 100vh;
+  z-index: 900;
   overflow: hidden;
-  /* Glassmorphic styling */
-  background: rgba(18, 18, 22, 0.88);
-  backdrop-filter: blur(24px) saturate(1.4);
-  -webkit-backdrop-filter: blur(24px) saturate(1.4);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow:
-    0 8px 32px rgba(0, 0, 0, 0.5),
-    0 0 0 1px rgba(255, 255, 255, 0.04) inset,
-    0 1px 0 0 rgba(255, 255, 255, 0.06) inset;
-  resize: both;
+  background: #0d0d0f; /* Solid dark background to prevent iframe bleed */
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0;
 }
 
 /* Header bar */
@@ -134,11 +121,6 @@ const iframeSrc = computed(() => liveUrl.value || '');
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   flex-shrink: 0;
   user-select: none;
-  cursor: grab;
-}
-
-.browser-panel__header:active {
-  cursor: grabbing;
 }
 
 .browser-panel__url-bar {
@@ -255,38 +237,23 @@ const iframeSrc = computed(() => liveUrl.value || '');
   to { transform: rotate(360deg); }
 }
 
-/* Enter/leave transitions */
-.browser-panel-enter-active {
+/* Enter/leave transitions (slide from side) */
+.browser-panel-enter-active,
+.browser-panel-leave-active {
   transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
-.browser-panel-leave-active {
-  transition: all 0.25s cubic-bezier(0.4, 0, 1, 1);
-}
-.browser-panel-enter-from {
-  opacity: 0;
-  transform: translateY(24px) scale(0.95);
-}
+.browser-panel-enter-from,
 .browser-panel-leave-to {
   opacity: 0;
-  transform: translateY(16px) scale(0.97);
+  flex: 0 0 0px;
+  min-width: 0;
 }
 
-/* Responsive: full-width on small screens */
+/* Responsive: stack vertically on small screens */
 @media (max-width: 640px) {
   .browser-panel {
-    bottom: 0;
-    right: 0;
-    width: 100vw;
-    height: 55vh;
-    border-radius: 16px 16px 0 0;
-  }
-}
-
-/* Larger screens: bigger default size */
-@media (min-width: 1200px) {
-  .browser-panel {
-    width: min(680px, calc(100vw - 40px));
-    height: min(520px, calc(100vh - 100px));
+    border-left: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
   }
 }
 </style>

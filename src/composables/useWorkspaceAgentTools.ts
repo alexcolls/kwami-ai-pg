@@ -30,7 +30,7 @@ const WORKSPACE_PANELS = [
   'scene',
   'voice',
   'enhancements',
-  'transcription',
+  'history',
   'communications',
   'soul',
   'memory',
@@ -51,7 +51,8 @@ type ResponseLength = 'short' | 'medium' | 'long';
 const PANEL_ALIASES: Record<string, WorkspacePanel> = {
   account: 'account',
   avatar: 'avatar',
-  chat: 'transcription',
+  chat: 'history',
+  history: 'history',
   communications: 'communications',
   credits: 'credits',
   energy: 'credits',
@@ -66,8 +67,8 @@ const PANEL_ALIASES: Record<string, WorkspacePanel> = {
   soul: 'soul',
   theme: 'theme',
   tools: 'tools',
-  transcript: 'transcription',
-  transcription: 'transcription',
+  transcript: 'history',
+  transcription: 'history',
   whatsapp: 'communications',
   messages: 'communications',
   phone: 'communications',
@@ -1308,7 +1309,7 @@ export function useWorkspaceAgentTools() {
     if (normalizedDomain === 'workspace') {
       if (normalizedControl === 'openpanel') return openPanel(value);
       if (normalizedControl === 'closepanel') return closePanel();
-      if (normalizedControl === 'focustranscription') return openPanel('transcription');
+      if (normalizedControl === 'focustranscription') return openPanel('history');
       if (normalizedControl === 'renderer') return setRenderer(value);
       if (normalizedControl === 'responselength') return setResponseLength(value, confirm);
       if (normalizedControl === 'status') return showWorkspaceStatus();
@@ -1403,7 +1404,7 @@ export function useWorkspaceAgentTools() {
     instance.registerTool({
       name: 'focus_transcription_panel',
       description: t('workspaceAgentTools.toolDescFocusTranscription'),
-      handler: async () => openPanel('transcription'),
+      handler: async () => openPanel('history'),
     });
 
     instance.registerTool({

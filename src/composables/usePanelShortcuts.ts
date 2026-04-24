@@ -9,8 +9,6 @@ const SETTINGS_PANEL_KEYS: (string | null)[] = [
   'voice',
   'enhancements',
   'metrics',
-  'transcription',
-  'communications',
   'soul',
   'memory',
   'tools',
@@ -21,7 +19,11 @@ const SETTINGS_PANEL_KEYS: (string | null)[] = [
 const APPS_PANEL_KEYS: (string | null)[] = [
   'contacts',
   'email',
+  'phone',
+  'whatsapp',
+  'history',
   'wallet',
+  'calendar',
 ];
 
 export function usePanelShortcuts() {

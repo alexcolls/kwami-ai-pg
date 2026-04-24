@@ -149,7 +149,7 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside));
 <style scoped>
 /* ── Container ── */
 .mode-switch-container {
-  position: fixed;
+  position: absolute;
   bottom: 20px;
   right: 20px;
   z-index: 1001;
