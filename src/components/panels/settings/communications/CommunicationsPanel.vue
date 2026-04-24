@@ -47,10 +47,12 @@ const callingTwilioDirect = ref(false);
 const callingWithAgent = ref(false);
 const sending = ref(false);
 const snapshot = ref<KwamiCommunicationsSnapshot | null>(null);
+const snapshotByKwami = ref<Record<string, KwamiCommunicationsSnapshot>>({});
 const suggestedNumber = ref<NumberSearchResult | null>(null);
 const error = ref('');
 const statusMessage = ref('');
 const whatsappSender = ref('');
+let loadNonce = 0;
 
 const activeKwamiId = computed(() => workspaceStore.activeWorkspaceId);
 const activeKwamiName = computed(() => workspaceStore.getActiveWorkspace()?.name || 'Kwami');
@@ -103,19 +105,33 @@ watch(selectedWhatsappChannel, (channel) => {
 watch(
   activeKwamiId,
   (kwamiId) => {
-    if (kwamiId) void loadCommunications(kwamiId);
+    error.value = '';
+    statusMessage.value = '';
+    suggestedNumber.value = null;
+    if (!kwamiId) {
+      snapshot.value = null;
+      return;
+    }
+    void loadCommunications(kwamiId);
   },
   { immediate: true },
 );
 
 async function loadCommunications(kwamiId: string) {
+  const requestNonce = ++loadNonce;
   loading.value = true;
   error.value = '';
+  snapshot.value = snapshotByKwami.value[kwamiId] ?? null;
   try {
-    snapshot.value = await fetchKwamiCommunications(kwamiId);
+    const data = await fetchKwamiCommunications(kwamiId);
+    if (requestNonce !== loadNonce) return;
+    snapshotByKwami.value[kwamiId] = data;
+    snapshot.value = data;
   } catch (err) {
+    if (requestNonce !== loadNonce) return;
     error.value = err instanceof Error ? err.message : String(err);
   } finally {
+    if (requestNonce !== loadNonce) return;
     loading.value = false;
   }
 }

@@ -442,8 +442,13 @@ onUnmounted(() => {
   flex-direction: row-reverse;
 }
 
-.root-layout.is-dragging iframe {
-  pointer-events: none;
+.root-layout.is-dragging,
+.root-layout.is-dragging * {
+  cursor: col-resize !important;
+}
+
+.root-layout.is-dragging :deep(iframe) {
+  pointer-events: none !important;
 }
 
 /* Main area: canvas + overlays; always full width */
