@@ -10,7 +10,6 @@ import { storeToRefs } from 'pinia';
 import PanelSection from '@/components/ui/PanelSection.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
 import BaseInput from '@/components/ui/BaseInput.vue';
-import BaseSelect from '@/components/ui/BaseSelect.vue';
 import BaseSlider from '@/components/ui/BaseSlider.vue';
 import BaseTagInput from '@/components/ui/BaseTagInput.vue';
 import PanelHeaderControls from '@/components/ui/PanelHeaderControls.vue';
@@ -96,7 +95,6 @@ const config = reactive({
   name: '',
   personality: '',
   conversationStyle: '',
-  language: 'en',
   responseLength: 'medium' as 'short' | 'medium' | 'long',
   emotionalTone: 'neutral' as 'neutral' | 'warm' | 'enthusiastic' | 'calm',
   systemPrompt: '',
@@ -135,7 +133,6 @@ function syncFromKwami() {
     config.name = pConfig.name || 'Kwami';
     config.personality = pConfig.personality || '';
     config.conversationStyle = pConfig.conversationStyle || 'friendly';
-    config.language = pConfig.language || 'en';
     config.responseLength = pConfig.responseLength || 'medium';
     config.emotionalTone = pConfig.emotionalTone || 'neutral';
     config.systemPrompt = pConfig.systemPrompt || '';
@@ -160,7 +157,6 @@ function saveToStore() {
     name: config.name,
     personality: config.personality,
     conversationStyle: config.conversationStyle,
-    language: config.language,
     responseLength: config.responseLength,
     emotionalTone: config.emotionalTone,
     systemPrompt: config.systemPrompt,
@@ -215,13 +211,6 @@ watch(() => config.conversationStyle, (v) => {
   if (!isSyncing && kwami.value) {
     kwami.value.soul.setConversationStyle(v);
     syncSoulToBackend();
-    saveToStore();
-  }
-});
-
-watch(() => config.language, (v) => {
-  if (!isSyncing && kwami.value) {
-    kwami.value.soul.setLanguage(v);
     saveToStore();
   }
 });
@@ -298,6 +287,7 @@ function importSoul() {
       kwami.value?.soul.importFromJSON(await file.text());
       toast.success(t('soulPanel.soulImported'));
       syncFromKwami();
+      syncSoulToBackend();
     } catch (error) {
       toast.error(
         t('soulPanel.soulImportFailed', { message: translateApiUserMessage((error as Error).message, t) }),
@@ -321,6 +311,7 @@ function resetSoul() {
     });
     toast.success(t('soulPanel.soulReset'));
     syncFromKwami();
+    syncSoulToBackend();
   }
 }
 
@@ -410,10 +401,24 @@ onMounted(() => {
             {{ t('soulPanel.personality') }}
           </label>
           <textarea
-            v-model.lazy="config.personality"
+            v-model="config.personality"
             rows="2"
             :placeholder="t('soulPanel.personalityPlaceholder')"
           ></textarea>
+        </div>
+        <div class="form-group" style="margin-top: 8px">
+          <label style="font-size: 11px; color: var(--text-tertiary); margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
+            <iconify-icon icon="ph:terminal-window-duotone" style="font-size: 14px; color: var(--text-tertiary);"></iconify-icon>
+            {{ t('soulPanel.systemPrompt') }}
+          </label>
+          <textarea
+            v-model="config.systemPrompt"
+            rows="4"
+            :placeholder="t('soulPanel.systemPromptPlaceholder')"
+          ></textarea>
+          <BaseButton size="sm" icon="ph:eye-duotone" @click="previewPrompt" style="margin-top: 8px"
+            >{{ t('soulPanel.previewFullPrompt') }}</BaseButton
+          >
         </div>
       </PanelSection>
 
@@ -434,21 +439,6 @@ onMounted(() => {
           icon="ph:chat-teardrop-duotone"
           :placeholder="t('soulPanel.stylePlaceholder')"
         />
-        <div style="margin-top: 8px">
-          <BaseSelect
-            :label="t('soulPanel.language')"
-            v-model="config.language"
-            icon="ph:translate-duotone"
-            :options="[
-              { label: 'English', value: 'en' },
-              { label: 'Spanish', value: 'es' },
-              { label: 'French', value: 'fr' },
-              { label: 'German', value: 'de' },
-              { label: 'Japanese', value: 'ja' },
-              { label: 'Chinese', value: 'zh' },
-            ]"
-          />
-        </div>
       </PanelSection>
 
       <!-- Response Settings -->
@@ -519,18 +509,6 @@ onMounted(() => {
             />
           </div>
         </div>
-      </PanelSection>
-
-      <!-- System Prompt -->
-      <PanelSection :title="t('soulPanel.systemPrompt')">
-        <textarea
-          v-model.lazy="config.systemPrompt"
-          rows="4"
-          :placeholder="t('soulPanel.systemPromptPlaceholder')"
-        ></textarea>
-        <BaseButton size="sm" icon="ph:eye-duotone" @click="previewPrompt" style="margin-top: 8px"
-          >{{ t('soulPanel.previewFullPrompt') }}</BaseButton
-        >
       </PanelSection>
 
       <!-- Actions -->
