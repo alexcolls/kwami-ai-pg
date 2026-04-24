@@ -112,6 +112,13 @@ export const useEmailStore = defineStore('email', () => {
   const isActivating = ref(false);
   const isCheckingUsername = ref(false);
   const isSending = ref(false);
+  const accountByKwami = ref<Record<string, EmailAccount | null>>({});
+  const messagesByKwami = ref<Record<string, EmailMessage[]>>({});
+  const unreadByKwami = ref<Record<string, Record<string, number>>>({});
+
+  let accountRequestNonce = 0;
+  let inboxRequestNonce = 0;
+  let unreadRequestNonce = 0;
 
   const selectedConversationAddress = ref<string | null>(null);
 
@@ -182,7 +189,12 @@ export const useEmailStore = defineStore('email', () => {
 
   async function fetchAccount() {
     const kwamiId = _kwamiId();
-    if (!kwamiId) return;
+    if (!kwamiId) {
+      account.value = null;
+      return;
+    }
+    account.value = accountByKwami.value[kwamiId] ?? null;
+    const requestNonce = ++accountRequestNonce;
     try {
       const headers = await authHeaders();
       const res = await fetch(
@@ -190,9 +202,12 @@ export const useEmailStore = defineStore('email', () => {
         { headers },
       );
       const data = await parseJson<{ account: EmailAccount | null }>(res);
+      if (requestNonce !== accountRequestNonce) return;
+      accountByKwami.value[kwamiId] = data.account;
       account.value = data.account;
     } catch (e) {
       console.warn('Failed to fetch email account:', e);
+      if (requestNonce !== accountRequestNonce) return;
       account.value = null;
     }
   }
@@ -213,15 +228,18 @@ export const useEmailStore = defineStore('email', () => {
   }
 
   async function activateEmail(username: string) {
+    const kwamiId = _kwamiId();
+    if (!kwamiId) throw new Error('No active kwami selected');
     isActivating.value = true;
     try {
       const headers = await authHeaders();
       const res = await fetch(`${API_BASE}/email/activate`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ kwami_id: _kwamiId(), username }),
+        body: JSON.stringify({ kwami_id: kwamiId, username }),
       });
       const data = await parseJson<EmailAccount>(res);
+      accountByKwami.value[kwamiId] = data;
       account.value = data;
       return data;
     } finally {
@@ -238,6 +256,9 @@ export const useEmailStore = defineStore('email', () => {
       { method: 'DELETE', headers },
     );
     await parseJson<{ ok: boolean }>(res);
+    accountByKwami.value[kwamiId] = null;
+    messagesByKwami.value[kwamiId] = [];
+    unreadByKwami.value[kwamiId] = {};
     account.value = null;
     messages.value = [];
     unreadCounts.value = {};
@@ -251,16 +272,26 @@ export const useEmailStore = defineStore('email', () => {
     isLoading.value = true;
     try {
       const kwamiId = _kwamiId();
+      if (!kwamiId) {
+        messages.value = [];
+        return;
+      }
+      if (page === 1) {
+        messages.value = messagesByKwami.value[kwamiId] ?? [];
+      }
+      const requestNonce = ++inboxRequestNonce;
       const params = new URLSearchParams({ kwami_id: kwamiId, page: String(page) });
       if (category && category !== 'all') params.set('category', category);
       const headers = await authHeaders();
       const res = await fetch(`${API_BASE}/email/inbox?${params}`, { headers });
       const data = await parseJson<{ messages: EmailMessage[] }>(res);
+      if (requestNonce !== inboxRequestNonce) return;
       if (page === 1) {
         messages.value = data.messages;
       } else {
         messages.value = [...messages.value, ...data.messages];
       }
+      messagesByKwami.value[kwamiId] = messages.value;
     } finally {
       isLoading.value = false;
     }
@@ -268,13 +299,20 @@ export const useEmailStore = defineStore('email', () => {
 
   async function fetchUnreadCounts() {
     const kwamiId = _kwamiId();
-    if (!kwamiId) return;
+    if (!kwamiId) {
+      unreadCounts.value = {};
+      return;
+    }
+    unreadCounts.value = unreadByKwami.value[kwamiId] ?? {};
+    const requestNonce = ++unreadRequestNonce;
     const headers = await authHeaders();
     const res = await fetch(
       `${API_BASE}/email/unread-counts?kwami_id=${encodeURIComponent(kwamiId)}`,
       { headers },
     );
     const data = await parseJson<{ counts: Record<string, number> }>(res);
+    if (requestNonce !== unreadRequestNonce) return;
+    unreadByKwami.value[kwamiId] = data.counts;
     unreadCounts.value = data.counts;
   }
 
