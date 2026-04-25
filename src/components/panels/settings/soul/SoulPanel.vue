@@ -86,6 +86,7 @@ function applyTemplate(template: SoulPreset) {
 
   kwami.value.soul.updateConfig(soulConfig);
   syncSoulToBackend(soulConfig);
+  syncExpressiveVoiceToBackend();
   syncFromKwami();
 }
 
@@ -109,6 +110,30 @@ function syncSoulToBackend(soulConfig?: Record<string, unknown>) {
 
   kwami.value.agent.syncConfigToBackend('soul', configToSync);
   console.log('📤 Synced soul to backend:', configToSync);
+}
+
+function getDerivedExpressiveTtsSpeed(): number {
+  const toneOffsets: Record<string, number> = {
+    neutral: 0,
+    warm: 0.02,
+    enthusiastic: 0.1,
+    calm: -0.08,
+    playful: 0.07,
+    confident: 0.04,
+    serious: -0.05,
+    compassionate: -0.03,
+  };
+  const toneOffset = toneOffsets[config.emotionalTone] ?? 0;
+  const energyBoost = emotionalTraits.energy * 0.0012;
+  const calmnessDamp = emotionalTraits.calmness * 0.0007;
+  const confidenceBoost = emotionalTraits.confidence * 0.0005;
+  const speed = 1.0 + toneOffset + energyBoost - calmnessDamp + confidenceBoost;
+  return Math.max(0.8, Math.min(1.25, Number(speed.toFixed(2))));
+}
+
+function syncExpressiveVoiceToBackend() {
+  if (!kwami.value || !isConnected.value) return;
+  kwami.value.agent.updateTtsLive({ speed: getDerivedExpressiveTtsSpeed() });
 }
 
 // State
@@ -295,6 +320,7 @@ watch(() => config.emotionalTone, (v) => {
   if (!isSyncing && kwami.value) {
     kwami.value.soul.setEmotionalTone(v);
     syncSoulToBackend();
+    syncExpressiveVoiceToBackend();
     saveToStore();
   }
 });
@@ -316,6 +342,7 @@ watch(emotionalTraits, (v) => {
       );
     });
     syncSoulToBackend();
+    syncExpressiveVoiceToBackend();
     saveToStore();
   }
 }, { deep: true });
@@ -324,6 +351,7 @@ watch(emotionalTraitWeights, () => {
   if (!isSyncing && kwami.value) {
     kwami.value.soul.updateConfig({ emotionalTraitWeights: { ...emotionalTraitWeights } });
     syncSoulToBackend();
+    syncExpressiveVoiceToBackend();
     saveToStore();
   }
 }, { deep: true });
@@ -364,6 +392,7 @@ function importSoul() {
       toast.success(t('soulPanel.soulImported'));
       syncFromKwami();
       syncSoulToBackend();
+      syncExpressiveVoiceToBackend();
     } catch (error) {
       toast.error(
         t('soulPanel.soulImportFailed', { message: translateApiUserMessage((error as Error).message, t) }),
@@ -388,6 +417,7 @@ function resetSoul() {
     toast.success(t('soulPanel.soulReset'));
     syncFromKwami();
     syncSoulToBackend();
+    syncExpressiveVoiceToBackend();
   }
 }
 
@@ -397,6 +427,7 @@ watch(isConnected, (connected) => {
   // When becoming connected, also push soul config to the backend agent
   if (connected) {
     syncSoulToBackend();
+    syncExpressiveVoiceToBackend();
   }
 });
 
