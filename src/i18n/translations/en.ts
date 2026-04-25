@@ -373,6 +373,7 @@ export const en = {
     testCallTwilio: 'Test call (Twilio only)',
     callWithAgent: 'Call with agent',
     removeNumberFromKwami: 'Remove number from kwami',
+    phoneClaimedDetails: 'Phone is claimed for this kwami. WhatsApp and SMS are now activated.',
     whatsapp: 'WhatsApp',
     sms: 'SMS',
     sender: 'Sender',

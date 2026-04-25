@@ -1,12 +1,17 @@
 <script setup lang="ts">
-import { watch, ref, nextTick } from 'vue';
+import { watch, ref, nextTick, computed } from 'vue';
 import { useUIStore } from '@/stores/ui';
 import { panelIcons } from '@/constants/panel-icons';
 import { usePanelShortcuts } from '@/composables/usePanelShortcuts';
 import SidebarKwamiSection from '@/components/sidebar/SidebarKwamiSection.vue';
 import { useI18n } from 'vue-i18n';
+import { useWorkspaceStore } from '@/stores/workspace';
+import { useCommunicationsStore } from '@/stores/communications';
+import { fetchKwamiCommunications } from '@/composables/useCommunicationsApi';
 
 const uiStore = useUIStore();
+const workspaceStore = useWorkspaceStore();
+const communicationsStore = useCommunicationsStore();
 const { handlePanelClick } = usePanelShortcuts();
 const { t } = useI18n();
 
@@ -87,6 +92,37 @@ watch(
 function panelTitle(panel: string): string {
   return t(`sidebar.panels.${panel}`);
 }
+
+async function refreshPhoneActivationStatus() {
+  const kwamiId = workspaceStore.activeWorkspaceId;
+  if (!kwamiId) return;
+  try {
+    const data = await fetchKwamiCommunications(kwamiId);
+    communicationsStore.setKwamiPhoneActivated(
+      kwamiId,
+      data.channels.some((channel) => channel.kind === 'voice_phone'),
+    );
+  } catch {
+    communicationsStore.setKwamiPhoneActivated(kwamiId, false);
+  }
+}
+
+const appPanels = computed(() => {
+  const kwamiId = workspaceStore.activeWorkspaceId;
+  const phoneActivated = communicationsStore.isKwamiPhoneActivated(kwamiId);
+  const base = ['contacts', 'email', 'phone'] as string[];
+  if (phoneActivated) base.push('whatsapp', 'sms');
+  base.push('history', 'wallet', 'calendar');
+  return base;
+});
+
+watch(
+  () => workspaceStore.activeWorkspaceId,
+  () => {
+    void refreshPhoneActivationStatus();
+  },
+  { immediate: true },
+);
 </script>
 
 <template>
@@ -175,7 +211,7 @@ function panelTitle(panel: string): string {
         <div class="nav-group">
           <span class="switcher-label">{{ t('sidebar.apps') }}</span>
           <button
-            v-for="p in ['contacts', 'email', 'phone', 'whatsapp', 'sms', 'history', 'wallet', 'calendar']"
+            v-for="p in appPanels"
             :key="p"
             class="nav-btn"
             :class="{ active: uiStore.activePanel === p && uiStore.isPanelOpen }"

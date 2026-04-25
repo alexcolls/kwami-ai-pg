@@ -43,6 +43,7 @@ export const useCommunicationsStore = defineStore('communications', () => {
   const preferredSmsChannelId = ref<string | null>(null);
   const numberSearch = ref(defaultSnapshot().numberSearch);
   const compose = ref(defaultSnapshot().compose);
+  const phoneActivatedByKwami = ref<Record<string, boolean>>({});
 
   function applySnapshot(snapshot: Record<string, unknown>) {
     if (!snapshot) return;
@@ -87,6 +88,16 @@ export const useCommunicationsStore = defineStore('communications', () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(getSnapshot()));
   }
 
+  function setKwamiPhoneActivated(kwamiId: string, activated: boolean) {
+    if (!kwamiId) return;
+    phoneActivatedByKwami.value[kwamiId] = activated;
+  }
+
+  function isKwamiPhoneActivated(kwamiId: string): boolean {
+    if (!kwamiId) return false;
+    return phoneActivatedByKwami.value[kwamiId] === true;
+  }
+
   loadSettings();
 
   watch([preferredVoiceChannelId, preferredWhatsappChannelId, preferredSmsChannelId, numberSearch, compose], saveSettings, {
@@ -99,8 +110,11 @@ export const useCommunicationsStore = defineStore('communications', () => {
     preferredSmsChannelId,
     numberSearch,
     compose,
+    phoneActivatedByKwami,
     applySnapshot,
     getSnapshot,
     saveSettings,
+    setKwamiPhoneActivated,
+    isKwamiPhoneActivated,
   };
 });

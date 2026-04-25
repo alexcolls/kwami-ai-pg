@@ -373,6 +373,7 @@ export const es = {
     testCallTwilio: 'Llamada de prueba (solo Twilio)',
     callWithAgent: 'Llamar con agente',
     removeNumberFromKwami: 'Quitar numero del kwami',
+    phoneClaimedDetails: 'El telefono ya esta asignado a este kwami. WhatsApp y SMS quedaron activados.',
     whatsapp: 'WhatsApp',
     sms: 'SMS',
     sender: 'Remitente',

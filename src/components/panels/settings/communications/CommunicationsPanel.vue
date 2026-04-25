@@ -73,6 +73,7 @@ const showOverview = computed(() => props.mode === 'all');
 const showPhoneSections = computed(() => props.mode === 'all' || props.mode === 'phone');
 const showWhatsappSections = computed(() => props.mode === 'all' || props.mode === 'whatsapp');
 const showSmsSections = computed(() => props.mode === 'all' || props.mode === 'sms');
+const showPhoneOperations = computed(() => props.mode === 'all');
 
 const voiceChannels = computed(() =>
   (snapshot.value?.channels || []).filter((channel) => channel.kind === 'voice_phone'),
@@ -85,6 +86,7 @@ const smsChannels = computed(() =>
 );
 const recentCalls = computed(() => snapshot.value?.events.calls || []);
 const recentMessages = computed(() => snapshot.value?.events.messages || []);
+const isPhoneClaimed = computed(() => Boolean(selectedVoiceChannel.value));
 
 const selectedVoiceChannel = computed<ChannelRecord | null>(() => {
   const channels = voiceChannels.value;
@@ -143,6 +145,10 @@ async function loadCommunications(kwamiId: string) {
     if (requestNonce !== loadNonce) return;
     snapshotByKwami.value[kwamiId] = data;
     snapshot.value = data;
+    communicationsStore.setKwamiPhoneActivated(
+      kwamiId,
+      data.channels.some((channel) => channel.kind === 'voice_phone'),
+    );
   } catch (err) {
     if (requestNonce !== loadNonce) return;
     error.value = err instanceof Error ? err.message : String(err);
@@ -204,7 +210,7 @@ async function buyNumber(phoneNumber?: string) {
       displayName: `${activeKwamiName.value} Line`,
       countryCode: communicationsStore.numberSearch.countryCode || 'US',
     });
-    statusMessage.value = `Assigned ${selected} to ${activeKwamiName.value}.`;
+    statusMessage.value = `Assigned ${selected} to ${activeKwamiName.value}. WhatsApp and SMS are now active for this kwami.`;
     suggestedNumber.value = null;
     await loadCommunications(activeKwamiId.value);
   } catch (err) {
@@ -412,7 +418,12 @@ const anyCallInProgress = computed(() => callingTwilioDirect.value || callingWit
         <p v-if="error" class="error-text">{{ error }}</p>
       </PanelSection>
 
-      <PanelSection v-if="showPhoneSections" :title="t('communications.createNumber')" icon="ph:sim-card-duotone" collapsible>
+      <PanelSection
+        v-if="showPhoneSections && !isPhoneClaimed"
+        :title="t('communications.createNumber')"
+        icon="ph:sim-card-duotone"
+        collapsible
+      >
         <p class="muted-text infra-text">
           {{ t('communications.createNumberHelp') }}
         </p>
@@ -474,7 +485,7 @@ const anyCallInProgress = computed(() => callingTwilioDirect.value || callingWit
         </BaseButton>
       </PanelSection>
 
-      <PanelSection v-if="showPhoneSections" :title="t('communications.phoneChannel')" icon="ph:phone-duotone" collapsible>
+      <PanelSection v-if="showPhoneSections && isPhoneClaimed" :title="t('communications.phoneChannel')" icon="ph:phone-duotone" collapsible>
         <div v-if="selectedVoiceChannel" class="channel-card">
           <div class="channel-row">
             <span>{{ t('communications.assignedNumber') }}</span>
@@ -504,35 +515,40 @@ const anyCallInProgress = computed(() => callingTwilioDirect.value || callingWit
         </i18n-t>
         <p v-if="selectedVoiceChannel" class="muted-text infra-text">{{ voiceInfrastructureNote }}</p>
         <p v-else class="muted-text">{{ t('communications.noVoiceChannel') }}</p>
-        <BaseInput
-          v-model="communicationsStore.compose.callTarget"
-          :label="t('communications.callRecipient')"
-          placeholder="+14155550123"
-          mono
-        />
-        <p class="muted-text infra-text">
-          {{ t('communications.callModesHelp') }}
+        <p v-if="props.mode === 'phone'" class="muted-text infra-text">
+          {{ t('communications.phoneClaimedDetails') }}
         </p>
-        <div class="section-actions-row">
-          <BaseButton
-            variant="secondary"
-            icon="ph:lightning-duotone"
-            :loading="callingTwilioDirect"
-            :disabled="!canPlaceOutboundCall || anyCallInProgress"
-            @click="placeTwilioDirectCall"
-          >
-            {{ t('communications.testCallTwilio') }}
-          </BaseButton>
-          <BaseButton
-            variant="primary"
-            icon="ph:phone-outgoing-duotone"
-            :loading="callingWithAgent"
-            :disabled="!canPlaceOutboundCall || anyCallInProgress"
-            @click="placeCallWithAgent"
-          >
-            {{ t('communications.callWithAgent') }}
-          </BaseButton>
-        </div>
+        <template v-if="showPhoneOperations">
+          <BaseInput
+            v-model="communicationsStore.compose.callTarget"
+            :label="t('communications.callRecipient')"
+            placeholder="+14155550123"
+            mono
+          />
+          <p class="muted-text infra-text">
+            {{ t('communications.callModesHelp') }}
+          </p>
+          <div class="section-actions-row">
+            <BaseButton
+              variant="secondary"
+              icon="ph:lightning-duotone"
+              :loading="callingTwilioDirect"
+              :disabled="!canPlaceOutboundCall || anyCallInProgress"
+              @click="placeTwilioDirectCall"
+            >
+              {{ t('communications.testCallTwilio') }}
+            </BaseButton>
+            <BaseButton
+              variant="primary"
+              icon="ph:phone-outgoing-duotone"
+              :loading="callingWithAgent"
+              :disabled="!canPlaceOutboundCall || anyCallInProgress"
+              @click="placeCallWithAgent"
+            >
+              {{ t('communications.callWithAgent') }}
+            </BaseButton>
+          </div>
+        </template>
         <BaseButton
           variant="danger"
           block
