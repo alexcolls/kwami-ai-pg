@@ -139,6 +139,7 @@ export const useWalletStore = defineStore('wallet', () => {
       const route = payload.provider === 'phantom_transfer'
         ? 'phantom-intent'
         : 'card-intent';
+      const idempotencyKey = crypto.randomUUID();
       const res = await fetch(`${API_BASE}/wallets/kwamis/${kwamiId}/fund/${route}`, {
         method: 'POST',
         headers,
@@ -148,6 +149,7 @@ export const useWalletStore = defineStore('wallet', () => {
           amount: payload.amount,
           amountUsd: payload.amountUsd,
           senderWalletPubkey: phantomPubkey.value,
+          idempotencyKey,
         }),
       });
       const data = await parseJson<{ intent: FundingIntent }>(res);
