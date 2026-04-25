@@ -141,6 +141,18 @@ export const useVoiceStore = defineStore('voice', () => {
       curiosity: 0,
       creativity: 0,
     },
+    emotionalTraitWeights: {
+      happiness: 1.1,
+      energy: 1.0,
+      confidence: 1.2,
+      calmness: 1.25,
+      optimism: 1.05,
+      socialness: 0.9,
+      creativity: 0.9,
+      patience: 1.15,
+      empathy: 1.35,
+      curiosity: 0.95,
+    },
   });
 
   // Memory panel UI state
