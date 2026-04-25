@@ -118,13 +118,25 @@ export const useVoiceStore = defineStore('voice', () => {
     conversationStyle: 'friendly',
     language: 'en',
     responseLength: 'medium' as 'short' | 'medium' | 'long',
-    emotionalTone: 'neutral' as 'neutral' | 'warm' | 'enthusiastic' | 'calm',
+    emotionalTone: 'neutral' as
+      | 'neutral'
+      | 'warm'
+      | 'enthusiastic'
+      | 'calm'
+      | 'playful'
+      | 'confident'
+      | 'serious'
+      | 'compassionate',
     systemPrompt: '',
     traits: [] as string[],
     emotionalTraits: {
       happiness: 0,
       energy: 0,
       confidence: 0,
+      calmness: 0,
+      optimism: 0,
+      socialness: 0,
+      patience: 0,
       empathy: 0,
       curiosity: 0,
       creativity: 0,

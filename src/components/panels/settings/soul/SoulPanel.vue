@@ -44,6 +44,17 @@ const filteredTemplates = computed(() => {
   return soulPresets.filter(t => t.category === selectedCategory.value);
 });
 
+const emotionalToneOptions = [
+  { id: 'neutral', icon: 'ph:minus-duotone' },
+  { id: 'warm', icon: 'ph:sun-duotone' },
+  { id: 'enthusiastic', icon: 'ph:lightning-duotone' },
+  { id: 'calm', icon: 'ph:moon-stars-duotone' },
+  { id: 'playful', icon: 'ph:confetti-duotone' },
+  { id: 'confident', icon: 'ph:shield-check-duotone' },
+  { id: 'serious', icon: 'ph:scales-duotone' },
+  { id: 'compassionate', icon: 'ph:hands-praying-duotone' },
+] as const;
+
 function selectCategory(categoryId: string | null) {
   selectedCategory.value = selectedCategory.value === categoryId ? null : categoryId;
 }
@@ -60,7 +71,15 @@ function applyTemplate(template: SoulPreset) {
     traits: [...template.traits],
     conversationStyle: template.conversationStyle,
     responseLength: template.responseLength,
-    emotionalTone: template.emotionalTone as 'neutral' | 'warm' | 'enthusiastic' | 'calm',
+    emotionalTone: template.emotionalTone as
+      | 'neutral'
+      | 'warm'
+      | 'enthusiastic'
+      | 'calm'
+      | 'playful'
+      | 'confident'
+      | 'serious'
+      | 'compassionate',
     emotionalTraits: { ...template.emotionalTraits },
   };
 
@@ -96,7 +115,15 @@ const config = reactive({
   personality: '',
   conversationStyle: '',
   responseLength: 'medium' as 'short' | 'medium' | 'long',
-  emotionalTone: 'neutral' as 'neutral' | 'warm' | 'enthusiastic' | 'calm',
+  emotionalTone: 'neutral' as
+    | 'neutral'
+    | 'warm'
+    | 'enthusiastic'
+    | 'calm'
+    | 'playful'
+    | 'confident'
+    | 'serious'
+    | 'compassionate',
   systemPrompt: '',
 });
 
@@ -106,18 +133,26 @@ const emotionalTraits = reactive({
   happiness: 0,
   energy: 0,
   confidence: 0,
+  calmness: 0,
+  optimism: 0,
+  socialness: 0,
+  patience: 0,
   empathy: 0,
   curiosity: 0,
   creativity: 0,
 });
 
 const emotionalTraitDefs = computed(() => ([
-  { key: 'happiness', label: t('soulPanel.happiness'), icon: 'ph:smiley-duotone' },
-  { key: 'energy', label: t('soulPanel.energy'), icon: 'ph:lightning-duotone' },
-  { key: 'confidence', label: t('soulPanel.confidence'), icon: 'ph:trophy-duotone' },
-  { key: 'empathy', label: t('soulPanel.empathy'), icon: 'ph:heart-duotone' },
-  { key: 'curiosity', label: t('soulPanel.curiosity'), icon: 'ph:magnifying-glass-duotone' },
-  { key: 'creativity', label: t('soulPanel.creativity'), icon: 'ph:paint-brush-duotone' },
+  { key: 'happiness', label: t('soulPanel.happinessPair'), leftLabel: t('soulPanel.sadness'), rightLabel: t('soulPanel.happiness') },
+  { key: 'energy', label: t('soulPanel.energyPair'), leftLabel: t('soulPanel.exhausted'), rightLabel: t('soulPanel.energized') },
+  { key: 'confidence', label: t('soulPanel.confidencePair'), leftLabel: t('soulPanel.insecure'), rightLabel: t('soulPanel.confident') },
+  { key: 'calmness', label: t('soulPanel.calmnessPair'), leftLabel: t('soulPanel.anxious'), rightLabel: t('soulPanel.calm') },
+  { key: 'optimism', label: t('soulPanel.optimismPair'), leftLabel: t('soulPanel.pessimistic'), rightLabel: t('soulPanel.optimistic') },
+  { key: 'socialness', label: t('soulPanel.socialnessPair'), leftLabel: t('soulPanel.reserved'), rightLabel: t('soulPanel.social') },
+  { key: 'empathy', label: t('soulPanel.empathyPair'), leftLabel: t('soulPanel.detached'), rightLabel: t('soulPanel.empathic') },
+  { key: 'curiosity', label: t('soulPanel.curiosityPair'), leftLabel: t('soulPanel.indifferent'), rightLabel: t('soulPanel.curious') },
+  { key: 'creativity', label: t('soulPanel.creativityPair'), leftLabel: t('soulPanel.rigid'), rightLabel: t('soulPanel.creative') },
+  { key: 'patience', label: t('soulPanel.patiencePair'), leftLabel: t('soulPanel.irritable'), rightLabel: t('soulPanel.patient') },
 ]) as const);
 
 // Sync from Kwami and mirror to persisted store
@@ -471,26 +506,17 @@ onMounted(() => {
         </div>
         <div class="option-group">
           <span class="option-label">{{ t('soulPanel.emotionalTone') }}</span>
+          <p class="tone-hint">{{ t('soulPanel.emotionalToneHint') }}</p>
           <div class="tone-selector">
             <div
-              v-for="tone in ['neutral', 'warm', 'enthusiastic', 'calm']"
-              :key="tone"
+              v-for="tone in emotionalToneOptions"
+              :key="tone.id"
               class="tone-option"
-              :class="{ active: config.emotionalTone === tone }"
-              @click="config.emotionalTone = tone as any"
+              :class="{ active: config.emotionalTone === tone.id }"
+              @click="config.emotionalTone = tone.id"
             >
-              <iconify-icon
-                :icon="
-                  tone === 'neutral'
-                    ? 'ph:minus-duotone'
-                    : tone === 'warm'
-                      ? 'ph:sun-duotone'
-                      : tone === 'enthusiastic'
-                        ? 'ph:lightning-duotone'
-                        : 'ph:moon-stars-duotone'
-                "
-              ></iconify-icon>
-              <span>{{ t(`soulPanel.${tone}`) }}</span>
+              <iconify-icon :icon="tone.icon"></iconify-icon>
+              <span>{{ t(`soulPanel.${tone.id}`) }}</span>
             </div>
           </div>
         </div>
@@ -498,6 +524,7 @@ onMounted(() => {
 
       <!-- Emotional Traits -->
       <PanelSection :title="t('soulPanel.emotionalTraits')">
+        <p class="traits-hint">{{ t('soulPanel.emotionalTraitsHint') }}</p>
         <div class="slider-group">
           <div v-for="trait in emotionalTraitDefs" :key="trait.key" class="trait-slider">
             <BaseSlider
@@ -507,6 +534,11 @@ onMounted(() => {
               :step="1"
               v-model="emotionalTraits[trait.key]"
             />
+            <div class="trait-range-labels">
+              <span class="trait-negative">{{ trait.leftLabel }} (-100)</span>
+              <span class="trait-neutral">{{ t('soulPanel.neutralPoint') }} (0)</span>
+              <span class="trait-positive">{{ trait.rightLabel }} (+100)</span>
+            </div>
           </div>
         </div>
       </PanelSection>
@@ -614,7 +646,7 @@ textarea {
 
 .tone-selector {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
 .tone-option {
@@ -641,8 +673,45 @@ textarea {
   font-size: 11px;
 }
 
+.tone-hint,
+.traits-hint {
+  margin: 0 0 8px 0;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  line-height: 1.35;
+}
+
 .trait-slider {
   margin-bottom: 8px;
+}
+
+.trait-range-labels {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 4px;
+  font-size: 10px;
+}
+
+.trait-range-labels span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.trait-negative {
+  color: #ef4444;
+  text-align: left;
+}
+
+.trait-neutral {
+  color: var(--text-tertiary);
+  text-align: center;
+}
+
+.trait-positive {
+  color: #22c55e;
+  text-align: right;
 }
 .row {
   display: grid;
