@@ -15,6 +15,7 @@ import {
   purchaseKwamiNumber,
   releaseKwamiPhone,
   searchKwamiNumbers,
+  sendSmsMessage,
   sendWhatsappMessage,
   startOutboundCall,
   startTwilioDirectTestCall,
@@ -23,7 +24,7 @@ import {
   type NumberSearchResult,
 } from '@/composables/useCommunicationsApi';
 
-type CommunicationsPanelMode = 'all' | 'phone' | 'whatsapp';
+type CommunicationsPanelMode = 'all' | 'phone' | 'whatsapp' | 'sms';
 
 const props = withDefaults(
   defineProps<{
@@ -59,22 +60,28 @@ const activeKwamiName = computed(() => workspaceStore.getActiveWorkspace()?.name
 const panelTitle = computed(() => {
   if (props.mode === 'phone') return t('sidebar.panels.phone');
   if (props.mode === 'whatsapp') return t('sidebar.panels.whatsapp');
+  if (props.mode === 'sms') return t('sidebar.panels.sms');
   return t('communications.title');
 });
 const panelIcon = computed(() => {
   if (props.mode === 'phone') return panelIcons.phone;
   if (props.mode === 'whatsapp') return panelIcons.whatsapp;
+  if (props.mode === 'sms') return panelIcons.sms;
   return panelIcons.communications;
 });
 const showOverview = computed(() => props.mode === 'all');
 const showPhoneSections = computed(() => props.mode === 'all' || props.mode === 'phone');
 const showWhatsappSections = computed(() => props.mode === 'all' || props.mode === 'whatsapp');
+const showSmsSections = computed(() => props.mode === 'all' || props.mode === 'sms');
 
 const voiceChannels = computed(() =>
   (snapshot.value?.channels || []).filter((channel) => channel.kind === 'voice_phone'),
 );
 const whatsappChannels = computed(() =>
   (snapshot.value?.channels || []).filter((channel) => channel.kind === 'whatsapp'),
+);
+const smsChannels = computed(() =>
+  (snapshot.value?.channels || []).filter((channel) => channel.kind === 'sms'),
 );
 const recentCalls = computed(() => snapshot.value?.events.calls || []);
 const recentMessages = computed(() => snapshot.value?.events.messages || []);
@@ -92,6 +99,12 @@ const selectedWhatsappChannel = computed<ChannelRecord | null>(() => {
   const preferred = communicationsStore.preferredWhatsappChannelId;
   return channels.find((channel) => channel.id === preferred) || channels[0] || null;
 });
+const selectedSmsChannel = computed<ChannelRecord | null>(() => {
+  const channels = smsChannels.value;
+  if (channels.length === 0) return null;
+  const preferred = communicationsStore.preferredSmsChannelId;
+  return channels.find((channel) => channel.id === preferred) || channels[0] || null;
+});
 
 watch(selectedVoiceChannel, (channel) => {
   communicationsStore.preferredVoiceChannelId = channel?.id || null;
@@ -100,6 +113,9 @@ watch(selectedVoiceChannel, (channel) => {
 watch(selectedWhatsappChannel, (channel) => {
   communicationsStore.preferredWhatsappChannelId = channel?.id || null;
   whatsappSender.value = channel?.provider_sender || '';
+});
+watch(selectedSmsChannel, (channel) => {
+  communicationsStore.preferredSmsChannelId = channel?.id || null;
 });
 
 watch(
@@ -310,6 +326,28 @@ async function sendMessage() {
   }
 }
 
+async function sendSms() {
+  if (!activeKwamiId.value || !communicationsStore.compose.messageTarget.trim()) return;
+  sending.value = true;
+  error.value = '';
+  statusMessage.value = '';
+  try {
+    await sendSmsMessage({
+      kwamiId: activeKwamiId.value,
+      toNumber: communicationsStore.compose.messageTarget.trim(),
+      body: communicationsStore.compose.messageBody.trim(),
+      channelId: selectedSmsChannel.value?.id,
+    });
+    statusMessage.value = t('communications.smsSent');
+    communicationsStore.compose.messageBody = '';
+    await loadCommunications(activeKwamiId.value);
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : String(err);
+  } finally {
+    sending.value = false;
+  }
+}
+
 function refreshCurrentKwami() {
   if (activeKwamiId.value) void loadCommunications(activeKwamiId.value);
 }
@@ -357,6 +395,10 @@ const anyCallInProgress = computed(() => callingTwilioDirect.value || callingWit
           <div class="summary-card">
             <span class="summary-label">{{ t('communications.whatsappSenders') }}</span>
             <strong>{{ whatsappChannels.length }}</strong>
+          </div>
+          <div class="summary-card">
+            <span class="summary-label">{{ t('communications.smsSenders') }}</span>
+            <strong>{{ smsChannels.length }}</strong>
           </div>
           <div class="summary-card">
             <span class="summary-label">{{ t('communications.latestRuntime') }}</span>
@@ -551,6 +593,43 @@ const anyCallInProgress = computed(() => callingTwilioDirect.value || callingWit
           @click="sendMessage"
         >
           {{ t('communications.sendWhatsapp') }}
+        </BaseButton>
+      </PanelSection>
+
+      <PanelSection v-if="showSmsSections" :title="t('communications.sms')" icon="ph:chat-text-duotone" collapsible>
+        <div v-if="selectedSmsChannel" class="channel-card">
+          <div class="channel-row">
+            <span>{{ t('communications.sender') }}</span>
+            <strong>{{ selectedSmsChannel.phone_number }}</strong>
+          </div>
+          <div class="channel-row">
+            <span>{{ t('communications.status') }}</span>
+            <strong>{{ selectedSmsChannel.status }}</strong>
+          </div>
+        </div>
+        <p v-else class="muted-text">{{ t('communications.noSmsSender') }}</p>
+        <BaseInput
+          v-model="communicationsStore.compose.messageTarget"
+          :label="t('communications.recipient')"
+          placeholder="+14155550123"
+          mono
+        />
+        <div class="message-field">
+          <label>{{ t('communications.message') }}</label>
+          <textarea
+            v-model="communicationsStore.compose.messageBody"
+            :placeholder="t('communications.smsPlaceholder')"
+          ></textarea>
+        </div>
+        <BaseButton
+          variant="primary"
+          block
+          icon="ph:paper-plane-tilt-duotone"
+          :loading="sending"
+          :disabled="!selectedSmsChannel || !communicationsStore.compose.messageBody.trim()"
+          @click="sendSms"
+        >
+          {{ t('communications.sendSms') }}
         </BaseButton>
       </PanelSection>
 

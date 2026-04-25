@@ -18,6 +18,7 @@ export const panelIcons: Record<string, string> = {
   communications: 'ph:phone-call-duotone',
   phone: 'ph:phone-duotone',
   whatsapp: 'mdi:whatsapp',
+  sms: 'ph:chat-text-duotone',
   info: 'ph:info-duotone',
   account: 'ph:user-duotone',
   theme: 'ph:palette-duotone',

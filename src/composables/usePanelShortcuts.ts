@@ -21,6 +21,7 @@ const APPS_PANEL_KEYS: (string | null)[] = [
   'email',
   'phone',
   'whatsapp',
+  'sms',
   'history',
   'wallet',
   'calendar',

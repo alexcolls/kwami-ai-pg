@@ -32,6 +32,7 @@ import WalletPanel from '@/components/panels/apps/wallet/WalletPanel.vue';
 import CalendarPanel from '@/components/panels/apps/calendar/CalendarPanel.vue';
 import PhonePanel from '@/components/panels/apps/phone/PhonePanel.vue';
 import WhatsappPanel from '@/components/panels/apps/whatsapp/WhatsappPanel.vue';
+import SmsPanel from '@/components/panels/apps/sms/SmsPanel.vue';
 import EnergyBadge from '@/components/energy/EnergyBadge.vue';
 import SearchOrbitCards from '@/components/search/SearchOrbitCards.vue';
 import SidebarModeSwitch from '@/components/sidebar/SidebarModeSwitch.vue';
@@ -413,6 +414,7 @@ onUnmounted(() => {
           <CalendarPanel v-if="uiStore.activePanel === 'calendar'" />
           <PhonePanel v-if="uiStore.activePanel === 'phone'" />
           <WhatsappPanel v-if="uiStore.activePanel === 'whatsapp'" />
+          <SmsPanel v-if="uiStore.activePanel === 'sms'" />
         </TheSidebar>
       </template>
     </div>

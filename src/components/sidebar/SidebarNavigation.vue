@@ -175,7 +175,7 @@ function panelTitle(panel: string): string {
         <div class="nav-group">
           <span class="switcher-label">{{ t('sidebar.apps') }}</span>
           <button
-            v-for="p in ['contacts', 'email', 'phone', 'whatsapp', 'history', 'wallet', 'calendar']"
+            v-for="p in ['contacts', 'email', 'phone', 'whatsapp', 'sms', 'history', 'wallet', 'calendar']"
             :key="p"
             class="nav-btn"
             :class="{ active: uiStore.activePanel === p && uiStore.isPanelOpen }"

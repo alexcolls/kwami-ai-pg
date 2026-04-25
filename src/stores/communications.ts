@@ -6,6 +6,7 @@ const STORAGE_KEY = 'kwami-communications-config';
 type Snapshot = {
   preferredVoiceChannelId: string | null;
   preferredWhatsappChannelId: string | null;
+  preferredSmsChannelId: string | null;
   numberSearch: {
     countryCode: string;
     areaCode: string;
@@ -22,6 +23,7 @@ function defaultSnapshot(): Snapshot {
   return {
     preferredVoiceChannelId: null,
     preferredWhatsappChannelId: null,
+    preferredSmsChannelId: null,
     numberSearch: {
       countryCode: 'US',
       areaCode: '',
@@ -38,6 +40,7 @@ function defaultSnapshot(): Snapshot {
 export const useCommunicationsStore = defineStore('communications', () => {
   const preferredVoiceChannelId = ref<string | null>(null);
   const preferredWhatsappChannelId = ref<string | null>(null);
+  const preferredSmsChannelId = ref<string | null>(null);
   const numberSearch = ref(defaultSnapshot().numberSearch);
   const compose = ref(defaultSnapshot().compose);
 
@@ -48,6 +51,9 @@ export const useCommunicationsStore = defineStore('communications', () => {
     }
     if (typeof snapshot.preferredWhatsappChannelId === 'string' || snapshot.preferredWhatsappChannelId === null) {
       preferredWhatsappChannelId.value = snapshot.preferredWhatsappChannelId as string | null;
+    }
+    if (typeof snapshot.preferredSmsChannelId === 'string' || snapshot.preferredSmsChannelId === null) {
+      preferredSmsChannelId.value = snapshot.preferredSmsChannelId as string | null;
     }
     if (snapshot.numberSearch && typeof snapshot.numberSearch === 'object') {
       numberSearch.value = { ...numberSearch.value, ...snapshot.numberSearch };
@@ -61,6 +67,7 @@ export const useCommunicationsStore = defineStore('communications', () => {
     return {
       preferredVoiceChannelId: preferredVoiceChannelId.value,
       preferredWhatsappChannelId: preferredWhatsappChannelId.value,
+      preferredSmsChannelId: preferredSmsChannelId.value,
       numberSearch: { ...numberSearch.value },
       compose: { ...compose.value },
     };
@@ -82,13 +89,14 @@ export const useCommunicationsStore = defineStore('communications', () => {
 
   loadSettings();
 
-  watch([preferredVoiceChannelId, preferredWhatsappChannelId, numberSearch, compose], saveSettings, {
+  watch([preferredVoiceChannelId, preferredWhatsappChannelId, preferredSmsChannelId, numberSearch, compose], saveSettings, {
     deep: true,
   });
 
   return {
     preferredVoiceChannelId,
     preferredWhatsappChannelId,
+    preferredSmsChannelId,
     numberSearch,
     compose,
     applySnapshot,

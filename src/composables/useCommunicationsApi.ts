@@ -5,7 +5,7 @@ const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 export interface ChannelRecord {
   id: string;
   kwami_id: string;
-  kind: 'voice_phone' | 'whatsapp';
+  kind: 'voice_phone' | 'whatsapp' | 'sms';
   provider: string;
   status: string;
   phone_number: string;
@@ -212,7 +212,22 @@ export async function sendWhatsappMessage(payload: {
   const res = await fetch(`${API_BASE}/channels/messages/outbound`, {
     method: 'POST',
     headers,
-    body: JSON.stringify(payload),
+    body: JSON.stringify({ ...payload, channelKind: 'whatsapp' }),
+  });
+  return parseJson(res);
+}
+
+export async function sendSmsMessage(payload: {
+  kwamiId: string;
+  toNumber: string;
+  body: string;
+  channelId?: string;
+}) {
+  const headers = await authHeaders();
+  const res = await fetch(`${API_BASE}/channels/messages/outbound`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ ...payload, channelKind: 'sms' }),
   });
   return parseJson(res);
 }
