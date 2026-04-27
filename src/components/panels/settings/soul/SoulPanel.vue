@@ -81,7 +81,6 @@ function applyTemplate(template: SoulPreset) {
       | 'serious'
       | 'compassionate',
     emotionalTraits: { ...template.emotionalTraits },
-    emotionalTraitWeights: { ...emotionalTraitWeights },
   };
 
   kwami.value.soul.updateConfig(soulConfig);
@@ -110,30 +109,6 @@ function syncSoulToBackend(soulConfig?: Record<string, unknown>) {
 
   kwami.value.agent.syncConfigToBackend('soul', configToSync);
   console.log('📤 Synced soul to backend:', configToSync);
-}
-
-function getDerivedExpressiveTtsSpeed(): number {
-  const toneOffsets: Record<string, number> = {
-    neutral: 0,
-    warm: 0.02,
-    enthusiastic: 0.1,
-    calm: -0.08,
-    playful: 0.07,
-    confident: 0.04,
-    serious: -0.05,
-    compassionate: -0.03,
-  };
-  const toneOffset = toneOffsets[config.emotionalTone] ?? 0;
-  const energyBoost = emotionalTraits.energy * 0.0012;
-  const calmnessDamp = emotionalTraits.calmness * 0.0007;
-  const confidenceBoost = emotionalTraits.confidence * 0.0005;
-  const speed = 1.0 + toneOffset + energyBoost - calmnessDamp + confidenceBoost;
-  return Math.max(0.8, Math.min(1.25, Number(speed.toFixed(2))));
-}
-
-function syncExpressiveVoiceToBackend() {
-  if (!kwami.value || !isConnected.value) return;
-  kwami.value.agent.updateTtsLive({ speed: getDerivedExpressiveTtsSpeed() });
 }
 
 // State
@@ -169,19 +144,6 @@ const emotionalTraits = reactive({
   creativity: 0,
 });
 
-const emotionalTraitWeights = reactive({
-  happiness: 1.1,
-  energy: 1.0,
-  confidence: 1.2,
-  calmness: 1.25,
-  optimism: 1.05,
-  socialness: 0.9,
-  empathy: 1.35,
-  curiosity: 0.95,
-  creativity: 0.9,
-  patience: 1.15,
-});
-
 const emotionalTraitDefs = computed(() => ([
   { key: 'happiness', label: t('soulPanel.happinessPair'), leftLabel: t('soulPanel.sadness'), rightLabel: t('soulPanel.happiness') },
   { key: 'energy', label: t('soulPanel.energyPair'), leftLabel: t('soulPanel.exhausted'), rightLabel: t('soulPanel.energized') },
@@ -193,19 +155,6 @@ const emotionalTraitDefs = computed(() => ([
   { key: 'curiosity', label: t('soulPanel.curiosityPair'), leftLabel: t('soulPanel.indifferent'), rightLabel: t('soulPanel.curious') },
   { key: 'creativity', label: t('soulPanel.creativityPair'), leftLabel: t('soulPanel.rigid'), rightLabel: t('soulPanel.creative') },
   { key: 'patience', label: t('soulPanel.patiencePair'), leftLabel: t('soulPanel.irritable'), rightLabel: t('soulPanel.patient') },
-]) as const);
-
-const emotionalWeightDefs = computed(() => ([
-  { key: 'happiness', label: t('soulPanel.happiness') },
-  { key: 'energy', label: t('soulPanel.energy') },
-  { key: 'confidence', label: t('soulPanel.confidence') },
-  { key: 'calmness', label: t('soulPanel.calmness') },
-  { key: 'optimism', label: t('soulPanel.optimism') },
-  { key: 'socialness', label: t('soulPanel.socialness') },
-  { key: 'empathy', label: t('soulPanel.empathy') },
-  { key: 'curiosity', label: t('soulPanel.curiosity') },
-  { key: 'creativity', label: t('soulPanel.creativity') },
-  { key: 'patience', label: t('soulPanel.patience') },
 ]) as const);
 
 // Sync from Kwami and mirror to persisted store
@@ -230,9 +179,6 @@ function syncFromKwami() {
     if (pConfig.emotionalTraits) {
       Object.assign(emotionalTraits, pConfig.emotionalTraits);
     }
-    if (pConfig.emotionalTraitWeights) {
-      Object.assign(emotionalTraitWeights, pConfig.emotionalTraitWeights);
-    }
 
     // Mirror to store for persistence across reloads
     saveToStore();
@@ -253,7 +199,6 @@ function saveToStore() {
     systemPrompt: config.systemPrompt,
     traits: [...traits.value],
     emotionalTraits: { ...emotionalTraits },
-    emotionalTraitWeights: { ...emotionalTraitWeights },
   };
 }
 
@@ -273,7 +218,6 @@ function restoreSavedSoulToKwami() {
     responseLength: saved.responseLength,
     emotionalTone: saved.emotionalTone,
     emotionalTraits: { ...saved.emotionalTraits },
-    emotionalTraitWeights: { ...saved.emotionalTraitWeights },
   });
 }
 
@@ -320,7 +264,6 @@ watch(() => config.emotionalTone, (v) => {
   if (!isSyncing && kwami.value) {
     kwami.value.soul.setEmotionalTone(v);
     syncSoulToBackend();
-    syncExpressiveVoiceToBackend();
     saveToStore();
   }
 });
@@ -342,16 +285,6 @@ watch(emotionalTraits, (v) => {
       );
     });
     syncSoulToBackend();
-    syncExpressiveVoiceToBackend();
-    saveToStore();
-  }
-}, { deep: true });
-
-watch(emotionalTraitWeights, () => {
-  if (!isSyncing && kwami.value) {
-    kwami.value.soul.updateConfig({ emotionalTraitWeights: { ...emotionalTraitWeights } });
-    syncSoulToBackend();
-    syncExpressiveVoiceToBackend();
     saveToStore();
   }
 }, { deep: true });
@@ -392,7 +325,6 @@ function importSoul() {
       toast.success(t('soulPanel.soulImported'));
       syncFromKwami();
       syncSoulToBackend();
-      syncExpressiveVoiceToBackend();
     } catch (error) {
       toast.error(
         t('soulPanel.soulImportFailed', { message: translateApiUserMessage((error as Error).message, t) }),
@@ -417,7 +349,6 @@ function resetSoul() {
     toast.success(t('soulPanel.soulReset'));
     syncFromKwami();
     syncSoulToBackend();
-    syncExpressiveVoiceToBackend();
   }
 }
 
@@ -427,7 +358,6 @@ watch(isConnected, (connected) => {
   // When becoming connected, also push soul config to the backend agent
   if (connected) {
     syncSoulToBackend();
-    syncExpressiveVoiceToBackend();
   }
 });
 
@@ -611,21 +541,6 @@ onMounted(() => {
               <span class="trait-neutral">{{ t('soulPanel.neutralPoint') }} (0)</span>
               <span class="trait-positive">{{ trait.rightLabel }} (+100)</span>
             </div>
-          </div>
-        </div>
-      </PanelSection>
-
-      <PanelSection :title="t('soulPanel.advancedEmotionTuning')">
-        <p class="traits-hint">{{ t('soulPanel.advancedEmotionTuningHint') }}</p>
-        <div class="slider-group">
-          <div v-for="trait in emotionalWeightDefs" :key="trait.key" class="trait-slider">
-            <BaseSlider
-              :label="trait.label"
-              :min="0.5"
-              :max="1.5"
-              :step="0.05"
-              v-model="emotionalTraitWeights[trait.key]"
-            />
           </div>
         </div>
       </PanelSection>

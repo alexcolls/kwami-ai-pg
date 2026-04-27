@@ -16,7 +16,7 @@ import ScenePanel from '@/components/panels/settings/scene/ScenePanel.vue';
 import VoicePanel from '@/components/panels/settings/voice/VoicePanel.vue';
 import EnhancementsPanel from '@/components/panels/settings/enhancements/EnhancementsPanel.vue';
 import HistoryPanel from '@/components/panels/settings/transcription/TranscriptionPanel.vue';
-import CommunicationsPanel from '@/components/panels/settings/communications/CommunicationsPanel.vue';
+import PhonePanelSettings from '@/components/panels/settings/communications/PhonePanel.vue';
 import SoulPanel from '@/components/panels/settings/soul/SoulPanel.vue';
 import MemoryPanel from '@/components/panels/settings/memory/MemoryPanel.vue';
 import ToolsPanel from '@/components/panels/settings/tools/ToolsPanel.vue';
@@ -398,7 +398,7 @@ onUnmounted(() => {
           <VoicePanel v-if="uiStore.activePanel === 'voice'" />
           <EnhancementsPanel v-if="uiStore.activePanel === 'enhancements'" />
           <HistoryPanel v-if="uiStore.activePanel === 'history'" />
-          <CommunicationsPanel v-if="uiStore.activePanel === 'communications'" />
+          <PhonePanelSettings v-if="uiStore.activePanel === 'communications'" />
           <SoulPanel v-if="uiStore.activePanel === 'soul'" />
           <MemoryPanel v-if="uiStore.activePanel === 'memory'" />
           <ToolsPanel v-if="uiStore.activePanel === 'tools'" />

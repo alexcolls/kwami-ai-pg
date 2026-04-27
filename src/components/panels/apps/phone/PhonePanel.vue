@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import CommunicationsPanel from '@/components/panels/settings/communications/CommunicationsPanel.vue';
+import PhonePanel from '@/components/panels/settings/communications/PhonePanel.vue';
 </script>
 
 <template>
-  <CommunicationsPanel mode="phone" />
+  <PhonePanel mode="phone" />
 </template>
